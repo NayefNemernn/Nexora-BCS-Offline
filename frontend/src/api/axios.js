@@ -1,3 +1,4 @@
+import { isOnline } from "../lib/connectivity";
 import axios from "axios";
 import { getCachedProducts, getCachedCategories, getCachedCustomers } from "../lib/offlineDB";
 
@@ -27,7 +28,7 @@ api.interceptors.response.use(
   (res) => res,
   async (err) => {
     const { config } = err;
-    if (!navigator.onLine && config?.method === "get") {
+    if (!isOnline() && config?.method === "get") {
       const path = config.url?.replace(/\?.*$/, "") || "";
       let cached = null;
       if (path.includes("/products"))   cached = await getCachedProducts().catch(() => null);

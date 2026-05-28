@@ -1,3 +1,4 @@
+import { isOnline } from "../lib/connectivity";
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { createSale } from "../api/sale.api";
 import { createHoldSale } from "../api/holdSale.api";
@@ -266,7 +267,7 @@ export default function CheckoutModal({ cart, total, close, clearCart, deliveryO
 
     /* if paylater only — use holdSale flow (online) or mutation queue (offline) */
     if (method === "paylater") {
-      if (!navigator.onLine) {
+      if (!isOnline()) {
         /* queue to /api/hold-sales so it syncs to the correct endpoint */
         const offlinePayload = {
           customerName: selectedCustomer?.name || customerSearch.trim() || "",
@@ -331,7 +332,7 @@ export default function CheckoutModal({ cart, total, close, clearCart, deliveryO
       }
 
       let saleResult;
-      if (navigator.onLine) {
+      if (isOnline()) {
         const res = await createSale(payload);
         saleResult = res.sale;
         clearCart();
@@ -584,7 +585,7 @@ export default function CheckoutModal({ cart, total, close, clearCart, deliveryO
             <div className={`grid gap-2 ${METHODS.length <= 4 ? "grid-cols-4" : "grid-cols-3"}`}>
               {METHODS.map(({ id, label, Icon, color }) => {
                 const isActive  = method === id;
-                const disabled  = id === "paylater" && !navigator.onLine;
+                const disabled  = id === "paylater" && !isOnline();
                 return (
                   <button key={id}
                     onClick={() => { if (disabled) { toast.error("Pay Later requires internet"); return; } setMethod(id); }}

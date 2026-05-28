@@ -1,3 +1,4 @@
+import { isOnline } from "../lib/connectivity";
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { logout as logoutApi } from "../api/auth.api";
 import { getMyStore } from "../api/store.api";
@@ -76,7 +77,7 @@ export const AuthProvider = ({ children }) => {
         // cached response from the SW or a transient failure; don't boot the user.
         const is401    = error.response?.status === 401;
         const hasToken = !!localStorage.getItem("token");
-        const online   = navigator.onLine;
+        const online   = isOnline();
         if (is401 && hasToken && online) {
           localStorage.removeItem("token");
           localStorage.removeItem("user");

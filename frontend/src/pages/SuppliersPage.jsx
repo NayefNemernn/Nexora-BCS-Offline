@@ -1,3 +1,4 @@
+import { isOnline } from "../lib/connectivity";
 import React, { useEffect, useState } from "react";
 import api from "../api/axios";
 import toast from "react-hot-toast";
@@ -49,7 +50,7 @@ export default function SuppliersPage() {
 
   const handleCreateSupplier = async (e) => {
     e.preventDefault();
-    if (!navigator.onLine) {
+    if (!isOnline()) {
       await queueMutation("create_supplier", "/api/suppliers", "POST", supForm);
       const fake = { _id: "offline-" + Date.now(), ...supForm };
       const updated = [...suppliers, fake];
@@ -66,7 +67,7 @@ export default function SuppliersPage() {
 
   const handleDeleteSupplier = async (id) => {
     if (!confirm(t.deleteSupplierConfirm)) return;
-    if (!navigator.onLine) {
+    if (!isOnline()) {
       if (!id.startsWith("offline-")) {
         await queueMutation("delete_supplier", `/api/suppliers/${id}`, "DELETE");
       }
@@ -92,7 +93,7 @@ export default function SuppliersPage() {
   const handleCreateOrder = async (e) => {
     e.preventDefault();
     if (!orderForm.items.length) return toast.error(t.addAtLeastOneItem);
-    if (!navigator.onLine) {
+    if (!isOnline()) {
       await queueMutation("create_purchase_order", "/api/suppliers/orders", "POST", orderForm);
       const fake = { _id: "offline-" + Date.now(), ...orderForm, totalCost: orderForm.items.reduce((s, i) => s + i.quantity * i.costPerUnit, 0), receivedAt: new Date().toISOString(), username: "offline" };
       const updated = [fake, ...orders];
@@ -114,7 +115,7 @@ export default function SuppliersPage() {
 
   const handleDeleteOrder = async (id) => {
     if (!confirm(t.deleteOrderConfirm)) return;
-    if (!navigator.onLine) {
+    if (!isOnline()) {
       if (!id.toString().startsWith("offline-")) {
         await queueMutation("delete_purchase_order", `/api/suppliers/orders/${id}`, "DELETE");
       }

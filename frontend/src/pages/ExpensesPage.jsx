@@ -1,3 +1,4 @@
+import { isOnline } from "../lib/connectivity";
 import React, { useEffect, useState } from "react";
 import api from "../api/axios";
 import toast from "react-hot-toast";
@@ -52,7 +53,7 @@ export default function ExpensesPage() {
     e.preventDefault();
     if (!form.title || !form.amount) return toast.error(t.titleAmountRequired);
     const data = { ...form, amount: +form.amount };
-    if (!navigator.onLine) {
+    if (!isOnline()) {
       await saveExpenseOffline(data);
       toast.success("📴 Expense saved — will sync when connected");
       setShowForm(false);

@@ -1,3 +1,4 @@
+import { isOnline } from "../lib/connectivity";
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useLang } from "../context/LanguageContext";
 import {
@@ -67,7 +68,7 @@ export default function DashboardLayout({ children, page, setPage, user }) {
   const isPOS        = page === "pos";
 
   const [open,       setOpen]       = useState(false);
-  const [isOnline,   setIsOnline]   = useState(navigator.onLine);
+  const [isOnline,   setIsOnline]   = useState(isOnline());
   const [isMobile,   setIsMobile]   = useState(() => window.innerWidth < 640);
   const navRef                      = useRef(null);
 

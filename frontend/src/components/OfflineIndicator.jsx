@@ -39,6 +39,14 @@ export default function OfflineIndicator() {
   useEffect(() => {
     refreshCount();
 
+    // In Electron the backend is always local — drain any queued records immediately
+    if (IS_ELECTRON) {
+      sync().then(({ synced }) => {
+        if (synced > 0) toast.success(`✅ ${synced} queued record(s) synced to local database`);
+        refreshCount();
+      }).catch(() => {});
+    }
+
     const runSync = async () => {
       if (syncing) return;
       const count = await getPendingCount();
@@ -77,7 +85,7 @@ export default function OfflineIndicator() {
     /* every 30 s: auto-sync if online and there are pending items */
     const interval = setInterval(async () => {
       await refreshCount();
-      if (navigator.onLine) await runSync();
+      if (isOnline()) await runSync();
     }, 30000);
 
     return () => {

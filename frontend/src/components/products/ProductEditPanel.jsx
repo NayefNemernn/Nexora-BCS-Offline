@@ -1,3 +1,4 @@
+import { isOnline } from "../../lib/connectivity";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Plus, Minus, Printer, Tag, Package, TrendingUp, Save, RefreshCw, DollarSign, ShoppingCart, Calendar, Layers, Trash2, Loader2, Camera, Globe, Calculator } from "lucide-react";
 import VoiceButton from "../common/VoiceButton";
@@ -265,7 +266,7 @@ export default function ProductEditPanel({
     setSaving(true);
 
     /* ── Offline: queue as mutation (image changes require connection) ── */
-    if (!navigator.onLine) {
+    if (!isOnline()) {
       if (editImage) {
         toast.error("❌ Image changes require a connection — remove the image to save offline");
         setSaving(false);

@@ -1,3 +1,4 @@
+import { isOnline } from "../lib/connectivity";
 import { useEffect, useCallback } from "react";
 import { createSale } from "../api/sale.api";
 import { returnSale  } from "../api/sale.api";
@@ -74,7 +75,7 @@ export default function useOfflineSales() {
 
   /* ── sync: manual drain of both queues ─────────────────────── */
   const sync = useCallback(async () => {
-    if (!navigator.onLine) return { synced: 0, failed: 0 };
+    if (!isOnline()) return { synced: 0, failed: 0 };
 
     let synced = 0;
     let failed = 0;

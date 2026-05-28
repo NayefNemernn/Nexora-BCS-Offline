@@ -1,3 +1,4 @@
+import { isOnline } from "../lib/connectivity";
 import React, { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { useRefresh } from "../context/RefreshContext";
 import {
@@ -212,7 +213,7 @@ export default function Products() {
 
   const bulkDelete = async () => {
     if (!window.confirm(`${t.deleteProduct} (${selectedIds.size})`)) return;
-    if (!navigator.onLine) {
+    if (!isOnline()) {
       for (const id of selectedIds) {
         if (!id.startsWith("offline-")) {
           await queueMutation("delete_product", `/api/products/${id}`, "DELETE");
@@ -307,7 +308,7 @@ export default function Products() {
     if (dup && !window.confirm(`"${dup.name}" ${t.alreadyExistsConfirm}`)) return;
 
     /* ── OFFLINE path (no image only) ── */
-    if (!navigator.onLine) {
+    if (!isOnline()) {
       if (image) {
         toast.error("❌ Image upload requires a connection — remove the image to save offline");
         return;
@@ -367,7 +368,7 @@ export default function Products() {
   // ── Delete ────────────────────────────────────────────────────────────────
   const remove = async (id) => {
     if (!window.confirm(t.deleteProduct)) return;
-    if (!navigator.onLine) {
+    if (!isOnline()) {
       if (!id.startsWith("offline-")) {
         await queueMutation("delete_product", `/api/products/${id}`, "DELETE");
       }

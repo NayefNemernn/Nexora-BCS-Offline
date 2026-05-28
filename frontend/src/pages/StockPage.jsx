@@ -1,3 +1,4 @@
+import { isOnline } from "../lib/connectivity";
 import React, { useEffect, useRef, useState } from "react";
 import api from "../api/axios";
 import toast from "react-hot-toast";
@@ -114,7 +115,7 @@ export default function StockPage() {
   // ── Showroom adjust ──────────────────────────────────────────────────────
   const handleAdjust = async () => {
     if (!adjustForm.change || adjustForm.change === "0") return toast.error(t.enterQuantity);
-    if (!navigator.onLine) {
+    if (!isOnline()) {
       const payload = { productId: adjustModal._id, change: +adjustForm.change, reason: adjustForm.reason, type: adjustForm.type };
       await queueMutation("stock_adjust", "/api/stock/adjust", "POST", payload);
       const updated = products.map(p => p._id === adjustModal._id ? { ...p, stock: Math.max(0, p.stock + +adjustForm.change) } : p);

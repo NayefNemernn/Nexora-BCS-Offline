@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>BCS Café — Complete Café Management System</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+@page{size:A4;margin:0}
+@media print{
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+  .pb{page-break-before:always}
+  .no-break{page-break-inside:avoid}
+}
+:root{
+  --p:#92400e;--pl:#b45309;--a:#d97706;--al:#f59e0b;
+  --p2:#7c3aed;
+  --dk:#1c0a00;--dk2:#3b1f0a;--gr:#78716c;
+  --lt:#fffbf5;--wh:#ffffff;--bd:#e7d5c5;
+  --hl:#fef3c7;--hl2:#fef9f0;--hlp:#ede9fe
+}
+body{font-family:'Inter',system-ui,sans-serif;font-size:10pt;line-height:1.65;color:var(--dk);background:#fff}
+
+@media print{
+  .pb{page-break-before:always}
+  .no-break{page-break-inside:avoid}
+}
+
+/* ═══════════ COVER ═══════════ */
+.cover{
+  width:210mm;height:297mm;
+  background:linear-gradient(145deg,#0f0500 0%,#3d1500 45%,#92400e 100%);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  position:relative;overflow:hidden
+}
+.cr1{position:absolute;top:-50mm;right:-50mm;width:150mm;height:150mm;border-radius:50%;border:1px solid rgba(217,119,6,.2)}
+.cr2{position:absolute;top:-25mm;right:-25mm;width:90mm;height:90mm;border-radius:50%;border:1px solid rgba(217,119,6,.12)}
+.cr3{position:absolute;bottom:-60mm;left:-40mm;width:150mm;height:150mm;border-radius:50%;background:radial-gradient(circle,rgba(245,158,11,.1) 0%,transparent 70%)}
+.cr4{position:absolute;top:0;left:0;right:0;bottom:0;background:url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='0.02'%3E%3Ccircle cx='20' cy='20' r='2'/%3E%3C/g%3E%3C/svg%3E")}
+
+.cover-pill{background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.3);color:#fcd34d;font-size:7.5pt;font-weight:600;letter-spacing:2.5px;text-transform:uppercase;padding:5px 18px;border-radius:20px;margin-bottom:28px}
+.cover-emoji{font-size:54pt;margin-bottom:16px;filter:drop-shadow(0 4px 24px rgba(245,158,11,.3))}
+.cover-brand{font-size:40pt;font-weight:900;color:#fff;letter-spacing:-2px;line-height:1;margin-bottom:4px}
+.cover-brand span{color:#fbbf24}
+.cover-line{width:16mm;height:3px;background:linear-gradient(90deg,#d97706,#f59e0b,#fbbf24);border-radius:2px;margin:12px auto 18px}
+.cover-title{font-size:17pt;font-weight:700;color:rgba(255,255,255,.88);text-align:center;line-height:1.3;margin-bottom:10px}
+.cover-sub{font-size:10pt;color:rgba(255,255,255,.45);text-align:center;max-width:130mm;line-height:1.7;margin-bottom:44px}
+.cover-chips{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-bottom:44px}
+.cover-chip{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);color:rgba(255,255,255,.73);border-radius:8px;padding:6px 14px;font-size:8.5pt;font-weight:500;display:flex;align-items:center;gap:6px}
+.cover-chip span{font-size:13px}
+.cover-footer{position:absolute;bottom:16mm;left:0;right:0;display:flex;justify-content:center;gap:30px;align-items:center}
+.cover-meta{font-size:7.5pt;color:rgba(255,255,255,.22);text-align:center}
+.cover-dot{color:rgba(255,255,255,.18);font-size:8pt}
+
+/* ═══════════ CONTENT ═══════════ */
+.page{padding:14mm 16mm 10mm}
+
+.hdr{display:flex;justify-content:space-between;align-items:center;padding-bottom:7px;border-bottom:2.5px solid var(--a);margin-bottom:20px}
+.hdr-brand{font-size:8pt;font-weight:700;color:var(--p);letter-spacing:1.5px;text-transform:uppercase}
+.hdr-sec{font-size:7.5pt;color:var(--gr)}
+
+.ptitle{margin-bottom:20px}
+.ptitle-eye{font-size:8pt;font-weight:600;color:var(--a);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:5px}
+.ptitle h1{font-size:20pt;font-weight:800;color:var(--dk);line-height:1.2;margin-bottom:6px}
+.ptitle h1 em{color:var(--p);font-style:normal}
+.ptitle-sub{font-size:10.5pt;color:var(--gr);line-height:1.6;max-width:140mm}
+
+.intro{background:var(--hl2);border-left:3px solid var(--a);border-radius:0 8px 8px 0;padding:12px 16px;margin-bottom:20px;font-size:10pt;color:var(--dk2);line-height:1.7}
+
+h2{font-size:12.5pt;font-weight:700;color:var(--dk);margin-top:24px;margin-bottom:12px;display:flex;align-items:center;gap:10px}
+h2 .bar{width:3px;height:18px;background:linear-gradient(to bottom,var(--a),var(--p));border-radius:2px;flex-shrink:0}
+h3{font-size:10.5pt;font-weight:600;color:var(--dk2);margin-top:14px;margin-bottom:8px}
+p{margin-bottom:9px;color:var(--dk2);line-height:1.7}
+
+.fcards{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin:12px 0}
+.fcard{background:#fff;border:1px solid var(--bd);border-radius:10px;padding:14px;page-break-inside:avoid}
+.fcard-hdr{display:flex;align-items:center;gap:9px;margin-bottom:7px}
+.fcard-icon{width:34px;height:34px;border-radius:8px;background:var(--hl);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.fcard-icon.p{background:var(--hlp)}
+.fcard-icon.g{background:#dcfce7}
+.fcard-title{font-size:10pt;font-weight:600;color:var(--dk)}
+.fcard-body{font-size:9pt;color:var(--gr);line-height:1.6}
+
+ul.cl{list-style:none;padding:0;margin:8px 0}
+ul.cl li{display:flex;align-items:flex-start;gap:7px;padding:4.5px 0;font-size:9.5pt;color:var(--dk2);line-height:1.5;border-bottom:1px solid var(--bd)}
+ul.cl li:last-child{border-bottom:none}
+ul.cl li::before{content:'✓';color:var(--a);font-weight:700;font-size:9.5pt;flex-shrink:0;margin-top:1px}
+.cl-2col{display:grid;grid-template-columns:1fr 1fr;gap:0 16px}
+
+table{width:100%;border-collapse:collapse;margin:12px 0;font-size:9pt;page-break-inside:avoid}
+thead{background:var(--dk)}
+thead th{padding:9px 11px;text-align:left;font-weight:600;font-size:8.5pt;color:#fff;letter-spacing:.3px}
+tbody tr:nth-child(even){background:var(--lt)}
+tbody td{padding:8px 11px;border-bottom:1px solid var(--bd);color:var(--dk2);vertical-align:middle}
+.tc{text-align:center}
+
+.hpanel{background:linear-gradient(135deg,var(--hl2),var(--hl));border:1px solid #fde68a;border-radius:12px;padding:18px 22px;margin:16px 0;page-break-inside:avoid}
+.hpanel-title{font-size:10.5pt;font-weight:700;color:var(--p);margin-bottom:9px;display:flex;align-items:center;gap:8px}
+.hpanel-body{font-size:9.5pt;color:var(--dk2);line-height:1.7}
+
+.hpanel-purple{background:linear-gradient(135deg,#ede9fe,#f5f3ff);border:1px solid #c4b5fd;border-radius:12px;padding:18px 22px;margin:16px 0;page-break-inside:avoid}
+.hpanel-purple .hpanel-title{color:#7c3aed}
+
+.steps{margin:12px 0}
+.step{display:flex;gap:13px;margin-bottom:11px;page-break-inside:avoid}
+.snum{width:26px;height:26px;border-radius:50%;background:var(--p);color:#fff;display:flex;align-items:center;justify-content:center;font-size:9.5pt;font-weight:700;flex-shrink:0}
+.scont{flex:1;padding-top:3px}
+.stitle{font-size:10pt;font-weight:600;color:var(--dk);margin-bottom:2px}
+.sdesc{font-size:9pt;color:var(--gr);line-height:1.5}
+
+.tags{display:flex;flex-wrap:wrap;gap:7px;margin:9px 0}
+.tag{background:var(--hl);color:var(--p);border:1px solid #fde68a;border-radius:6px;padding:3px 11px;font-size:8.5pt;font-weight:500}
+.tag.p{background:var(--hlp);color:#7c3aed;border-color:#c4b5fd}
+.tag.g{background:#dcfce7;color:#15803d;border-color:#86efac}
+.tag.b{background:#dbeafe;color:#1d4ed8;border-color:#93c5fd}
+
+.twocol{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:12px 0}
+.box{background:var(--lt);border-radius:10px;padding:14px;border:1px solid var(--bd)}
+.box-title{font-size:10pt;font-weight:700;color:var(--dk);margin-bottom:9px;padding-bottom:7px;border-bottom:1px solid var(--bd)}
+
+/* Tier table */
+.tier-table{width:100%;border-collapse:collapse;margin:12px 0;font-size:9.5pt}
+.tier-table th{padding:9px 14px;text-align:left;font-weight:700;font-size:8.5pt;background:var(--dk);color:#fff}
+.tier-table td{padding:10px 14px;border-bottom:1px solid var(--bd);color:var(--dk2)}
+.tier-table tr:nth-child(1) td{background:#fff7ed}
+.tier-table tr:nth-child(2) td{background:#f1f5f9}
+.tier-table tr:nth-child(3) td{background:#fef9c3}
+.tier-table tr:nth-child(4) td{background:#eff6ff}
+.tier-name{font-weight:700;font-size:10pt}
+.t-bronze{color:#92400e}
+.t-silver{color:#475569}
+.t-gold{color:#b45309}
+.t-diamond{color:#1d4ed8}
+
+/* Games grid */
+.games{display:grid;grid-template-columns:repeat(1,1fr);gap:10px;margin:14px 0}
+.game{display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:flex-start;background:#fff;border:1px solid var(--bd);border-radius:10px;padding:14px;page-break-inside:avoid}
+.game-icon{width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,var(--hl),var(--hl2));display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0}
+.game-title{font-size:10.5pt;font-weight:700;color:var(--dk);margin-bottom:3px}
+.game-sub{font-size:9pt;color:var(--gr);line-height:1.5}
+.game-pts{display:inline-block;margin-top:5px;background:var(--hlp);color:var(--p2);border-radius:5px;padding:2px 8px;font-size:8pt;font-weight:600}
+
+/* Plans */
+.plans{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:14px 0}
+.plan{border:1px solid var(--bd);border-radius:10px;overflow:hidden;page-break-inside:avoid}
+.plan.hot{border-color:var(--p);box-shadow:0 0 0 2px #fde68a}
+.plan-hdr{background:var(--dk);color:#fff;padding:12px 12px 9px}
+.plan.hot .plan-hdr{background:linear-gradient(135deg,var(--p),var(--pl))}
+.plan-name{font-size:10.5pt;font-weight:700;margin-bottom:1px}
+.plan-tag{font-size:7.5pt;color:rgba(255,255,255,.5)}
+.plan-body{padding:10px 12px;background:#fff}
+.plan-row{font-size:8.5pt;color:var(--dk2);margin-bottom:4px;display:flex;gap:5px}
+.plan-row::before{content:'→';color:var(--a);font-weight:700}
+
+/* Stat grid */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:14px 0}
+.stat{background:var(--dk);border-radius:10px;padding:14px;text-align:center}
+.stat-n{font-size:20pt;font-weight:800;color:#fbbf24;line-height:1;margin-bottom:3px}
+.stat-l{font-size:8pt;color:rgba(255,255,255,.5);font-weight:500}
+
+hr{border:none;border-top:1px solid var(--bd);margin:18px 0}
+.pfooter{border-top:1px solid var(--bd);padding-top:6px;margin-top:12px;display:flex;justify-content:space-between;align-items:center}
+.pfooter-l{font-size:7.5pt;color:var(--gr)}
+.pfooter-r{font-size:7.5pt;color:var(--gr)}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════ COVER -->
+<div class="cover">
+  <div class="cr1"></div><div class="cr2"></div><div class="cr3"></div><div class="cr4"></div>
+  <div class="cover-pill">Café &amp; Restaurant Edition</div>
+  <div class="cover-emoji">☕</div>
+  <div class="cover-brand">BCS<span>.</span></div>
+  <div class="cover-line"></div>
+  <div class="cover-title">Complete Café Management<br>&amp; Customer Loyalty Platform</div>
+  <div class="cover-sub">From floor map to kitchen display to gamified QR ordering — every tool your café needs, in one unified system.</div>
+  <div class="cover-chips">
+    <div class="cover-chip"><span>🗺️</span> Live Floor Map</div>
+    <div class="cover-chip"><span>📺</span> Kitchen Display</div>
+    <div class="cover-chip"><span>📅</span> Reservations</div>
+    <div class="cover-chip"><span>📱</span> QR Customer App</div>
+    <div class="cover-chip"><span>🎮</span> 5 Loyalty Games</div>
+  </div>
+  <div class="cover-footer">
+    <div class="cover-meta">Confidential Client Proposal</div>
+    <div class="cover-dot">•</div>
+    <div class="cover-meta">BCS Platform — 2026</div>
+    <div class="cover-dot">•</div>
+    <div class="cover-meta">Café Edition</div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════ PAGE 2 — OVERVIEW -->
+<div class="page pb">
+  <div class="hdr"><div class="hdr-brand">BCS CAFÉ</div><div class="hdr-sec">System Overview</div></div>
+  <div class="ptitle">
+    <div class="ptitle-eye">What You're Getting</div>
+    <h1>A café system that runs the floor,<br>the kitchen, <em>and keeps customers coming back</em>.</h1>
+    <div class="ptitle-sub">BCS Café is a complete management platform covering table orders, kitchen coordination, reservations, customer loyalty, and a gamified ordering app customers actually want to use.</div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-n">2</div><div class="stat-l">Separate Apps</div></div>
+    <div class="stat"><div class="stat-n">5</div><div class="stat-l">Loyalty Games</div></div>
+    <div class="stat"><div class="stat-n">8</div><div class="stat-l">Report Sections</div></div>
+    <div class="stat"><div class="stat-n">4</div><div class="stat-l">Loyalty Tiers</div></div>
+  </div>
+
+  <h2><span class="bar"></span>Two Apps in One System</h2>
+
+  <div class="twocol">
+    <div class="box">
+      <div class="box-title">🏪 Staff App</div>
+      <ul class="cl">
+        <li>Live floor map (real-time)</li>
+        <li>Table order management</li>
+        <li>Send orders to kitchen</li>
+        <li>Kitchen Display System (KDS)</li>
+        <li>Reservation calendar</li>
+        <li>Bill generation &amp; split</li>
+        <li>Loyalty settings &amp; rewards</li>
+        <li>QR code printing per table</li>
+        <li>Café reports (8 sections)</li>
+      </ul>
+    </div>
+    <div class="box">
+      <div class="box-title">📱 Customer QR App</div>
+      <ul class="cl">
+        <li>Scan QR → open on phone instantly</li>
+        <li>No app download required</li>
+        <li>Quick Menu (no account)</li>
+        <li>Play &amp; Earn (loyalty account)</li>
+        <li>Browse menu &amp; place order</li>
+        <li>Live order status tracker</li>
+        <li>Earn points every order</li>
+        <li>Play 5 mini-games for points</li>
+        <li>Redeem rewards at checkout</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="hpanel no-break">
+    <div class="hpanel-title">🔌 Real-Time Everything</div>
+    <div class="hpanel-body">BCS Café uses WebSocket connections throughout the system. When a customer places an order from their phone, the kitchen display beeps and shows the new items instantly. The floor map table turns orange. The server sees "📱 Customer" badge on that table. No refreshing, no delays — everything updates live across all screens simultaneously.</div>
+  </div>
+
+  <div class="pfooter"><div class="pfooter-l">BCS — Café Management System</div><div class="pfooter-r">Confidential · 2026</div></div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════ PAGE 3 — FLOOR MAP & KDS -->
+<div class="page pb">
+  <div class="hdr"><div class="hdr-brand">BCS CAFÉ</div><div class="hdr-sec">Floor Map &amp; Kitchen Display</div></div>
+
+  <div class="ptitle">
+    <div class="ptitle-eye">Features 01 &amp; 02</div>
+    <h1>Live Floor Map<br>&amp; <em>Kitchen Display System</em></h1>
+  </div>
+
+  <h2><span class="bar"></span>Floor Map</h2>
+  <div class="intro">A visual grid of every table in the café. All staff see the same map in real time — table status changes the moment an order is placed or a bill is paid.</div>
+
+  <div class="fcards">
+    <div class="fcard no-break">
+      <div class="fcard-hdr"><div class="fcard-icon">🟢</div><div class="fcard-title">Free Table</div></div>
+      <div class="fcard-body">Green — no open order. Click to start a new order and seat guests. Table turns occupied immediately.</div>
+    </div>
+    <div class="fcard no-break">
+      <div class="fcard-hdr"><div class="fcard-icon">🔴</div><div class="fcard-title">Occupied Table</div></div>
+      <div class="fcard-body">Red — has an active order. Click to view/add items, check item statuses, or generate the bill.</div>
+    </div>
+    <div class="fcard no-break">
+      <div class="fcard-hdr"><div class="fcard-icon">🟠</div><div class="fcard-title">Customer QR Order</div></div>
+      <div class="fcard-body">Orange — a customer placed an order from their phone. Items appear in kitchen automatically.</div>
+    </div>
+    <div class="fcard no-break">
+      <div class="fcard-hdr"><div class="fcard-icon">⚙️</div><div class="fcard-title">Layout Editor</div></div>
+      <div class="fcard-body">Drag and position tables on the map to match your physical floor plan. Changes save instantly.</div>
+    </div>
+  </div>
+
+  <h2><span class="bar"></span>Table Order Features</h2>
+  <ul class="cl cl-2col">
+    <li>Add items with quantity &amp; notes</li>
+    <li>Per-item modifier notes ("no sugar")</li>
+    <li>Send items to kitchen</li>
+    <li>Add more items at any time</li>
+    <li>Transfer items to another table</li>
+    <li>Merge two tables into one order</li>
+    <li>View item kitchen status</li>
+    <li>Mark items as served</li>
+  </ul>
+
+  <h2><span class="bar"></span>Kitchen Display System (KDS)</h2>
+  <div class="intro">A full-screen dashboard for the kitchen. No paper tickets. No shouting across the counter. Every order update is live — and the system alerts kitchen staff with an audio beep the instant a new order arrives.</div>
+
+  <div class="fcards">
+    <div class="fcard no-break">
+      <div class="fcard-hdr"><div class="fcard-icon">📋</div><div class="fcard-title">Order Cards</div></div>
+      <div class="fcard-body">Each table's order appears as a card. Items show their status: Pending → Preparing → Ready → Served. Click any item to cycle its status.</div>
+    </div>
+    <div class="fcard no-break">
+      <div class="fcard-hdr"><div class="fcard-icon p">🔔</div><div class="fcard-title">Audio Alert</div></div>
+      <div class="fcard-body">When a new order arrives in the kitchen (from staff or customer QR), the KDS plays an audio beep via the Web Audio API.</div>
+    </div>
+    <div class="fcard no-break">
+      <div class="fcard-hdr"><div class="fcard-icon">📱</div><div class="fcard-title">Customer Badge</div></div>
+      <div class="fcard-body">Items ordered by customers via QR show a "📱 Customer" badge — so kitchen staff know the source without asking anyone.</div>
+    </div>
+    <div class="fcard no-break">
+      <div class="fcard-hdr"><div class="fcard-icon p">⚡</div><div class="fcard-title">Real-Time Updates</div></div>
+      <div class="fcard-body">When a server marks an item "Served," the customer's order tracker updates live. When all items are served, the table is ready for billing.</div>
+    </div>
+  </div>
+
+  <div class="pfooter"><div class="pfooter-l">BCS — Café Management System</div><div class="pfooter-r">Confidential · 2026</div></div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════ PAGE 4 — BILL, RESERVATIONS -->
+<div class="page pb">
+  <div class="hdr"><div class="hdr-brand">BCS CAFÉ</div><div class="hdr-sec">Bill Management &amp; Reservations</div></div>
+
+  <div class="ptitle">
+    <div class="ptitle-eye">Features 03 &amp; 04</div>
+    <h1>Smart Billing<br>&amp; <em>Reservations</em></h1>
+  </div>
+
+  <h2><span class="bar"></span>Bill &amp; Checkout</h2>
+  <div class="fcards">
+    <div class="fcard no-break">
+      <div class="fcard-hdr"><div class="fcard-icon">🧮</div><div class="fcard-title">Service Charge</div></div>
+      <div class="fcard-body">Apply a configurable service charge percentage to the bill. Shown separately on the receipt so the customer sees exactly what they're paying.</div>
+    </div>
+    <div class="fcard no-break">
+      <div class="fcard-hdr"><div class="fcard-icon">🏷️</div><div class="fcard-title">Bill Discount</div></div>
+      <div class="fcard-body">Apply a flat or percentage discount at bill time. Useful for loyalty members, VIP customers, or table promotions.</div>
+    </div>
+    <div class="fcard no-break">
+      <div class="fcard-hdr"><div class="fcard-icon p">👥</div><div class="fcard-title">Split Bill</div></div>
+      <div class="fcard-body">Divide the total across any number of guests. Each guest sees their share. Each person can pay with a different method (cash, card).</div>
+    </div>
+    <div class="fcard no-break">
+      <div class="fcard-hdr"><div class="fcard-icon">💳</div><div class="fcard-title">Multiple Payment Methods</div></div>
+      <div class="fcard-body">Cash, card, bank transfer — all supported. The checkout creates a Sale record, closes the order, and frees the table automatically.</div>
+    </div>
+  </div>
+
+  <h2><span class="bar"></span>Reservations</h2>
+  <div class="intro">A full reservation management system. See all bookings by date, manage no-shows, and convert any reservation into an active table order with one click.</div>
+
+  <ul class="cl">
+    <li>Create reservations: guest name, phone, date, time, table, guest count, notes</li>
+    <li>Calendar view — browse reservations by any date</li>
+    <li>Status tracking: Confirmed → Seated → Cancelled → No-Show</li>
+    <li>One-click "Seat" — converts reservation directly into an active order on the floor map</li>
+    <li>View upcoming reservations for the day on the floor dashboard</li>
+  </ul>
+
+  <h2><span class="bar"></span>Café Reports — 8 Sections</h2>
+  <p>Every report supports Daily, Weekly, Monthly, and Yearly time periods.</p>
+
+  <table>
+    <thead><tr><th>#</th><th>Report</th><th>What You Learn</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>Revenue Overview</td><td>Total revenue, average per day, line chart over time</td></tr>
+      <tr><td>2</td><td>Peak Hours Heatmap</td><td>7-day × 24-hour grid — exactly when your café is busiest</td></tr>
+      <tr><td>3</td><td>Menu Performance</td><td>Top &amp; bottom items, category revenue donut chart</td></tr>
+      <tr><td>4</td><td>Table Analytics</td><td>Revenue and occupancy rate per table</td></tr>
+      <tr><td>5</td><td>Kitchen Efficiency</td><td>Average preparation time per category</td></tr>
+      <tr><td>6</td><td>Reservations</td><td>No-show rate, fill rate, peak booking time slots</td></tr>
+      <tr><td>7</td><td>Customer Loyalty</td><td>New vs. returning customers, tier breakdown, top 10 leaderboard</td></tr>
+      <tr><td>8</td><td>Games Stats</td><td>Most played games, win rates, total points distributed</td></tr>
+    </tbody>
+  </table>
+
+  <div class="pfooter"><div class="pfooter-l">BCS — Café Management System</div><div class="pfooter-r">Confidential · 2026</div></div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════ PAGE 5 — CUSTOMER APP -->
+<div class="page pb">
+  <div class="hdr"><div class="hdr-brand">BCS CAFÉ</div><div class="hdr-sec">Customer QR App &amp; Loyalty System</div></div>
+
+  <div class="ptitle">
+    <div class="ptitle-eye">Features 05 &amp; 06</div>
+    <h1>Customer QR App<br>&amp; <em>Loyalty Points System</em></h1>
+    <div class="ptitle-sub">Customers scan a QR code on the table and order directly from their phone. No app download. No waiting for a server. And for loyal customers — every order earns points redeemable for free items.</div>
+  </div>
+
+  <h2><span class="bar"></span>Two Entry Modes</h2>
+  <div class="twocol">
+    <div class="box">
+      <div class="box-title">🚀 Quick Menu (Guest)</div>
+      <p style="font-size:9.5pt;color:var(--gr);line-height:1.6">No account needed. Scan the table QR, browse the menu, place an order. The order goes directly to the kitchen and appears on the floor map. After ordering, the customer can play games for entertainment (no points).</p>
+    </div>
+    <div class="box">
+      <div class="box-title">⭐ Play &amp; Earn (Registered)</div>
+      <p style="font-size:9.5pt;color:var(--gr);line-height:1.6">Register with phone + password or sign in with Google. Every order earns points. Daily check-ins earn points. Games earn points. Redeem points for free items or discounts on the next order.</p>
+    </div>
+  </div>
+
+  <h2><span class="bar"></span>How Customers Earn Points</h2>
+  <table>
+    <thead><tr><th>Action</th><th>Points Earned</th></tr></thead>
+    <tbody>
+      <tr><td>First visit (welcome bonus)</td><td><strong>+100 pts</strong></td></tr>
+      <tr><td>Daily QR check-in</td><td><strong>+10 pts / day</strong></td></tr>
+      <tr><td>Order placed (per item × tier multiplier)</td><td><strong>+10 pts per item</strong></td></tr>
+      <tr><td>Rate your order (1–5 stars)</td><td><strong>+5 pts</strong></td></tr>
+      <tr><td>Play a game (once per day for points)</td><td><strong>10–500 pts</strong></td></tr>
+    </tbody>
+  </table>
+
+  <h2><span class="bar"></span>Loyalty Tiers &amp; Multipliers</h2>
+  <table class="tier-table">
+    <thead><tr><th>Tier</th><th>Points Range</th><th>Order Multiplier</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td><span class="tier-name t-bronze">🥉 Bronze</span></td><td>0 – 999 pts</td><td>×1.0</td><td>Starting tier</td></tr>
+      <tr><td><span class="tier-name t-silver">🥈 Silver</span></td><td>1,000 – 4,999 pts</td><td>×1.25</td><td>Regular customer</td></tr>
+      <tr><td><span class="tier-name t-gold">🥇 Gold</span></td><td>5,000 – 9,999 pts</td><td>×1.5</td><td>Loyal customer</td></tr>
+      <tr><td><span class="tier-name t-diamond">💎 Diamond</span></td><td>10,000+ pts</td><td>×2.0</td><td>VIP customer</td></tr>
+    </tbody>
+  </table>
+
+  <h2><span class="bar"></span>Rewards Redemption</h2>
+  <p>The café admin creates rewards in the settings panel (free item, % discount, flat discount). Before placing an order, the customer taps "Use Points" to choose a reward. The discount is applied automatically to their order total.</p>
+
+  <h2><span class="bar"></span>Live Order Tracking</h2>
+  <p>After placing an order, the customer sees a live status screen that updates as the kitchen prepares each item: <strong>Received → Preparing → Ready → Served</strong>. Once served, they are prompted to rate the order and play a game to earn more points.</p>
+
+  <div class="pfooter"><div class="pfooter-l">BCS — Café Management System</div><div class="pfooter-r">Confidential · 2026</div></div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════ PAGE 6 — GAMES -->
+<div class="page pb">
+  <div class="hdr"><div class="hdr-brand">BCS CAFÉ</div><div class="hdr-sec">5 Loyalty Games</div></div>
+
+  <div class="ptitle">
+    <div class="ptitle-eye">Feature 07</div>
+    <h1>5 Built-In Loyalty<br><em>Mini-Games</em></h1>
+    <div class="ptitle-sub">Every registered customer can play one game per day to earn points. After that, games remain available for entertainment. This keeps customers engaged with your café app long after their coffee is finished.</div>
+  </div>
+
+  <div class="hpanel-purple no-break">
+    <div class="hpanel-title">🎮 Games Rule</div>
+    <div class="hpanel-body">Each game can be played <strong>once per day</strong> for points. After the daily play, the game switches to entertainment mode (unlimited plays, no points). This prevents abuse while keeping customers entertained. A "For Fun" badge appears on subsequent plays so customers always know.</div>
+  </div>
+
+  <div class="games">
+    <div class="game no-break">
+      <div class="game-icon">🎰</div>
+      <div>
+        <div class="game-title">Slot Machine</div>
+        <div class="game-sub">Three reels with coffee-themed symbols: ☕ 🧁 🍰 ⭐ 🎲 🍵. Spin to match symbols across the reels. Three matching stars = 500 pts. Three matching = 200 pts. Two matching = 50 pts. No match = 10 pts consolation.</div>
+        <span class="game-pts">10 – 500 points</span>
+      </div>
+    </div>
+    <div class="game no-break">
+      <div class="game-icon">🎡</div>
+      <div>
+        <div class="game-title">Spin Wheel</div>
+        <div class="game-sub">8 animated spinning segments with prizes: 25 pts, 50 pts, 75 pts, 100 pts, 200 pts, Free Add-On, Double Order Points, 15 pts. A colorful animated wheel spins and lands on a random prize.</div>
+        <span class="game-pts">15 – 200 points + special prizes</span>
+      </div>
+    </div>
+    <div class="game no-break">
+      <div class="game-icon">🎴</div>
+      <div>
+        <div class="game-title">Scratch Card</div>
+        <div class="game-sub">A 3×3 canvas grid. The customer drags their finger to scratch off the surface. Match 3 identical hidden symbols to win: Coin = 50 pts, Gem = 150 pts, Crown = 300 pts.</div>
+        <span class="game-pts">20 – 300 points</span>
+      </div>
+    </div>
+    <div class="game no-break">
+      <div class="game-icon">🎁</div>
+      <div>
+        <div class="game-title">Mystery Box</div>
+        <div class="game-sub">Three face-down cards on screen. The customer picks one. It flips over to reveal a surprise: points (50/100/200/300/500) or a "50% off one item" special reward.</div>
+        <span class="game-pts">30 – 500 points</span>
+      </div>
+    </div>
+    <div class="game no-break">
+      <div class="game-icon">🧠</div>
+      <div>
+        <div class="game-title">Trivia Challenge</div>
+        <div class="game-sub">3 multiple-choice questions set by the café admin (coffee trivia, menu facts, general knowledge). 30-second timer per question. 30 pts per correct answer + 20 bonus points for getting all 3 right (streak bonus).</div>
+        <span class="game-pts">30 – 110 points</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="pfooter"><div class="pfooter-l">BCS — Café Management System</div><div class="pfooter-r">Confidential · 2026</div></div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════ PAGE 7 — DEMO & PLANS -->
+<div class="page pb">
+  <div class="hdr"><div class="hdr-brand">BCS CAFÉ</div><div class="hdr-sec">Demo Guide &amp; Subscription Plans</div></div>
+
+  <div class="ptitle">
+    <div class="ptitle-eye">Getting Started</div>
+    <h1>Live Demo Guide &amp;<br><em>Subscription Plans</em></h1>
+  </div>
+
+  <h2><span class="bar"></span>Demo 1 — Table Service Flow (3 min)</h2>
+  <div class="steps">
+    <div class="step"><div class="snum">1</div><div class="scont"><div class="stitle">Open floor map</div><div class="sdesc">See all tables — green = free. Click Table 4 to open it.</div></div></div>
+    <div class="step"><div class="snum">2</div><div class="scont"><div class="stitle">Add items to the order</div><div class="sdesc">Browse menu categories → add 2 Lattes, 1 Croissant with note "extra hot"</div></div></div>
+    <div class="step"><div class="snum">3</div><div class="scont"><div class="stitle">Send to kitchen</div><div class="sdesc">Click "Send to Kitchen" → kitchen display beeps and shows items instantly</div></div></div>
+    <div class="step"><div class="snum">4</div><div class="scont"><div class="stitle">Kitchen marks items ready</div><div class="sdesc">Click items on KDS: Preparing → Ready → Served</div></div></div>
+    <div class="step"><div class="snum">5</div><div class="scont"><div class="stitle">Generate bill &amp; checkout</div><div class="sdesc">Add 10% service charge → Split bill for 2 guests → Checkout → table turns green</div></div></div>
+  </div>
+
+  <h2><span class="bar"></span>Demo 2 — Customer QR Order (2 min)</h2>
+  <div class="steps">
+    <div class="step"><div class="snum">1</div><div class="scont"><div class="stitle">Scan the table QR code</div><div class="sdesc">Customer scans the QR printed at Table 4 — app opens instantly on their phone</div></div></div>
+    <div class="step"><div class="snum">2</div><div class="scont"><div class="stitle">Choose Play &amp; Earn</div><div class="sdesc">Register with phone number → get +100 welcome points</div></div></div>
+    <div class="step"><div class="snum">3</div><div class="scont"><div class="stitle">Order from the menu</div><div class="sdesc">Browse categories → add Cappuccino + Cake → place order</div></div></div>
+    <div class="step"><div class="snum">4</div><div class="scont"><div class="stitle">Watch the floor map update</div><div class="sdesc">Table 4 turns orange immediately. KDS shows new items with 📱 Customer badge</div></div></div>
+    <div class="step"><div class="snum">5</div><div class="scont"><div class="stitle">Play a game after order</div><div class="sdesc">Customer plays Spin Wheel → lands on 75 pts → total balance: 195 pts</div></div></div>
+  </div>
+
+  <hr>
+
+  <h2><span class="bar"></span>Subscription Plans</h2>
+  <div class="plans">
+    <div class="plan">
+      <div class="plan-hdr"><div class="plan-name">Trial</div><div class="plan-tag">14 days free</div></div>
+      <div class="plan-body">
+        <div class="plan-row">2 staff accounts</div>
+        <div class="plan-row">All features</div>
+      </div>
+    </div>
+    <div class="plan hot">
+      <div class="plan-hdr"><div class="plan-name">Basic</div><div class="plan-tag">Most popular</div></div>
+      <div class="plan-body">
+        <div class="plan-row">5 staff accounts</div>
+        <div class="plan-row">All features</div>
+      </div>
+    </div>
+    <div class="plan">
+      <div class="plan-hdr"><div class="plan-name">Pro</div><div class="plan-tag">Busy café</div></div>
+      <div class="plan-body">
+        <div class="plan-row">20 staff accounts</div>
+        <div class="plan-row">All features</div>
+      </div>
+    </div>
+    <div class="plan">
+      <div class="plan-hdr"><div class="plan-name">Enterprise</div><div class="plan-tag">Multi-branch</div></div>
+      <div class="plan-body">
+        <div class="plan-row">100 staff accounts</div>
+        <div class="plan-row">Priority support</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="hpanel no-break" style="margin-top:20px">
+    <div class="hpanel-title">☁️ Cloud-Based — No Hardware Required</div>
+    <div class="hpanel-body">BCS Café runs entirely in the browser. Use any tablet for the floor map, any screen for the kitchen display, and any device for reports. The customer QR app needs zero installation — it opens in the phone's browser. Setup for a new café takes less than 30 minutes.</div>
+  </div>
+
+  <div class="pfooter"><div class="pfooter-l">BCS — Café Management System · 2026</div><div class="pfooter-r">For sales inquiries contact the BCS team</div></div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,201 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Nav ball background — light/dark */
+:root { --ball-bg: #e5e7eb; }
+.dark { --ball-bg: #2a2a2e; }
+
+/* =========================
+   GLOBAL UI TRANSITIONS
+========================= */
+
+* {
+  transition: background-color 0.2s ease,
+              color 0.2s ease,
+              transform 0.15s ease,
+              box-shadow 0.15s ease;
+}
+
+
+/* =========================
+   PRODUCT CARD HOVER
+========================= */
+
+.product-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+}
+
+
+/* =========================
+   SIDE PANEL ANIMATION
+========================= */
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
+.animate-slideIn {
+  animation: slideIn 0.25s ease;
+}
+
+
+/* =========================
+   FADE IN ANIMATION
+========================= */
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.2s ease;
+}
+
+
+/* =========================
+   DRAG DROP HIGHLIGHT
+========================= */
+
+.dropzone-active {
+  border-color: #3b82f6;
+  background-color: #eff6ff;
+}
+
+
+/* =========================
+   SCROLLBAR STYLE
+========================= */
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f3f4f6;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+
+/* =========================
+   PRINT STYLES (RECEIPT)
+========================= */
+
+@media print {
+
+  body * {
+    visibility: hidden;
+  }
+
+  .print-receipt,
+  .print-receipt * {
+    visibility: visible;
+  }
+
+  .print-receipt {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 280px; /* Thermal printer width */
+  }
+
+  @page {
+    margin: 0;
+  }
+
+}
+@keyframes slideIn {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.animate-slideIn {
+  animation: slideIn 0.25s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity:0 }
+  to { opacity:1 }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.2s ease;
+}
+
+/* =============================
+   NEUMORPHIC LOGIN CARD
+============================= */
+
+.neu-card {
+  width: 420px;
+  border-radius: 30px;
+  transition: all 0.3s ease;
+}
+
+/* LIGHT MODE */
+
+.light .neu-card {
+  background: #f5f5f5;
+  box-shadow:
+    15px 15px 30px #d1d1d1,
+    -15px -15px 30px #ffffff;
+}
+
+/* DARK MODE */
+
+.dark .neu-card {
+  background: #212121;
+  box-shadow:
+    15px 15px 30px rgb(25,25,25),
+    -15px -15px 30px rgb(60,60,60);
+}
+
+/* KEYPAD BUTTON */
+
+.neu-btn {
+  border-radius: 14px;
+  padding: 14px;
+  font-size: 20px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.light .neu-btn {
+  background: #f5f5f5;
+  box-shadow:
+    6px 6px 12px #d1d1d1,
+    -6px -6px 12px #ffffff;
+}
+
+.dark .neu-btn {
+  background: #212121;
+  color: white;
+  box-shadow:
+    6px 6px 12px #1a1a1a,
+    -6px -6px 12px #2c2c2c;
+}
+
+.neu-btn:active {
+  transform: scale(0.96);
+}

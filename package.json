@@ -1,0 +1,104 @@
+{
+  "name": "nexora-pos",
+  "version": "1.0.0",
+  "description": "Nexora POS — offline desktop application",
+  "homepage": "https://nexora-bcs.com",
+  "author": {
+    "name": "Nexora BCS",
+    "email": "support@nexora-bcs.com"
+  },
+  "main": "electron/main.js",
+  "productName": "Nexora-POS",
+  "scripts": {
+    "build:frontend": "cd frontend && npm install && VITE_API_URL=http://localhost:5000/api npm run build",
+    "install:backend": "cd backend && npm install",
+    "install:all": "npm run install:backend && npm run build:frontend",
+    "electron:dev": "npm run build:frontend && electron .",
+    "package:linux": "electron-builder --linux",
+    "package:win": "CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win",
+    "package:all": "CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --linux --win",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "build": {
+    "appId": "com.nexora.pos",
+    "productName": "Nexora-POS",
+    "publish": {
+      "provider": "github",
+      "owner": "NayefNemernn",
+      "repo": "Nexora-BCS-Offline"
+    },
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "electron/**/*",
+      "node_modules/**/*",
+      "!node_modules/mongodb-memory-server/node_modules/.cache/**"
+    ],
+    "extraResources": [
+      {
+        "from": "backend",
+        "to": "backend",
+        "filter": [
+          "**/*",
+          "!node_modules/.cache/**",
+          "!uploads/**"
+        ]
+      },
+      {
+        "from": "frontend/dist",
+        "to": "frontend-dist"
+      }
+    ],
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Office",
+      "icon": "frontend/public/icon-512.png",
+      "executableName": "nexora-pos",
+      "desktop": {
+        "Name": "Nexora POS",
+        "Comment": "Nexora POS — offline desktop application"
+      },
+      "extraResources": [
+        {
+          "from": "build-resources/mongodb-binary/linux",
+          "to": "mongodb-binary"
+        }
+      ]
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "frontend/public/icon-512.png",
+      "extraResources": [
+        {
+          "from": "build-resources/mongodb-binary/win",
+          "to": "mongodb-binary"
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "runAfterFinish": true
+    }
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.3",
+    "mongodb-memory-server": "^10.1.4"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  }
+}

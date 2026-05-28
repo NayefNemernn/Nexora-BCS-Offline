@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+frontend/node_modules/
+backend/node_modules/
+cafe-frontend/node_modules/
+store-frontend/node_modules/
+nexora-website/node_modules/
+
+# Build outputs
+dist-electron/
+frontend/dist/
+cafe-frontend/dist/
+store-frontend/dist/
+nexora-website/dist/
+
+# MongoDB binaries (too large for git — download/copy manually)
+build-resources/mongodb-binary/
+
+# Uploads
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# Environment files
+.env
+.env.local
+.env.production
+backend/.env
+frontend/.env.local
+
+# Electron build cache
+*.AppImage
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor
+.vscode/
+.idea/

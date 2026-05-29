@@ -263,6 +263,15 @@ export default function ProductEditPanel({
   /* Save */
   const handleSave = async () => {
     if (!editingProduct.name) { toast.error(t.nameRequired2); return; }
+
+    // Cost vs price check
+    const costVal  = parseFloat(editingProduct.cost)  || 0;
+    const priceVal = parseFloat(editingProduct.price) || 0;
+    if (costVal > 0 && priceVal > 0 && costVal >= priceVal) {
+      toast.error(`⚠️ Cost price (${costVal}) must be less than selling price (${priceVal}). Please fix before saving.`, { duration: 5000 });
+      return;
+    }
+
     setSaving(true);
 
     /* ── Offline: queue as mutation (image changes require connection) ── */

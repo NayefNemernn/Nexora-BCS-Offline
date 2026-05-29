@@ -45,3 +45,15 @@ export const getCafeStaffList      = (storeId)               => api.get(`/supera
 export const createCafeStaffMember = (storeId, data)          => api.post(`/superadmin/stores/${storeId}/cafe-staff`, data).then(r => r.data);
 export const updateCafeStaffMember = (storeId, staffId, data) => api.patch(`/superadmin/stores/${storeId}/cafe-staff/${staffId}`, data).then(r => r.data);
 export const deleteCafeStaffMember = (storeId, staffId)       => api.delete(`/superadmin/stores/${storeId}/cafe-staff/${staffId}`).then(r => r.data);
+
+// ── License Manager API ────────────────────────────────────────────────────────
+export const getLicenseKeyStatus    = ()                       => api.get("/superadmin/licenses/key-status").then(r => r.data);
+export const getMachineMac          = ()                       => api.get("/superadmin/licenses/machine-mac").then(r => r.data);
+export const setupLicenseKey        = (privateKeyPem)          => api.post("/superadmin/licenses/setup-key", { privateKeyPem }).then(r => r.data);
+export const listLicenses           = ()                       => api.get("/superadmin/licenses").then(r => r.data);
+export const createLicense          = (data)                   => api.post("/superadmin/licenses/create", data).then(r => r.data);
+export const downloadLicenseFile    = (licenseId)              => api.get(`/superadmin/licenses/${licenseId}/download`).then(r => r.data);
+export const renewLicense           = (licenseId, daysToAdd)   => api.post(`/superadmin/licenses/${licenseId}/renew`, { daysToAdd }).then(r => r.data);
+export const addDeviceToLicense     = (licenseId, macAddress)  => api.post(`/superadmin/licenses/${licenseId}/add-device`, { macAddress }).then(r => r.data);
+export const deleteLicense          = (licenseId)              => api.delete(`/superadmin/licenses/${licenseId}`).then(r => r.data);
+export const updateLicenseNotes     = (licenseId, notes)       => api.put(`/superadmin/licenses/${licenseId}/notes`, { notes }).then(r => r.data);

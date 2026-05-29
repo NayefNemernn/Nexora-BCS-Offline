@@ -69,6 +69,15 @@ const storeSchema = new mongoose.Schema(
     cafeEnabled:        { type: Boolean, default: false },
     cafePointsPerItem:  { type: Number, default: 10 },
 
+    // ── Offline License (client installations only) ───────────
+    // Stores created from a .nexora license file have these set.
+    // Stores created directly (superadmin's own machine) leave them null.
+    licenseId:         { type: String,  default: null },
+    licenseSignature:  { type: String,  default: null },
+    licenseExpiresAt:  { type: Date,    default: null },
+    maxLicenseDevices: { type: Number,  default: 1 },
+    allowedMACs:       [{ type: String }],   // authorized MAC addresses
+
     // ── Status ────────────────────────────────────────────────
     active: { type: Boolean, default: true },
 

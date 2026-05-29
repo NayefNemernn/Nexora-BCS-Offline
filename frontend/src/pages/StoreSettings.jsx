@@ -12,7 +12,7 @@ import {
   LogOut, KeyRound, X, Save, CheckCircle, XCircle,
   AlertTriangle, Clock, ChevronDown, ChevronUp,
   Globe, Copy, Share2, Printer, ToggleLeft, ToggleRight,
-  Tag, Star, Plus, Pencil,
+  Tag, Star, Plus, Pencil, Shield, Monitor,
 } from "lucide-react";
 
 const PLAN_COLORS = {
@@ -21,6 +21,122 @@ const PLAN_COLORS = {
   pro:        "bg-purple-100 text-purple-700 border-purple-200",
   enterprise: "bg-green-100 text-green-700 border-green-200",
 };
+
+/* ── License client tab (shown in client's StoreSettings → License) ─────────── */
+function LicenseClientTab() {
+  const [status,       setStatus]       = useState(null);
+  const [renewCode,    setRenewCode]    = useState("");
+  const [deviceCode,   setDeviceCode]   = useState("");
+  const [renewLoading, setRenewLoading] = useState(false);
+  const [devLoading,   setDevLoading]   = useState(false);
+
+  useEffect(() => {
+    api.get("/license/status").then(r => setStatus(r.data)).catch(() => {});
+  }, []);
+
+  const handleRenew = async () => {
+    if (!renewCode.trim()) return toast.error("Paste the renewal code.");
+    setRenewLoading(true);
+    try {
+      const r = await api.post("/license/renew", { renewalCode: renewCode.trim() });
+      toast.success(r.data.message);
+      setRenewCode("");
+      api.get("/license/status").then(r => setStatus(r.data)).catch(() => {});
+    } catch (e) { toast.error(e.response?.data?.message || "Invalid code."); }
+    finally { setRenewLoading(false); }
+  };
+
+  const handleAddDevice = async () => {
+    if (!deviceCode.trim()) return toast.error("Paste the device code.");
+    setDevLoading(true);
+    try {
+      const r = await api.post("/license/add-device", { deviceCode: deviceCode.trim() });
+      toast.success(r.data.message);
+      setDeviceCode("");
+      api.get("/license/status").then(r => setStatus(r.data)).catch(() => {});
+    } catch (e) { toast.error(e.response?.data?.message || "Invalid code."); }
+    finally { setDevLoading(false); }
+  };
+
+  const inp2 = "w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-white/10 bg-transparent dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-mono";
+  const days = status?.daysRemaining;
+
+  return (
+    <div className="space-y-6 max-w-2xl">
+      {/* Status card */}
+      {status && (
+        <div className={`p-5 rounded-2xl border ${status.expired ? "border-red-200 bg-red-50 dark:bg-red-500/5 dark:border-red-500/30" : days < 30 ? "border-amber-200 bg-amber-50 dark:bg-amber-500/5 dark:border-amber-500/30" : "border-green-200 bg-green-50 dark:bg-green-500/5 dark:border-green-500/30"}`}>
+          <div className="flex items-start gap-4">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl ${status.expired ? "bg-red-100 dark:bg-red-500/20" : "bg-green-100 dark:bg-green-500/20"}`}>
+              {status.expired ? "⛔" : "✅"}
+            </div>
+            <div className="flex-1 space-y-2">
+              <p className="font-bold text-gray-900 dark:text-white">
+                {status.licensed ? (status.expired ? "License Expired" : `License Active — ${days} days remaining`) : "No License"}
+              </p>
+              {status.licensed && <>
+                <p className="text-sm text-gray-500">License ID: <code className="font-mono text-xs">{status.licenseId}</code></p>
+                <p className="text-sm text-gray-500">Expires: <strong className="text-gray-700 dark:text-gray-300">{status.expiresAt ? new Date(status.expiresAt).toLocaleDateString() : "—"}</strong></p>
+                <p className="text-sm text-gray-500">Authorized devices: <strong className="text-gray-700 dark:text-gray-300">{status.allowedMACs?.length || 0} / {status.maxDevices}</strong></p>
+              </>}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Machine Info */}
+      {status && (
+        <div className="p-5 rounded-2xl border border-gray-200 dark:border-white/10 bg-white dark:bg-[#141414] space-y-2">
+          <div className="flex items-center gap-2 mb-3">
+            <Monitor size={16} className="text-gray-500"/>
+            <h3 className="font-semibold text-sm text-gray-700 dark:text-gray-300">This Machine</h3>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex-1">
+              <p className="text-xs text-gray-400 mb-1">MAC Address</p>
+              <code className="text-sm font-mono text-gray-800 dark:text-gray-200">{status.currentMAC}</code>
+            </div>
+            <button onClick={() => { navigator.clipboard?.writeText(status.currentMAC || ""); toast.success("MAC copied"); }}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/20 transition">
+              Copy MAC
+            </button>
+          </div>
+          <p className="text-xs text-gray-400">Share this MAC address with your provider to get a device code for this machine.</p>
+        </div>
+      )}
+
+      {/* Renew License */}
+      <div className="p-5 rounded-2xl border border-gray-200 dark:border-white/10 bg-white dark:bg-[#141414] space-y-3">
+        <div className="flex items-center gap-2 mb-1">
+          <Shield size={16} className="text-indigo-500"/>
+          <h3 className="font-semibold text-sm text-gray-700 dark:text-gray-300">Enter Renewal Code</h3>
+        </div>
+        <p className="text-xs text-gray-400">Get a renewal code from your software provider and paste it below.</p>
+        <textarea rows={4} value={renewCode} onChange={e => setRenewCode(e.target.value)}
+          className={`${inp2} resize-none text-xs`} placeholder="Paste renewal code here…"/>
+        <button onClick={handleRenew} disabled={renewLoading || !renewCode.trim()}
+          className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white rounded-xl font-semibold text-sm shadow-[0_4px_0_0_#3730a3] active:shadow-none active:translate-y-[4px] transition-[transform,box-shadow] duration-75 select-none">
+          {renewLoading ? "Applying…" : "Apply Renewal Code"}
+        </button>
+      </div>
+
+      {/* Add Device */}
+      <div className="p-5 rounded-2xl border border-gray-200 dark:border-white/10 bg-white dark:bg-[#141414] space-y-3">
+        <div className="flex items-center gap-2 mb-1">
+          <Monitor size={16} className="text-indigo-500"/>
+          <h3 className="font-semibold text-sm text-gray-700 dark:text-gray-300">Add Device Code</h3>
+        </div>
+        <p className="text-xs text-gray-400">Ask your software provider for a device code to authorize this machine.</p>
+        <textarea rows={4} value={deviceCode} onChange={e => setDeviceCode(e.target.value)}
+          className={`${inp2} resize-none text-xs`} placeholder="Paste device code here…"/>
+        <button onClick={handleAddDevice} disabled={devLoading || !deviceCode.trim()}
+          className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white rounded-xl font-semibold text-sm shadow-[0_4px_0_0_#3730a3] active:shadow-none active:translate-y-[4px] transition-[transform,box-shadow] duration-75 select-none">
+          {devLoading ? "Applying…" : "Apply Device Code"}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export default function StoreSettings() {
   const { store: ctxStore, updateStore: updateCtxStore, user } = useAuth();
@@ -420,6 +536,7 @@ export default function StoreSettings() {
             { id: "onlinestore",  label: "Online Store",  icon: Globe    },
             { id: "promos",       label: "Promos",        icon: Tag      },
             { id: "points",       label: "Points",        icon: Star     },
+            { id: "license",      label: "License",       icon: Shield   },
           ].map(({ id, label, icon: Icon }) => (
             <button key={id} onClick={() => {
               setTab(id);
@@ -1111,6 +1228,9 @@ export default function StoreSettings() {
           </div>
         )}
       </div>
+
+      {/* ── LICENSE TAB ── */}
+      {tab === "license" && <LicenseClientTab />}
 
       {/* Change Password Modal */}
       {pwModal && (

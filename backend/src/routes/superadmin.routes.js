@@ -1,6 +1,11 @@
 import express from "express";
 import { protect, isSuperAdmin } from "../middleware/auth.middleware.js";
 import {
+  getKeyStatus, setupPrivateKey, createLicense, listLicenses,
+  downloadLicense, renewLicenseRecord, addDeviceToLicense,
+  deleteLicenseRecord, updateLicenseNotes, getMacInfo,
+} from "../controllers/licenseAdmin.controller.js";
+import {
   getAllStores, getStoreDetails, createStore, deleteStore,
   updateStorePlan, toggleStoreActive, toggleCafeEnabled, resetAdminPassword,
   createCashier, impersonateStore, sendNotification,
@@ -15,6 +20,7 @@ import {
   clearStoreUserSales, clearStoreUserProducts,
   getCafeStaff, createCafeStaffByAdmin, updateCafeStaffByAdmin, deleteCafeStaffByAdmin,
   copyProductsToStore, kickSuperAdminDevice,
+  getStoreLicense, removeLicenseDevice,
 } from "../controllers/superadmin.controller.js";
 
 const router = express.Router();
@@ -53,6 +59,8 @@ router.put("/stores/:id/welcome",            setWelcomeMessage);
 router.post("/stores/:id/transfer",          transferOwner);
 router.post("/stores/:id/clone",             cloneStore);
 router.post("/stores/:id/copy-products",     copyProductsToStore);
+router.get("/stores/:id/license",            getStoreLicense);
+router.delete("/stores/:id/license/devices", removeLicenseDevice);
 
 // Store users management (superadmin only)
 router.get("/stores/:id/users",                              getStoreUsers);
@@ -70,5 +78,17 @@ router.post("/stores/:id/users/:userId/change-password",     changeStoreUserPass
 router.get("/stores/:id/users/:userId/sales",                getStoreUserSales);
 router.delete("/stores/:id/users/:userId/clear-sales",       clearStoreUserSales);
 router.delete("/stores/:id/users/:userId/clear-products",    clearStoreUserProducts);
+
+// ── License Manager (superadmin generates & tracks all issued licenses) ───────
+router.get("/licenses/key-status",             getKeyStatus);
+router.get("/licenses/machine-mac",            getMacInfo);
+router.post("/licenses/setup-key",             setupPrivateKey);
+router.get("/licenses",                        listLicenses);
+router.post("/licenses/create",                createLicense);
+router.get("/licenses/:licenseId/download",    downloadLicense);
+router.post("/licenses/:licenseId/renew",      renewLicenseRecord);
+router.post("/licenses/:licenseId/add-device", addDeviceToLicense);
+router.delete("/licenses/:licenseId",          deleteLicenseRecord);
+router.put("/licenses/:licenseId/notes",       updateLicenseNotes);
 
 export default router;

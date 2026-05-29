@@ -303,6 +303,14 @@ export default function Products() {
   const handleCreate = async () => {
     if (!form.name || !barcode) { toast.error(t.nameRequired); return; }
 
+    // Cost vs price check
+    const costVal  = parseFloat(form.cost)  || 0;
+    const priceVal = parseFloat(form.price) || 0;
+    if (costVal > 0 && priceVal > 0 && costVal >= priceVal) {
+      toast.error(`⚠️ Cost price (${costVal}) must be less than selling price (${priceVal}). Please fix before saving.`, { duration: 5000 });
+      return;
+    }
+
     // Duplicate name detection
     const dup = products.find(p => p.name.trim().toLowerCase() === form.name.trim().toLowerCase());
     if (dup && !window.confirm(`"${dup.name}" ${t.alreadyExistsConfirm}`)) return;
@@ -678,6 +686,30 @@ export default function Products() {
               setTimeout(() => addFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
             }}
           />
+
+          {/* ── COST > PRICE WARNING BANNER ──────────────────────────────── */}
+          {(() => {
+            const bad = products.filter(p => p.cost > 0 && p.price > 0 && p.cost >= p.price);
+            if (!bad.length) return null;
+            return (
+              <div className="rounded-2xl border border-red-200 dark:border-red-500/40 bg-red-50 dark:bg-red-500/10 px-4 py-3 flex items-start gap-3">
+                <AlertCircle size={18} className="text-red-500 shrink-0 mt-0.5"/>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-red-700 dark:text-red-400 mb-1">
+                    {bad.length} product{bad.length > 1 ? "s have" : " has"} a cost price higher than or equal to the selling price
+                  </p>
+                  <div className="space-y-0.5">
+                    {bad.map(p => (
+                      <p key={p._id} className="text-xs text-red-600 dark:text-red-300">
+                        • <strong>{p.name}</strong> — cost: {p.cost} / sell: {p.price}
+                      </p>
+                    ))}
+                  </div>
+                  <p className="text-xs text-red-500 dark:text-red-400 mt-1.5">Click a product to edit and fix the prices.</p>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* ── STATS ────────────────────────────────────────────────────── */}
           <div className="grid grid-cols-3 gap-4">

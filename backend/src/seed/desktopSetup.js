@@ -13,10 +13,10 @@ export async function ensureDesktopSuperAdmin() {
   const username = process.env.DESKTOP_ADMIN_USER || "admin";
   const password = process.env.DESKTOP_ADMIN_PASS || "886659";
 
-  // Lift limits on ALL stores — covers stores registered via the app that
-  // inherited the SaaS trial cap of 100 products / 2 users.
+  // Lift limits only on stores that are NOT from a .nexora license.
+  // Licensed stores keep their real expiry and device limits enforced.
   await Store.updateMany(
-    { maxProducts: { $lt: 999999 } },
+    { maxProducts: { $lt: 999999 }, licenseId: null },
     { $set: { maxProducts: 999999, maxUsers: 100, plan: "enterprise", planExpiresAt: new Date("2099-01-01") } }
   );
 

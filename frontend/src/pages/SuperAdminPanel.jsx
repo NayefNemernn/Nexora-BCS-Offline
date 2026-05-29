@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, lazy, Suspense } from "react";
+const LicenseManagerTab = lazy(() => import("./LicenseManagerTab"));
 import {
   getAllStores, getPlatformStats, updateStorePlan, toggleStoreActive, toggleCafeEnabled,
   createStore, deleteStore, resetAdminPassword, impersonateStore,
@@ -45,7 +46,7 @@ export default function SuperAdminPanel() {
   const { user, login } = useAuth();
   const t = useSuperAdminTranslation();
   const { lang } = useLang();
-  const TABS = [t.tabStores, t.tabActivity, t.tabAuditLog, t.tabProfile];
+  const TABS = [t.tabStores, t.tabActivity, t.tabAuditLog, t.tabProfile, "License Manager"];
   const timeAgo = (date) => { if (!date) return t.never; const s = Math.floor((Date.now() - new Date(date)) / 1000); if (s < 60) return t.justNow; if (s < 3600) return `${Math.floor(s/60)} ${t.mAgo}`; if (s < 86400) return `${Math.floor(s/3600)} ${t.hAgo}`; return new Date(date).toLocaleDateString(); };
   const [tab,      setTab]      = useState(t.tabStores);
   const [stats,    setStats]    = useState(null);
@@ -274,7 +275,7 @@ export default function SuperAdminPanel() {
   );
 
   return (
-    <div className="flex h-screen bg-[#f2f4f8] dark:bg-[#0c0c14] overflow-hidden" dir={lang === "ar" ? "rtl" : "ltr"}>
+    <div className="relative flex h-screen bg-[#f2f4f8] dark:bg-[#0c0c14] overflow-hidden" dir={lang === "ar" ? "rtl" : "ltr"}>
 
       {/* ══════════════════════ SIDEBAR ══════════════════════ */}
       <aside className="w-[220px] shrink-0 bg-white dark:bg-[#10101c] border-r border-gray-200 dark:border-white/[0.05] flex flex-col overflow-hidden">
@@ -294,10 +295,11 @@ export default function SuperAdminPanel() {
         <nav className="flex-1 px-3 pt-4 pb-2 space-y-0.5 overflow-y-auto">
           <p className="text-[9px] font-bold text-gray-400 dark:text-gray-600 uppercase tracking-[0.2em] px-3 mb-3">Menu</p>
           {[
-            { key: t.tabStores,   icon: "🏪", badge: stores.length },
-            { key: t.tabActivity, icon: "⚡" },
-            { key: t.tabAuditLog, icon: "📋" },
-            { key: t.tabProfile,  icon: "👤" },
+            { key: t.tabStores,       icon: "🏪", badge: stores.length },
+            { key: t.tabActivity,     icon: "⚡" },
+            { key: t.tabAuditLog,     icon: "📋" },
+            { key: t.tabProfile,      icon: "👤" },
+            { key: "License Manager", icon: "🔑" },
           ].map(({ key: tk, icon, badge }) => (
             <button key={tk} onClick={() => setTab(tk)}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-semibold transition-all text-left ${
@@ -1655,6 +1657,20 @@ export default function SuperAdminPanel() {
 
         </div>{/* end scrollable content */}
       </div>{/* end main area */}
+
+      {/* ══════════════ LICENSE MANAGER — full-panel overlay ══════════════ */}
+      {tab === "License Manager" && (
+        <div className="absolute inset-0 left-[220px] flex flex-col bg-gray-50 dark:bg-[#0d0d18] overflow-hidden">
+          <header className="h-[58px] bg-white dark:bg-[#10101c] border-b border-gray-200 dark:border-white/[0.05] flex items-center gap-4 px-6 shrink-0">
+            <span className="text-xs text-gray-400 font-medium">Super Admin</span>
+            <span className="text-gray-300 dark:text-gray-700">/</span>
+            <span className="text-sm font-bold text-gray-800 dark:text-white">License Manager</span>
+          </header>
+          <Suspense fallback={<div className="flex-1 flex items-center justify-center text-gray-400 text-sm">Loading…</div>}>
+            <LicenseManagerTab />
+          </Suspense>
+        </div>
+      )}
 
     </div>
   );

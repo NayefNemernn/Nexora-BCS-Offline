@@ -41,3 +41,7 @@ npm-debug.log*
 # Editor
 .vscode/
 .idea/
+
+# License signing keys — NEVER commit the private key
+tools/keys/
+tools/output/

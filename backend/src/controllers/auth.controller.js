@@ -1,8 +1,9 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { v4 as uuid } from "uuid";
-import User from "../models/User.js";
+import User  from "../models/User.js";
 import Store from "../models/Store.js";
+import { getMachineMAC } from "../services/licenseManager.js";
 
 /* ─────────────────────────────────────────────
    REGISTER  (creates store + admin together)
@@ -80,6 +81,32 @@ export const login = async (req, res) => {
       }
       if (store.planExpiresAt && store.planExpiresAt < new Date()) {
         return res.status(402).json({ message: "Store subscription expired. Please renew." });
+      }
+
+      // ── License enforcement (only for stores created from a .nexora license) ──
+      if (store.licenseId) {
+        // 1. Expiry check
+        if (store.licenseExpiresAt && store.licenseExpiresAt < new Date()) {
+          return res.status(402).json({
+            message:        "Your software license has expired. Contact your provider to renew.",
+            licenseExpired: true,
+            licenseId:      store.licenseId,
+          });
+        }
+
+        // 2. MAC address check
+        const currentMAC = getMachineMAC();
+        if (store.allowedMACs.length === 0) {
+          // First device ever — auto-register this machine's MAC
+          store.allowedMACs.push(currentMAC);
+          await store.save();
+        } else if (!store.allowedMACs.includes(currentMAC)) {
+          return res.status(403).json({
+            message:            "This device is not authorized to use this software. Contact your provider.",
+            unauthorizedDevice: true,
+            currentMAC,
+          });
+        }
       }
     }
 

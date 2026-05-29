@@ -775,3 +775,57 @@ export const copyProductsToStore = async (req, res) => {
     });
   } catch (err) { res.status(500).json({ message: err.message }); }
 };
+
+/* ─────────────────────────────────────────────
+   GET STORE LICENSE INFO (superadmin)
+   GET /api/superadmin/stores/:id/license
+───────────────────────────────────────────── */
+export const getStoreLicense = async (req, res) => {
+  try {
+    const store = await Store.findById(req.params.id).select(
+      "name licenseId licenseExpiresAt maxLicenseDevices allowedMACs active planExpiresAt"
+    );
+    if (!store) return res.status(404).json({ message: "Store not found" });
+
+    if (!store.licenseId) {
+      return res.json({ licensed: false, storeName: store.name });
+    }
+
+    const now      = new Date();
+    const expires  = store.licenseExpiresAt;
+    const daysLeft = expires ? Math.ceil((expires - now) / 86400000) : null;
+
+    res.json({
+      licensed:       true,
+      storeName:      store.name,
+      licenseId:      store.licenseId,
+      expiresAt:      expires,
+      daysRemaining:  daysLeft,
+      expired:        expires ? expires < now : false,
+      maxDevices:     store.maxLicenseDevices,
+      allowedMACs:    store.allowedMACs,
+      devicesUsed:    store.allowedMACs.length,
+    });
+  } catch (err) { res.status(500).json({ message: err.message }); }
+};
+
+/* ─────────────────────────────────────────────
+   REMOVE AN AUTHORIZED MAC (superadmin)
+   DELETE /api/superadmin/stores/:id/license/devices
+   Body: { macAddress }
+───────────────────────────────────────────── */
+export const removeLicenseDevice = async (req, res) => {
+  try {
+    const { macAddress } = req.body;
+    if (!macAddress) return res.status(400).json({ message: "macAddress required" });
+
+    const store = await Store.findById(req.params.id);
+    if (!store)          return res.status(404).json({ message: "Store not found" });
+    if (!store.licenseId) return res.status(400).json({ message: "This store has no license" });
+
+    store.allowedMACs = store.allowedMACs.filter(m => m !== macAddress.toLowerCase());
+    await store.save();
+
+    res.json({ message: "Device removed", allowedMACs: store.allowedMACs });
+  } catch (err) { res.status(500).json({ message: err.message }); }
+};

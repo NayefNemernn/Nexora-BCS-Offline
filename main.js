@@ -29,18 +29,19 @@ const BACKEND_PORT = 5000;
 async function startMongoDB() {
   const { MongoMemoryServer } = require("mongodb-memory-server");
 
-  // In packaged mode, use the bundled mongod binary — fully offline, no download needed.
-  // In dev mode, MongoMemoryServer auto-downloads and caches the binary.
-  if (!IS_DEV) {
-    const binName    = process.platform === "win32" ? "mongod.exe" : "mongod";
-    const bundledBin = path.join(process.resourcesPath, "mongodb-binary", binName);
-    if (fs.existsSync(bundledBin)) {
-      // Make sure it is executable on Linux/Mac (it may lose the bit after extraction)
-      if (process.platform !== "win32") {
-        try { fs.chmodSync(bundledBin, 0o755); } catch {}
-      }
-      process.env.MONGOMS_SYSTEM_BINARY = bundledBin;
+  // Always prefer the pre-bundled mongod binary (dev or packaged) so the app
+  // never tries to download MongoDB at runtime.
+  const binName = process.platform === "win32" ? "mongod.exe" : "mongod";
+  const bundledBin = IS_DEV
+    ? path.join(__dirname, "build-resources", "mongodb-binary",
+        process.platform === "win32" ? "win" : "linux", binName)
+    : path.join(process.resourcesPath, "mongodb-binary", binName);
+
+  if (fs.existsSync(bundledBin)) {
+    if (process.platform !== "win32") {
+      try { fs.chmodSync(bundledBin, 0o755); } catch {}
     }
+    process.env.MONGOMS_SYSTEM_BINARY = bundledBin;
   }
 
   mongoServer = await MongoMemoryServer.create({
@@ -60,7 +61,7 @@ async function startMongoDB() {
 // ── 2. Start the Express backend ─────────────────────────────────────────────
 // Uses Electron's built-in Node.js (utilityProcess) so no external Node
 // installation is required on the user's machine.
-function startBackend(mongoUri) {
+function startBackend(mongoUri, licenseFile) {
   const backendDir = IS_DEV
     ? path.join(__dirname, "..", "backend")
     : path.join(process.resourcesPath, "backend");
@@ -76,8 +77,10 @@ function startBackend(mongoUri) {
     JWT_SECRET:     process.env.JWT_SECRET || "nexora-desktop-offline-secret",
     NODE_ENV:       "production",
     ELECTRON_RUN:   "true",
-    UPLOADS_DIR:    uploadsDir,
-    FRONTEND_DIST:  frontendDist,
+    UPLOADS_DIR:      uploadsDir,
+    FRONTEND_DIST:    frontendDist,
+    USER_DATA_PATH:   userData,
+    ...(licenseFile ? { LICENSE_FILE: licenseFile } : {}),
   };
 
   // utilityProcess.fork uses Electron's own Node runtime — no system Node needed
@@ -191,8 +194,24 @@ app.whenReady().then(async () => {
   mainWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(splashHtml)}`);
 
   try {
+    // On first launch, ask for a .nexora license file if the user has one.
+    // If they skip (superadmin's own machine), the app starts in full mode.
+    let licenseFile = null;
+    if (isFirstLaunch) {
+      const picked = await dialog.showOpenDialog(mainWindow, {
+        title:       "Select License File (optional)",
+        message:     "If you received a .nexora license file from your provider, select it now. Click Cancel to skip (for standalone / superadmin use).",
+        buttonLabel: "Use This License",
+        filters:     [{ name: "Nexora License", extensions: ["nexora"] }],
+        properties:  ["openFile"],
+      });
+      if (!picked.canceled && picked.filePaths.length > 0) {
+        licenseFile = picked.filePaths[0];
+      }
+    }
+
     const mongoUri = await startMongoDB();
-    startBackend(mongoUri);
+    startBackend(mongoUri, licenseFile);
     await waitForBackend();
     mainWindow.close();
     createWindow();

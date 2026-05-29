@@ -5,7 +5,7 @@ import {
   answerCallback, editMessage, sendMessage,
   buildDriverConfirmMessage,
 } from "../services/telegram.service.js";
-import { buildReportMessage } from "./telegram.report.js";
+import { buildReportMessage, sendFullReport } from "./telegram.report.js";
 
 const PERIOD_COMMANDS = {
   "/report": "today", "/today": "today",
@@ -14,14 +14,28 @@ const PERIOD_COMMANDS = {
   "/year":   "year",
 };
 
+// Same commands with charts
+const CHART_COMMANDS = {
+  "/chart":       "today",
+  "/chartweek":   "week",
+  "/chartmonth":  "month",
+  "/chartyear":   "year",
+};
+
 const HELP_TEXT =
 `👋 <b>Nexora POS Bot</b>
 
-Commands:
-/report — Today's sales report
-/week   — This week's report
-/month  — This month's report
-/year   — This year's report`;
+📋 <b>Text Reports:</b>
+/report — Today's report
+/week   — This week
+/month  — This month
+/year   — This year
+
+📊 <b>Chart Reports:</b>
+/chart      — Today's charts
+/chartweek  — This week's charts
+/chartmonth — This month's charts
+/chartyear  — This year's charts`;
 
 export const handleTelegramWebhook = async (req, res) => {
   // Always respond 200 immediately so Telegram doesn't retry
@@ -51,8 +65,15 @@ export const handleTelegramWebhook = async (req, res) => {
         await sendMessage(token, chatId, "⏳ Building report…");
         const msg = await buildReportMessage(store._id, period);
         await sendMessage(token, chatId, msg);
+        return;
       }
-      return;
+
+      const chartPeriod = CHART_COMMANDS[cmd];
+      if (chartPeriod) {
+        await sendMessage(token, chatId, "📊 Generating charts…");
+        await sendFullReport(token, chatId, store._id, chartPeriod, true);
+        return;
+      }
     }
 
     if (!update.callback_query) return;

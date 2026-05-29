@@ -16,6 +16,23 @@ const isBotSafeUrl = (url) => {
   } catch { return false; }
 };
 
+export const sendPhoto = async (botToken, chatId, photoUrl, caption = null) => {
+  if (!botToken || !chatId) return null;
+  const body = { chat_id: chatId, photo: photoUrl, parse_mode: "HTML" };
+  if (caption) body.caption = caption;
+  try {
+    const res = await fetch(`${TG_API(botToken)}/sendPhoto`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    return res.json();
+  } catch (err) {
+    console.error("[Telegram] sendPhoto failed:", err.message);
+    return null;
+  }
+};
+
 export const sendMessage = async (botToken, chatId, text, replyMarkup = null) => {
   if (!botToken || !chatId) return null;
   const body = { chat_id: chatId, text, parse_mode: "HTML" };

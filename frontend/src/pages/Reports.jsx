@@ -61,6 +61,7 @@ export default function Reports() {
   const [returnSale,  setReturnSale]  = useState(null);
   const [voidModal,   setVoidModal]   = useState(null);
   const [sendingTg,   setSendingTg]   = useState(false);
+  const [sendingTgChart, setSendingTgChart] = useState(false);
   const [voidPin,     setVoidPin]     = useState("");
   const [voidReason,  setVoidReason]  = useState("");
   const [voidLoading, setVoidLoading] = useState(false);
@@ -269,6 +270,19 @@ export default function Reports() {
               }}
               className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-sm border border-[#229ED9]/40 bg-[#229ED9]/10 hover:bg-[#229ED9]/20 text-[#229ED9] font-semibold shadow-[0_4px_0_0_rgba(34,158,217,0.25)] active:shadow-none active:translate-y-[4px] transition-[transform,box-shadow] duration-75 select-none disabled:opacity-50">
               <Send size={14}/> {sendingTg ? "Sending…" : "Telegram"}
+            </button>
+            <button disabled={sendingTgChart} onClick={async () => {
+                setSendingTgChart(true);
+                const periodMap = { day: "today", week: "week", month: "month", year: "year" };
+                try {
+                  await api.post(`/telegram/report?period=${periodMap[period] || "today"}&charts=1`);
+                  toast.success("Charts sent to Telegram 📊");
+                } catch (err) {
+                  toast.error(err.response?.data?.message || "Failed to send charts");
+                } finally { setSendingTgChart(false); }
+              }}
+              className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-sm border border-purple-400/40 bg-purple-500/10 hover:bg-purple-500/20 text-purple-500 font-semibold shadow-[0_4px_0_0_rgba(168,85,247,0.25)] active:shadow-none active:translate-y-[4px] transition-[transform,box-shadow] duration-75 select-none disabled:opacity-50">
+              <Send size={14}/> {sendingTgChart ? "Sending…" : "📊 Charts"}
             </button>
           </div>
         </div>

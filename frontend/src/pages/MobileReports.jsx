@@ -41,7 +41,8 @@ export default function MobileReports() {
   const [stats,   setStats]   = useState(null);
   const [sales,   setSales]   = useState([]);
   const [loading, setLoading] = useState(true);
-  const [sending, setSending] = useState(false);
+  const [sending,      setSending]      = useState(false);
+  const [sendingChart, setSendingChart] = useState(false);
   const [showAll, setShowAll] = useState(false);
 
   const load = useCallback(async () => {
@@ -272,13 +273,30 @@ export default function MobileReports() {
           </div>
 
           {/* Send to Telegram */}
-          <button onClick={sendToTelegram} disabled={sending}
-            className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl
-              bg-[#229ED9] hover:bg-[#1a8fc4] active:scale-95 transition
-              text-white text-sm font-bold shadow-lg shadow-[#229ED9]/30 disabled:opacity-60">
-            <Send size={15} />
-            {sending ? "Sending…" : `Send ${PERIODS.find(p=>p.key===period)?.label} Report to Telegram`}
-          </button>
+          <div className="flex flex-col gap-2">
+            <button onClick={sendToTelegram} disabled={sending}
+              className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl
+                bg-[#229ED9] hover:bg-[#1a8fc4] active:scale-95 transition
+                text-white text-sm font-bold shadow-lg shadow-[#229ED9]/30 disabled:opacity-60">
+              <Send size={15} />
+              {sending ? "Sending…" : `Send ${PERIODS.find(p=>p.key===period)?.label} Report`}
+            </button>
+            <button onClick={async () => {
+                setSendingChart(true);
+                try {
+                  await api.post(`/telegram/report?period=${period}&charts=1`);
+                  toast.success("Charts sent to Telegram 📊");
+                } catch (err) {
+                  toast.error(err.response?.data?.message || "Failed to send charts");
+                } finally { setSendingChart(false); }
+              }} disabled={sendingChart}
+              className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl
+                bg-purple-600 hover:bg-purple-700 active:scale-95 transition
+                text-white text-sm font-bold shadow-lg shadow-purple-600/30 disabled:opacity-60">
+              <Send size={15} />
+              {sendingChart ? "Sending…" : `Send ${PERIODS.find(p=>p.key===period)?.label} Charts 📊`}
+            </button>
+          </div>
 
           {!store?.telegramBotToken && (
             <p className="text-center text-[11px] text-gray-400">

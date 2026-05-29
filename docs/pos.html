@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>BCS POS — Retail Management System</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+@page{size:A4;margin:0}
+@media print{
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+  .pb{page-break-before:always}
+  .no-break{page-break-inside:avoid}
+}
+:root{
+  --p:#1d4ed8;--pl:#3b82f6;--a:#059669;--al:#10b981;
+  --dk:#0f172a;--dk2:#1e293b;--gr:#64748b;
+  --lt:#f8fafc;--wh:#ffffff;--bd:#e2e8f0;
+  --hl:#eff6ff;--hl2:#ecfdf5
+}
+body{font-family:'Inter',system-ui,sans-serif;font-size:10pt;line-height:1.65;color:var(--dk);background:#fff}
+
+/* ═══════════ COVER ═══════════ */
+.cover{
+  width:210mm;height:297mm;
+  background:linear-gradient(145deg,#0a0f1e 0%,#0d1f4e 40%,#1d4ed8 100%);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  position:relative;overflow:hidden
+}
+.cover-ring1{position:absolute;top:-60mm;right:-40mm;width:160mm;height:160mm;border-radius:50%;border:1.5px solid rgba(59,130,246,.18)}
+.cover-ring2{position:absolute;top:-30mm;right:-10mm;width:100mm;height:100mm;border-radius:50%;border:1px solid rgba(59,130,246,.1)}
+.cover-ring3{position:absolute;bottom:-50mm;left:-30mm;width:130mm;height:130mm;border-radius:50%;background:radial-gradient(circle,rgba(16,185,129,.12) 0%,transparent 70%)}
+.cover-pill{
+  background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.3);
+  color:#6ee7b7;font-size:7.5pt;font-weight:600;letter-spacing:2.5px;text-transform:uppercase;
+  padding:5px 18px;border-radius:20px;margin-bottom:28px
+}
+.cover-brand{font-size:44pt;font-weight:900;color:#fff;letter-spacing:-2px;line-height:1;margin-bottom:6px}
+.cover-brand span{color:#60a5fa}
+.cover-line{width:18mm;height:3px;background:linear-gradient(90deg,#3b82f6,#10b981);border-radius:2px;margin:12px auto 20px}
+.cover-title{font-size:18pt;font-weight:700;color:rgba(255,255,255,.88);text-align:center;line-height:1.3;margin-bottom:10px}
+.cover-sub{font-size:10.5pt;color:rgba(255,255,255,.45);text-align:center;max-width:130mm;line-height:1.7;margin-bottom:44px}
+.cover-chips{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-bottom:44px}
+.cover-chip{
+  background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);
+  color:rgba(255,255,255,.75);border-radius:8px;
+  padding:6px 14px;font-size:8.5pt;font-weight:500;display:flex;align-items:center;gap:6px
+}
+.cover-chip span{font-size:13px}
+.cover-footer{
+  position:absolute;bottom:16mm;left:0;right:0;
+  display:flex;justify-content:center;gap:30px;align-items:center
+}
+.cover-meta{font-size:7.5pt;color:rgba(255,255,255,.25);text-align:center}
+.cover-dot{color:rgba(255,255,255,.2);font-size:8pt}
+
+/* ═══════════ CONTENT ═══════════ */
+.page{padding:14mm 16mm 10mm}
+
+.hdr{display:flex;justify-content:space-between;align-items:center;padding-bottom:7px;border-bottom:2.5px solid var(--p);margin-bottom:20px}
+.hdr-brand{font-size:8pt;font-weight:700;color:var(--p);letter-spacing:1.5px;text-transform:uppercase}
+.hdr-sec{font-size:7.5pt;color:var(--gr)}
+
+/* Page title block */
+.ptitle{margin-bottom:20px}
+.ptitle-eye{font-size:8pt;font-weight:600;color:var(--p);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:5px}
+.ptitle h1{font-size:20pt;font-weight:800;color:var(--dk);line-height:1.2;margin-bottom:6px}
+.ptitle h1 em{color:var(--p);font-style:normal}
+.ptitle-sub{font-size:10.5pt;color:var(--gr);line-height:1.6;max-width:140mm}
+
+/* Intro box */
+.intro{background:var(--hl);border-left:3px solid var(--pl);border-radius:0 8px 8px 0;padding:12px 16px;margin-bottom:20px;font-size:10pt;color:var(--dk2);line-height:1.7}
+
+h2{font-size:12.5pt;font-weight:700;color:var(--dk);margin-top:24px;margin-bottom:12px;display:flex;align-items:center;gap:10px}
+h2 .bar{width:3px;height:18px;background:linear-gradient(to bottom,var(--p),var(--a));border-radius:2px;flex-shrink:0}
+h3{font-size:10.5pt;font-weight:600;color:var(--dk2);margin-top:14px;margin-bottom:8px}
+p{margin-bottom:9px;color:var(--dk2);line-height:1.7}
+
+/* Feature cards grid */
+.fcards{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin:12px 0}
+.fcard{background:#fff;border:1px solid var(--bd);border-radius:10px;padding:14px;page-break-inside:avoid}
+.fcard-hdr{display:flex;align-items:center;gap:9px;margin-bottom:7px}
+.fcard-icon{width:34px;height:34px;border-radius:8px;background:var(--hl);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.fcard-icon.g{background:var(--hl2)}
+.fcard-icon.o{background:#fff7ed}
+.fcard-title{font-size:10pt;font-weight:600;color:var(--dk)}
+.fcard-body{font-size:9pt;color:var(--gr);line-height:1.6}
+
+/* Check list */
+ul.cl{list-style:none;padding:0;margin:8px 0}
+ul.cl li{display:flex;align-items:flex-start;gap:7px;padding:4.5px 0;font-size:9.5pt;color:var(--dk2);line-height:1.5;border-bottom:1px solid var(--bd)}
+ul.cl li:last-child{border-bottom:none}
+ul.cl li::before{content:'✓';color:var(--a);font-weight:700;font-size:9.5pt;flex-shrink:0;margin-top:1px}
+
+.cl-2col{display:grid;grid-template-columns:1fr 1fr;gap:0 16px}
+
+/* Tables */
+table{width:100%;border-collapse:collapse;margin:12px 0;font-size:9pt;page-break-inside:avoid}
+thead{background:var(--dk)}
+thead th{padding:9px 11px;text-align:left;font-weight:600;font-size:8.5pt;color:#fff;letter-spacing:.3px}
+thead th:first-child{border-radius:6px 0 0 0}
+thead th:last-child{border-radius:0 6px 0 0}
+tbody tr:nth-child(even){background:var(--lt)}
+tbody td{padding:8px 11px;border-bottom:1px solid var(--bd);color:var(--dk2);vertical-align:middle}
+.ck{color:#059669;font-weight:700;font-size:11pt}
+.cx{color:#dc2626;font-weight:700}
+.cp{color:#d97706;font-size:8pt;font-weight:600}
+.tc{text-align:center}
+
+/* Highlight panel */
+.hpanel{background:linear-gradient(135deg,#eff6ff,#ecfdf5);border:1px solid #bfdbfe;border-radius:12px;padding:18px 22px;margin:16px 0;page-break-inside:avoid}
+.hpanel-title{font-size:10.5pt;font-weight:700;color:var(--p);margin-bottom:9px;display:flex;align-items:center;gap:8px}
+.hpanel-body{font-size:9.5pt;color:var(--dk2);line-height:1.7}
+
+/* Steps */
+.steps{margin:12px 0}
+.step{display:flex;gap:13px;margin-bottom:11px;page-break-inside:avoid}
+.snum{width:26px;height:26px;border-radius:50%;background:var(--p);color:#fff;display:flex;align-items:center;justify-content:center;font-size:9.5pt;font-weight:700;flex-shrink:0}
+.scont{flex:1;padding-top:3px}
+.stitle{font-size:10pt;font-weight:600;color:var(--dk);margin-bottom:2px}
+.sdesc{font-size:9pt;color:var(--gr);line-height:1.5}
+
+/* Tags */
+.tags{display:flex;flex-wrap:wrap;gap:7px;margin:9px 0}
+.tag{background:var(--hl);color:var(--p);border:1px solid #bfdbfe;border-radius:6px;padding:3px 11px;font-size:8.5pt;font-weight:500}
+.tag.g{background:var(--hl2);color:#065f46;border-color:#6ee7b7}
+.tag.o{background:#fff7ed;color:#92400e;border-color:#fed7aa}
+
+/* Stats */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:14px 0}
+.stat{background:var(--dk);border-radius:10px;padding:14px;text-align:center}
+.stat-n{font-size:20pt;font-weight:800;color:#60a5fa;line-height:1;margin-bottom:3px}
+.stat-l{font-size:8pt;color:rgba(255,255,255,.5);font-weight:500}
+
+/* Two col */
+.twocol{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:12px 0}
+.box{background:var(--lt);border-radius:10px;padding:14px;border:1px solid var(--bd)}
+.box-title{font-size:10pt;font-weight:700;color:var(--dk);margin-bottom:9px;padding-bottom:7px;border-bottom:1px solid var(--bd)}
+
+/* Plans */
+.plans{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:14px 0}
+.plan{border:1px solid var(--bd);border-radius:10px;overflow:hidden;page-break-inside:avoid}
+.plan.hot{border-color:var(--p);box-shadow:0 0 0 2px #bfdbfe}
+.plan-hdr{background:var(--dk);color:#fff;padding:12px 12px 9px}
+.plan.hot .plan-hdr{background:linear-gradient(135deg,var(--p),var(--pl))}
+.plan-name{font-size:10.5pt;font-weight:700;margin-bottom:1px}
+.plan-tag{font-size:7.5pt;color:rgba(255,255,255,.5)}
+.plan-body{padding:10px 12px;background:#fff}
+.plan-row{font-size:8.5pt;color:var(--dk2);margin-bottom:4px;display:flex;gap:5px}
+.plan-row::before{content:'→';color:var(--p);font-weight:700}
+
+/* VAT section */
+.vat-box{background:linear-gradient(135deg,#fef9f0,#fffbf5);border:1px solid #fed7aa;border-radius:12px;padding:18px 22px;margin:14px 0;page-break-inside:avoid}
+.vat-title{font-size:11pt;font-weight:700;color:#92400e;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+
+/* Divider */
+hr{border:none;border-top:1px solid var(--bd);margin:18px 0}
+
+/* Footer */
+.pfooter{border-top:1px solid var(--bd);padding-top:6px;margin-top:12px;display:flex;justify-content:space-between;align-items:center}
+.pfooter-l{font-size:7.5pt;color:var(--gr)}
+.pfooter-r{font-size:7.5pt;color:var(--gr)}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════ COVER -->
+<div class="cover">
+  <div class="cover-ring1"></div>
+  <div class="cover-ring2"></div>
+  <div class="cover-ring3"></div>
+  <div class="cover-pill">Retail &amp; Market Edition</div>
+  <div class="cover-brand">BCS<span>.</span></div>
+  <div class="cover-line"></div>
+  <div class="cover-title">Point of Sale &amp;<br>Business Management System</div>
+  <div class="cover-sub">A complete retail operating platform — from the checkout counter to AI-powered reorder intelligence, all in one cloud system.</div>
+  <div class="cover-chips">
+    <div class="cover-chip"><span>🛒</span> Smart POS Checkout</div>
+    <div class="cover-chip"><span>📦</span> FIFO Batch Inventory</div>
+    <div class="cover-chip"><span>🤖</span> AI Business Intelligence</div>
+    <div class="cover-chip"><span>🌐</span> Online Store &amp; Delivery</div>
+    <div class="cover-chip"><span>🇱🇧</span> Lebanese VAT Compliant</div>
+  </div>
+  <div class="cover-footer">
+    <div class="cover-meta">Confidential Client Proposal</div>
+    <div class="cover-dot">•</div>
+    <div class="cover-meta">BCS Platform — 2026</div>
+    <div class="cover-dot">•</div>
+    <div class="cover-meta">Retail Edition</div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════ PAGE 2 — INTRO -->
+<div class="page pb">
+  <div class="hdr"><div class="hdr-brand">BCS POS</div><div class="hdr-sec">Overview &amp; Core Capabilities</div></div>
+  <div class="ptitle">
+    <div class="ptitle-eye">What You're Getting</div>
+    <h1>More than a cashier screen.<br>A complete <em>business operating system</em>.</h1>
+    <div class="ptitle-sub">BCS is a cloud-based POS built for Lebanese retail stores, supermarkets, and delivery businesses. Every feature you need — from checkout to AI-driven procurement — is included under one subscription.</div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-n">17+</div><div class="stat-l">Core Modules</div></div>
+    <div class="stat"><div class="stat-n">5</div><div class="stat-l">Payment Methods</div></div>
+    <div class="stat"><div class="stat-n">AI</div><div class="stat-l">Powered Insights</div></div>
+    <div class="stat"><div class="stat-n">24/7</div><div class="stat-l">Cloud Access</div></div>
+  </div>
+
+  <h2><span class="bar"></span>How BCS Compares to Other POS Systems</h2>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Feature</th>
+        <th class="tc">BCS</th>
+        <th class="tc">Square</th>
+        <th class="tc">Loyverse</th>
+        <th class="tc">iiko</th>
+        <th class="tc">Toast</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>Built-in Online Storefront</td><td class="tc ck">✓</td><td class="tc cp">Extra $</td><td class="tc cx">✗</td><td class="tc cx">✗</td><td class="tc cp">Extra $</td></tr>
+      <tr><td>FIFO Batch Expiry Tracking</td><td class="tc ck">✓</td><td class="tc cx">✗</td><td class="tc cx">✗</td><td class="tc cp">Partial</td><td class="tc cx">✗</td></tr>
+      <tr><td>AI Reorder &amp; Offer Suggestions</td><td class="tc ck">✓</td><td class="tc cx">✗</td><td class="tc cx">✗</td><td class="tc cx">✗</td><td class="tc cx">✗</td></tr>
+      <tr><td>Lebanese VAT per product</td><td class="tc ck">✓</td><td class="tc cx">✗</td><td class="tc cx">✗</td><td class="tc cx">✗</td><td class="tc cx">✗</td></tr>
+      <tr><td>Telegram Delivery Driver Alerts</td><td class="tc ck">✓</td><td class="tc cx">✗</td><td class="tc cx">✗</td><td class="tc cx">✗</td><td class="tc cx">✗</td></tr>
+      <tr><td>Pay Later / Credit Accounts</td><td class="tc ck">✓</td><td class="tc cx">✗</td><td class="tc cp">Partial</td><td class="tc cx">✗</td><td class="tc cx">✗</td></tr>
+      <tr><td>Split Payment (Cash+Card+Credit)</td><td class="tc ck">✓</td><td class="tc cx">✗</td><td class="tc cx">✗</td><td class="tc ck">✓</td><td class="tc cp">Partial</td></tr>
+      <tr><td>Full Audit Log (every action)</td><td class="tc ck">✓</td><td class="tc cx">✗</td><td class="tc cx">✗</td><td class="tc ck">✓</td><td class="tc cp">Partial</td></tr>
+      <tr><td>Arabic / English Interface</td><td class="tc ck">✓</td><td class="tc cx">✗</td><td class="tc cp">Partial</td><td class="tc cp">Partial</td><td class="tc cx">✗</td></tr>
+      <tr><td>Offline Mode (no internet)</td><td class="tc ck">✓</td><td class="tc ck">✓</td><td class="tc cp">Partial</td><td class="tc cx">✗</td><td class="tc cx">✗</td></tr>
+      <tr><td>Profit/Loss per Product</td><td class="tc ck">✓</td><td class="tc cp">Partial</td><td class="tc cx">✗</td><td class="tc ck">✓</td><td class="tc cp">Partial</td></tr>
+      <tr><td>Local pricing (no USD trap)</td><td class="tc ck">✓</td><td class="tc cx">✗</td><td class="tc cx">✗</td><td class="tc cx">✗</td><td class="tc cx">✗</td></tr>
+    </tbody>
+  </table>
+
+  <div class="pfooter"><div class="pfooter-l">BCS — Retail Management System</div><div class="pfooter-r">Confidential · 2026</div></div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════ PAGE 3 — POS CHECKOUT -->
+<div class="page pb">
+  <div class="hdr"><div class="hdr-brand">BCS POS</div><div class="hdr-sec">Core POS &amp; Checkout</div></div>
+
+  <div class="ptitle">
+    <div class="ptitle-eye">Feature 01</div>
+    <h1>Smart Checkout<br>&amp; <em>Payment Engine</em></h1>
+    <div class="ptitle-sub">A trained cashier completes a transaction in under 15 seconds. Every common payment scenario is covered natively — no plugins required.</div>
+  </div>
+
+  <div class="fcards">
+    <div class="fcard no-break">
+      <div class="fcard-hdr"><div class="fcard-icon">🔍</div><div class="fcard-title">Fast Product Search</div></div>
+      <div class="fcard-body">Scan any barcode or type a product name. Products appear instantly with image, price, and stock level.</div>
+    </div>
+    <div class="fcard no-break">
+      <div class="fcard-hdr"><div class="fcard-icon g">💳</div><div class="fcard-title">Multiple Payment Methods</div></div>
+      <div class="fcard-body">Cash, Card, Bank Transfer, Pay Later, Cash on Delivery — all built in. No third-party payment app needed.</div>
+    </div>
+    <div class="fcard no-break">
+      <div class="fcard-hdr"><div class="fcard-icon">⚡</div><div class="fcard-title">Split Payment</div></div>
+      <div class="fcard-body">Divide a single sale across any combination of methods. Example: $30 cash + $20 card + $10 credit — all in one transaction.</div>
+    </div>
+    <div class="fcard no-break">
+      <div class="fcard-hdr"><div class="fcard-icon g">📋</div><div class="fcard-title">Hold &amp; Resume</div></div>
+      <div class="fcard-body">Park a sale mid-process. Serve the next customer immediately. Resume the held sale when the first customer returns.</div>
+    </div>
+    <div class="fcard no-break">
+      <div class="fcard-hdr"><div class="fcard-icon">🔄</div><div class="fcard-title">Returns &amp; Refunds</div></div>
+      <div class="fcard-body">Process partial or full returns on any past sale. Stock is automatically restocked. Refund amount is tracked per item.</div>
+    </div>
+    <div class="fcard no-break">
+      <div class="fcard-hdr"><div class="fcard-icon g">🧾</div><div class="fcard-title">Receipt Printing</div></div>
+      <div class="fcard-body">Formatted thermal receipt with store logo, itemized VAT, discount breakdown, cashier name, and custom footer message.</div>
+    </div>
+  </div>
+
+  <h2><span class="bar"></span>Full Checkout Capability List</h2>
+  <ul class="cl cl-2col">
+    <li>Barcode scan to add product</li>
+    <li>Product image thumbnails in grid</li>
+    <li>Category tile browser</li>
+    <li>Product variants (size, color)</li>
+    <li>Per-item discount</li>
+    <li>Order-level discount (%  or fixed)</li>
+    <li>Promo code redemption</li>
+    <li>Customer account attachment</li>
+    <li>Order notes field</li>
+    <li>Void sale (manager PIN required)</li>
+    <li>Digital receipt on screen</li>
+    <li>Print receipt (thermal format)</li>
+    <li>Offline mode (IndexedDB cache)</li>
+    <li>Auto-sync when internet returns</li>
+  </ul>
+
+  <div class="hpanel no-break">
+    <div class="hpanel-title">💡 Pay Later — Credit Accounts</div>
+    <div class="hpanel-body">When a customer cannot pay in full, the balance is saved against their account as a credit debt. The cashier can collect partial or full payments at any later time. Every payment is timestamped and logged. Outstanding balances appear on the dashboard for instant visibility.</div>
+  </div>
+
+  <h2><span class="bar"></span>Offline Mode</h2>
+  <p>BCS uses a local IndexedDB cache in the browser. If the internet connection drops, the cashier continues selling without interruption. When connectivity returns, all offline transactions sync automatically to the cloud — nothing is lost.</p>
+
+  <div class="pfooter"><div class="pfooter-l">BCS — Retail Management System</div><div class="pfooter-r">Confidential · 2026</div></div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════ PAGE 4 — PRODUCTS & INVENTORY -->
+<div class="page pb">
+  <div class="hdr"><div class="hdr-brand">BCS POS</div><div class="hdr-sec">Products, Inventory &amp; Batch Management</div></div>
+
+  <div class="ptitle">
+    <div class="ptitle-eye">Feature 02 &amp; 03</div>
+    <h1>Products &amp;<br><em>FIFO Batch Inventory</em></h1>
+    <div class="ptitle-sub">Complete product lifecycle management with automatic FIFO stock deduction — the system always sells the soonest-to-expire units first.</div>
+  </div>
+
+  <div class="twocol">
+    <div class="box">
+      <div class="box-title">Product Fields</div>
+      <ul class="cl">
+        <li>Name, Barcode (auto-generated)</li>
+        <li>Selling Price &amp; Cost Price</li>
+        <li>Category with emoji icon</li>
+        <li>Product Image (upload or URL)</li>
+        <li>Stock quantity tracking</li>
+        <li>Expiry Date (auto-disables product)</li>
+        <li>VAT Exempt toggle</li>
+        <li>Online Store visibility toggle</li>
+        <li>Product Variants (size, color…)</li>
+      </ul>
+    </div>
+    <div class="box">
+      <div class="box-title">Batch Tracking Fields</div>
+      <ul class="cl">
+        <li>Auto-generated batch number</li>
+        <li>Supplier link</li>
+        <li>Received date</li>
+        <li>Expiry date</li>
+        <li>Cost price at time of purchase</li>
+        <li>Initial &amp; remaining quantity</li>
+        <li>Batch status (Active / Expiring / Expired / Depleted)</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2><span class="bar"></span>FIFO Automatic Stock Deduction</h2>
+  <div class="intro">When a product is sold, BCS automatically deducts stock from the <strong>earliest-expiring batch first</strong> (First In, First Out). Batches with no expiry date are consumed last. This prevents expired stock from sitting hidden while newer stock is sold.</div>
+
+  <h2><span class="bar"></span>Batch Status Dashboard</h2>
+  <table>
+    <thead><tr><th>Status</th><th>Condition</th><th>Action Required</th></tr></thead>
+    <tbody>
+      <tr><td>🟢 Active</td><td>Has remaining quantity, not expired</td><td>None</td></tr>
+      <tr><td>🟡 Expiring Soon</td><td>Will expire within 30 days</td><td>Consider running a promotion</td></tr>
+      <tr><td>🔴 Expired</td><td>Past expiry date, still has stock</td><td>Remove from sale immediately</td></tr>
+      <tr><td>⚫ Depleted</td><td>All units sold</td><td>Reorder if needed</td></tr>
+    </tbody>
+  </table>
+
+  <h2><span class="bar"></span>Complete Stock Log</h2>
+  <p>Every single stock movement is recorded with timestamp, user, and reason. Nothing is invisible.</p>
+  <div class="tags">
+    <span class="tag">🛒 Sale (auto)</span>
+    <span class="tag">↩ Return (auto)</span>
+    <span class="tag">🚫 Void (auto)</span>
+    <span class="tag g">📦 Batch Received</span>
+    <span class="tag g">✏️ Manual Adjustment</span>
+    <span class="tag g">🔧 Batch Adjusted</span>
+  </div>
+
+  <h2><span class="bar"></span>Product Variants</h2>
+  <p>One product SKU can have multiple sellable variants — each with its own price, stock level, and barcode. Example: <em>T-Shirt</em> → Small $15 (qty:20), Medium $15 (qty:35), Large $17 (qty:10). The cashier selects the variant at checkout from a popup.</p>
+
+  <div class="hpanel no-break">
+    <div class="hpanel-title">📊 Low Stock Alerts</div>
+    <div class="hpanel-body">Products with 5 or fewer units remaining are flagged in red on the dashboard. The admin sees the product name and exact stock count at a glance — no need to dig through reports to spot stock problems.</div>
+  </div>
+
+  <div class="pfooter"><div class="pfooter-l">BCS — Retail Management System</div><div class="pfooter-r">Confidential · 2026</div></div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════ PAGE 5 — CUSTOMERS, DISCOUNTS, SHIFTS -->
+<div class="page pb">
+  <div class="hdr"><div class="hdr-brand">BCS POS</div><div class="hdr-sec">Customers · Discounts · Shift Management</div></div>
+
+  <div class="ptitle">
+    <div class="ptitle-eye">Features 04 · 05 · 06</div>
+    <h1>Customers, Promotions<br>&amp; <em>Cash Drawer Control</em></h1>
+  </div>
+
+  <h2><span class="bar"></span>Customer CRM</h2>
+  <div class="fcards">
+    <div class="fcard no-break">
+      <div class="fcard-hdr"><div class="fcard-icon">👤</div><div class="fcard-title">Customer Profiles</div></div>
+      <div class="fcard-body">Name, phone, email, address, notes. Auto-tracks total spent, total orders, and outstanding Pay Later balance. Full 50-order purchase history per customer.</div>
+    </div>
+    <div class="fcard no-break">
+      <div class="fcard-hdr"><div class="fcard-icon g">💰</div><div class="fcard-title">Credit / Pay Later Ledger</div></div>
+      <div class="fcard-body">Credit balances accumulate across multiple sales. The cashier collects partial or full payments at any time. Every payment is logged with timestamp and cashier name.</div>
+    </div>
+  </div>
+
+  <h2><span class="bar"></span>Discounts &amp; Promo Codes</h2>
+  <ul class="cl">
+    <li><strong>Fixed discount</strong> — subtract a flat amount from the order (e.g. $5 off)</li>
+    <li><strong>Percentage discount</strong> — apply % off the entire order or single item (e.g. 15% off)</li>
+    <li><strong>Promo codes</strong> — create codes with usage limits and expiry dates; applied automatically at checkout</li>
+    <li><strong>Points offers</strong> — configure points-per-dollar; customers accumulate and redeem points</li>
+  </ul>
+
+  <h2><span class="bar"></span>Shift &amp; Cash Drawer Management</h2>
+  <div class="intro">Every cashier opens a shift before selling. Every sale is linked to that shift. At close, the system calculates exactly how much cash should be in the drawer — and flags any discrepancy.</div>
+
+  <div class="fcards">
+    <div class="fcard no-break">
+      <div class="fcard-hdr"><div class="fcard-icon">🔓</div><div class="fcard-title">Opening a Shift</div></div>
+      <div class="fcard-body">Cashier counts the opening float using denomination entry (×$1, ×$5, ×$10, ×$20). System calculates total automatically. Shift opens with the float recorded.</div>
+    </div>
+    <div class="fcard no-break">
+      <div class="fcard-hdr"><div class="fcard-icon g">📈</div><div class="fcard-title">During the Shift</div></div>
+      <div class="fcard-body">All sales link to the open shift. Cash In/Out events (e.g., petty cash withdrawal) recorded with reason at any time.</div>
+    </div>
+    <div class="fcard no-break">
+      <div class="fcard-hdr"><div class="fcard-icon">🔒</div><div class="fcard-title">Closing a Shift</div></div>
+      <div class="fcard-body">Cashier counts closing cash with denomination breakdown. System calculates Expected Cash and shows the variance (over/short). Any discrepancy is immediately visible.</div>
+    </div>
+    <div class="fcard no-break">
+      <div class="fcard-hdr"><div class="fcard-icon g">📊</div><div class="fcard-title">Shift Report</div></div>
+      <div class="fcard-body">Full breakdown: Cash, Card, Bank Transfer, Pay Later, Delivery sales. Net revenue after refunds and discounts. Saved permanently for admin review.</div>
+    </div>
+  </div>
+
+  <h2><span class="bar"></span>Void PIN Protection</h2>
+  <p>The store admin sets a manager PIN. Any sale void requires entering this PIN — preventing cashiers from quietly voiding sales without authorization. Every void is logged in the audit trail with reason and timestamp.</p>
+
+  <div class="pfooter"><div class="pfooter-l">BCS — Retail Management System</div><div class="pfooter-r">Confidential · 2026</div></div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════ PAGE 6 — REPORTS & AI -->
+<div class="page pb">
+  <div class="hdr"><div class="hdr-brand">BCS POS</div><div class="hdr-sec">Reports, Analytics &amp; AI Intelligence</div></div>
+
+  <div class="ptitle">
+    <div class="ptitle-eye">Features 07 &amp; 08</div>
+    <h1>Reports &amp;<br><em>AI Business Intelligence</em></h1>
+    <div class="ptitle-sub">Complete financial visibility plus an AI engine that tells you what to promote and what to reorder — before problems happen.</div>
+  </div>
+
+  <h2><span class="bar"></span>Dashboard &amp; Reports</h2>
+  <div class="fcards">
+    <div class="fcard no-break">
+      <div class="fcard-hdr"><div class="fcard-icon">📊</div><div class="fcard-title">Live Dashboard</div></div>
+      <div class="fcard-body">Today/Week/Month/Year sales at a glance. Top 5 products. Low stock alerts. Pay Later outstanding balance. Sales chart by hour, day, or month.</div>
+    </div>
+    <div class="fcard no-break">
+      <div class="fcard-hdr"><div class="fcard-icon g">💹</div><div class="fcard-title">Profit &amp; Loss Report</div></div>
+      <div class="fcard-body">Revenue, COGS, discounts, refunds, gross profit, gross margin %. Per-product breakdown with margin % per SKU. Filter by any date range.</div>
+    </div>
+    <div class="fcard no-break">
+      <div class="fcard-hdr"><div class="fcard-icon">🧾</div><div class="fcard-title">Sales Report</div></div>
+      <div class="fcard-body">Full transaction history. Search by customer, product, or sale ID. Filter by payment method or status. Every sale shows items, cashier, and timestamp.</div>
+    </div>
+    <div class="fcard no-break">
+      <div class="fcard-hdr"><div class="fcard-icon g">🏦</div><div class="fcard-title">Shift Reports</div></div>
+      <div class="fcard-body">Every shift close auto-generates a report. Cash variance tracking. Payment method breakdown. Net revenue after all refunds and discounts.</div>
+    </div>
+  </div>
+
+  <h2><span class="bar"></span>AI Offer Suggestions</h2>
+  <div class="intro">The AI engine analyzes your product sales velocity, batch expiry dates, and profit margins. It then generates specific, actionable promotional offers for products that risk expiring before they sell — protecting your margins automatically.</div>
+
+  <table>
+    <thead><tr><th>What AI Analyzes</th><th>What AI Generates</th></tr></thead>
+    <tbody>
+      <tr><td>Average daily sales (last 60 days)</td><td>Offer type: discount %, bundle, buy X get Y</td></tr>
+      <tr><td>Days-to-expiry vs. days-to-sell ratio</td><td>Urgency level: High / Medium / Low</td></tr>
+      <tr><td>Current cost vs. selling price (margin)</td><td>Exact offer value (never goes below margin)</td></tr>
+      <tr><td>Total stock level &amp; slow-movers</td><td>Expected impact (units to sell in X days)</td></tr>
+    </tbody>
+  </table>
+
+  <h2><span class="bar"></span>AI Reorder Suggestions</h2>
+  <p>The AI calculates how many days of stock remain for each product based on actual sales velocity. It generates a prioritized reorder list — <strong>Urgent</strong> (under 7 days left), <strong>Normal</strong> (7–20 days), <strong>Low priority</strong> (20–30 days) — with exact suggested quantities and estimated total cost.</p>
+
+  <div class="steps">
+    <div class="step"><div class="snum">1</div><div class="scont"><div class="stitle">Go to AI Insights</div><div class="sdesc">Navigate to AI Insights in the sidebar</div></div></div>
+    <div class="step"><div class="snum">2</div><div class="scont"><div class="stitle">Review Offer Suggestions</div><div class="sdesc">See which products need promotions — with urgency level and reasoning</div></div></div>
+    <div class="step"><div class="snum">3</div><div class="scont"><div class="stitle">Review Reorder List</div><div class="sdesc">AI shows what to order, quantity per product, and total estimated cost</div></div></div>
+    <div class="step"><div class="snum">4</div><div class="scont"><div class="stitle">Save as Purchase Order</div><div class="sdesc">Adjust quantities if needed, then save — track it from Pending → Approved → Ordered → Received</div></div></div>
+  </div>
+
+  <div class="pfooter"><div class="pfooter-l">BCS — Retail Management System</div><div class="pfooter-r">Confidential · 2026</div></div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════ PAGE 7 — VAT, DELIVERY, SECURITY -->
+<div class="page pb">
+  <div class="hdr"><div class="hdr-brand">BCS POS</div><div class="hdr-sec">VAT Compliance · Online Delivery · Security</div></div>
+
+  <div class="ptitle">
+    <div class="ptitle-eye">Features 09 · 10 · 11</div>
+    <h1>VAT, Online Store<br>&amp; <em>Audit Security</em></h1>
+  </div>
+
+  <div class="vat-box no-break">
+    <div class="vat-title">🇱🇧 Lebanese VAT Compliance — 11%</div>
+    <p style="font-size:9.5pt;color:#451a03;line-height:1.7">Lebanese tax law requires 11% VAT on most goods, but certain categories are exempt (basic food, medicines, books, agricultural products). BCS handles all of this automatically once configured.</p>
+    <div class="twocol" style="margin-top:12px">
+      <div>
+        <strong style="font-size:9pt;color:#92400e">Setup (one time):</strong>
+        <ul class="cl" style="margin-top:6px">
+          <li>Set Tax Rate = 11% in Store Settings</li>
+          <li>Enter your VAT Number (TIN)</li>
+          <li>Mark exempt products with the VAT Exempt toggle</li>
+        </ul>
+      </div>
+      <div>
+        <strong style="font-size:9pt;color:#92400e">On every receipt:</strong>
+        <ul class="cl" style="margin-top:6px">
+          <li>Subtotal (before VAT)</li>
+          <li>VAT Amount (11% on non-exempt items)</li>
+          <li>Final Total</li>
+          <li>Your VAT Registration Number</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <h2><span class="bar"></span>Online Store &amp; Delivery Module</h2>
+  <p>Activate in one click. BCS creates a public storefront for your store automatically. Customers order online — the cart injects itself into the cashier's POS screen when you accept the order.</p>
+
+  <div class="fcards">
+    <div class="fcard no-break">
+      <div class="fcard-hdr"><div class="fcard-icon">🌐</div><div class="fcard-title">Public Storefront</div></div>
+      <div class="fcard-body">Auto-generated URL with your store slug. Product catalog with images, search, and category filter. Mobile-first responsive design.</div>
+    </div>
+    <div class="fcard no-break">
+      <div class="fcard-hdr"><div class="fcard-icon g">📦</div><div class="fcard-title">Order Flow</div></div>
+      <div class="fcard-body">Customer orders online → Admin approves → Cart auto-injects to cashier's POS → Cashier processes sale → Driver notified on Telegram.</div>
+    </div>
+    <div class="fcard no-break">
+      <div class="fcard-hdr"><div class="fcard-icon">📱</div><div class="fcard-title">Telegram Driver Alerts</div></div>
+      <div class="fcard-body">When a delivery order ships, the driver receives a Telegram message: customer name, full address, items, total, and payment method.</div>
+    </div>
+    <div class="fcard no-break">
+      <div class="fcard-hdr"><div class="fcard-icon g">📍</div><div class="fcard-title">Live Order Tracking</div></div>
+      <div class="fcard-body">Customer sees real-time status updates: Pending → Accepted → Out for Delivery → Delivered. No phone calls needed.</div>
+    </div>
+  </div>
+
+  <h2><span class="bar"></span>Security &amp; Audit Log</h2>
+  <p>Every action in BCS is permanently recorded. Nothing is invisible. The audit log captures:</p>
+  <div class="tags">
+    <span class="tag">🔑 Login/Logout</span>
+    <span class="tag">💰 Every Sale</span>
+    <span class="tag">↩ Returns &amp; Voids</span>
+    <span class="tag g">📦 Stock Changes</span>
+    <span class="tag g">👤 Customer Edits</span>
+    <span class="tag g">🏷 Price Changes</span>
+    <span class="tag">⚙️ Settings Changes</span>
+    <span class="tag">🔐 Device Logins</span>
+  </div>
+  <p style="margin-top:10px">Every log entry includes: timestamp, username, IP address, device, and the full details of what changed. Admins can review any action from any date.</p>
+
+  <div class="pfooter"><div class="pfooter-l">BCS — Retail Management System</div><div class="pfooter-r">Confidential · 2026</div></div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════ PAGE 8 — DEMO & PLANS -->
+<div class="page pb">
+  <div class="hdr"><div class="hdr-brand">BCS POS</div><div class="hdr-sec">Demo Guide &amp; Subscription Plans</div></div>
+
+  <div class="ptitle">
+    <div class="ptitle-eye">Getting Started</div>
+    <h1>Live Demo Guide &amp;<br><em>Subscription Plans</em></h1>
+  </div>
+
+  <h2><span class="bar"></span>Demo 1 — Standard Checkout (2 min)</h2>
+  <div class="steps">
+    <div class="step"><div class="snum">1</div><div class="scont"><div class="stitle">Open the POS screen</div><div class="sdesc">The checkout interface loads instantly — no loading delay</div></div></div>
+    <div class="step"><div class="snum">2</div><div class="scont"><div class="stitle">Scan or search products</div><div class="sdesc">Scan 3 barcodes or click category tiles to add items</div></div></div>
+    <div class="step"><div class="snum">3</div><div class="scont"><div class="stitle">Apply a discount</div><div class="sdesc">Tap Discount → enter 10% → watch total recalculate instantly</div></div></div>
+    <div class="step"><div class="snum">4</div><div class="scont"><div class="stitle">Split payment</div><div class="sdesc">Select Split → assign $20 cash + $15 card → checkout</div></div></div>
+    <div class="step"><div class="snum">5</div><div class="scont"><div class="stitle">Print receipt</div><div class="sdesc">Receipt shows store logo, VAT breakdown, cashier name, and footer message</div></div></div>
+  </div>
+
+  <h2><span class="bar"></span>Demo 2 — AI Insights (2 min)</h2>
+  <div class="steps">
+    <div class="step"><div class="snum">1</div><div class="scont"><div class="stitle">Go to AI Insights</div><div class="sdesc">Click AI Insights in the sidebar navigation</div></div></div>
+    <div class="step"><div class="snum">2</div><div class="scont"><div class="stitle">View Offer Suggestions</div><div class="sdesc">AI shows which products need promotions with urgency level and reasoning</div></div></div>
+    <div class="step"><div class="snum">3</div><div class="scont"><div class="stitle">View Reorder List</div><div class="sdesc">AI shows exact quantities to order and estimated total cost per supplier</div></div></div>
+    <div class="step"><div class="snum">4</div><div class="scont"><div class="stitle">Save Purchase Order</div><div class="sdesc">Adjust quantities → Save → track from Pending to Received</div></div></div>
+  </div>
+
+  <h2><span class="bar"></span>Demo 3 — Delivery Order Flow (3 min)</h2>
+  <div class="steps">
+    <div class="step"><div class="snum">1</div><div class="scont"><div class="stitle">Customer orders online</div><div class="sdesc">Browse storefront → add items → enter address → Cash on Delivery → place order</div></div></div>
+    <div class="step"><div class="snum">2</div><div class="scont"><div class="stitle">Admin receives notification</div><div class="sdesc">Online Orders page shows new order with items, address, and total</div></div></div>
+    <div class="step"><div class="snum">3</div><div class="scont"><div class="stitle">Accept order</div><div class="sdesc">Click Accept → cart automatically appears in cashier's POS screen</div></div></div>
+    <div class="step"><div class="snum">4</div><div class="scont"><div class="stitle">Driver notified</div><div class="sdesc">Telegram message sent to driver with full delivery details</div></div></div>
+  </div>
+
+  <hr>
+
+  <h2><span class="bar"></span>Subscription Plans</h2>
+  <div class="plans">
+    <div class="plan">
+      <div class="plan-hdr"><div class="plan-name">Trial</div><div class="plan-tag">14 days free</div></div>
+      <div class="plan-body">
+        <div class="plan-row">2 users</div>
+        <div class="plan-row">100 products</div>
+        <div class="plan-row">All features included</div>
+      </div>
+    </div>
+    <div class="plan hot">
+      <div class="plan-hdr"><div class="plan-name">Basic</div><div class="plan-tag">Most popular</div></div>
+      <div class="plan-body">
+        <div class="plan-row">5 users</div>
+        <div class="plan-row">500 products</div>
+        <div class="plan-row">All features included</div>
+      </div>
+    </div>
+    <div class="plan">
+      <div class="plan-hdr"><div class="plan-name">Pro</div><div class="plan-tag">Growing business</div></div>
+      <div class="plan-body">
+        <div class="plan-row">20 users</div>
+        <div class="plan-row">2,000 products</div>
+        <div class="plan-row">All features included</div>
+      </div>
+    </div>
+    <div class="plan">
+      <div class="plan-hdr"><div class="plan-name">Enterprise</div><div class="plan-tag">No limits</div></div>
+      <div class="plan-body">
+        <div class="plan-row">100 users</div>
+        <div class="plan-row">Unlimited products</div>
+        <div class="plan-row">Priority support</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="hpanel no-break" style="margin-top:20px">
+    <div class="hpanel-title">🌐 Cloud-Based — Access Anywhere</div>
+    <div class="hpanel-body">BCS runs entirely in the browser — no software installation required. Works on any device: PC, tablet, or phone. Your data is securely stored on cloud servers with daily backups. Access your store from home, from another branch, or from your phone at any time.</div>
+  </div>
+
+  <div class="pfooter"><div class="pfooter-l">BCS — Retail Management System · 2026</div><div class="pfooter-r">For sales inquiries contact the BCS team</div></div>
+</div>
+
+</body>
+</html>

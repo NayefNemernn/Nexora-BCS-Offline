@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>BCS — Complete Business Management Platform</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+@page{size:A4;margin:0}
+@media print{
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+  .pb{page-break-before:always}
+  .no-break{page-break-inside:avoid}
+}
+:root{
+  --p:#4f46e5;--pl:#6366f1;--a:#f59e0b;--al:#fbbf24;
+  --p2:#059669;
+  --dk:#0a0a1a;--dk2:#1e1b4b;--gr:#6b7280;
+  --lt:#f8f7ff;--wh:#ffffff;--bd:#e0e7ff;
+  --hl:#eef2ff;--hl2:#fef3c7;--hlg:#ecfdf5
+}
+body{font-family:'Inter',system-ui,sans-serif;font-size:10pt;line-height:1.65;color:var(--dk);background:#fff}
+
+/* ═══════════ COVER ═══════════ */
+.cover{
+  width:210mm;height:297mm;
+  background:linear-gradient(155deg,#04041a 0%,#0d0b3e 35%,#2e1065 65%,#4f46e5 100%);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  position:relative;overflow:hidden
+}
+.cr1{position:absolute;top:-40mm;right:-50mm;width:160mm;height:160mm;border-radius:50%;border:1.5px solid rgba(99,102,241,.2)}
+.cr2{position:absolute;top:-20mm;right:-30mm;width:100mm;height:100mm;border-radius:50%;border:1px solid rgba(99,102,241,.12)}
+.cr3{position:absolute;bottom:-60mm;left:-40mm;width:150mm;height:150mm;border-radius:50%;background:radial-gradient(circle,rgba(245,158,11,.08) 0%,transparent 65%)}
+.cr4{position:absolute;top:50mm;left:-30mm;width:80mm;height:80mm;border-radius:50%;background:radial-gradient(circle,rgba(99,102,241,.15) 0%,transparent 70%)}
+
+.cover-pill{background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.35);color:#fde68a;font-size:7.5pt;font-weight:600;letter-spacing:2.5px;text-transform:uppercase;padding:5px 18px;border-radius:20px;margin-bottom:32px}
+.cover-brand{font-size:52pt;font-weight:900;color:#fff;letter-spacing:-3px;line-height:1;margin-bottom:4px;text-align:center}
+.cover-brand span{color:#818cf8}
+.cover-tagline{font-size:10pt;font-weight:500;color:rgba(255,255,255,.35);letter-spacing:3px;text-transform:uppercase;text-align:center;margin-bottom:18px}
+.cover-line{width:20mm;height:3px;background:linear-gradient(90deg,#818cf8,#f59e0b);border-radius:2px;margin:0 auto 22px}
+.cover-title{font-size:19pt;font-weight:700;color:rgba(255,255,255,.9);text-align:center;line-height:1.3;margin-bottom:10px}
+.cover-sub{font-size:10.5pt;color:rgba(255,255,255,.42);text-align:center;max-width:140mm;line-height:1.7;margin-bottom:44px}
+
+.cover-modules{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:36px;width:150mm}
+.cmod{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:12px;text-align:center}
+.cmod-icon{font-size:20px;margin-bottom:6px}
+.cmod-name{font-size:8.5pt;font-weight:600;color:rgba(255,255,255,.75)}
+.cmod-sub{font-size:7.5pt;color:rgba(255,255,255,.35);margin-top:2px}
+
+.cover-footer{position:absolute;bottom:16mm;left:0;right:0;display:flex;justify-content:center;gap:30px;align-items:center}
+.cover-meta{font-size:7.5pt;color:rgba(255,255,255,.2);text-align:center}
+.cover-dot{color:rgba(255,255,255,.15);font-size:8pt}
+
+/* ═══════════ CONTENT ═══════════ */
+.page{padding:14mm 16mm 10mm}
+
+.hdr{display:flex;justify-content:space-between;align-items:center;padding-bottom:7px;border-bottom:2.5px solid var(--p);margin-bottom:20px}
+.hdr-brand{font-size:8pt;font-weight:700;color:var(--p);letter-spacing:1.5px;text-transform:uppercase}
+.hdr-sec{font-size:7.5pt;color:var(--gr)}
+
+.ptitle{margin-bottom:20px}
+.ptitle-eye{font-size:8pt;font-weight:600;color:var(--p);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:5px}
+.ptitle h1{font-size:20pt;font-weight:800;color:var(--dk);line-height:1.2;margin-bottom:6px}
+.ptitle h1 em{color:var(--p);font-style:normal}
+.ptitle-sub{font-size:10.5pt;color:var(--gr);line-height:1.6;max-width:140mm}
+
+.intro{background:var(--hl);border-left:3px solid var(--pl);border-radius:0 8px 8px 0;padding:12px 16px;margin-bottom:20px;font-size:10pt;color:var(--dk2);line-height:1.7}
+
+h2{font-size:12.5pt;font-weight:700;color:var(--dk);margin-top:24px;margin-bottom:12px;display:flex;align-items:center;gap:10px}
+h2 .bar{width:3px;height:18px;background:linear-gradient(to bottom,var(--p),var(--a));border-radius:2px;flex-shrink:0}
+h3{font-size:10.5pt;font-weight:600;color:var(--dk2);margin-top:14px;margin-bottom:8px}
+p{margin-bottom:9px;color:var(--dk2);line-height:1.7}
+
+.fcards{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin:12px 0}
+.fcards-3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:12px 0}
+.fcard{background:#fff;border:1px solid var(--bd);border-radius:10px;padding:14px;page-break-inside:avoid}
+.fcard-hdr{display:flex;align-items:center;gap:9px;margin-bottom:7px}
+.fcard-icon{width:34px;height:34px;border-radius:8px;background:var(--hl);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.fcard-icon.a{background:var(--hl2)}
+.fcard-icon.g{background:var(--hlg)}
+.fcard-title{font-size:10pt;font-weight:600;color:var(--dk)}
+.fcard-body{font-size:9pt;color:var(--gr);line-height:1.6}
+
+ul.cl{list-style:none;padding:0;margin:8px 0}
+ul.cl li{display:flex;align-items:flex-start;gap:7px;padding:4.5px 0;font-size:9.5pt;color:var(--dk2);line-height:1.5;border-bottom:1px solid var(--bd)}
+ul.cl li:last-child{border-bottom:none}
+ul.cl li::before{content:'✓';color:var(--p2);font-weight:700;font-size:9.5pt;flex-shrink:0;margin-top:1px}
+.cl-2col{display:grid;grid-template-columns:1fr 1fr;gap:0 16px}
+
+table{width:100%;border-collapse:collapse;margin:12px 0;font-size:9pt;page-break-inside:avoid}
+thead{background:var(--dk)}
+thead th{padding:9px 11px;text-align:left;font-weight:600;font-size:8.5pt;color:#fff;letter-spacing:.3px}
+tbody tr:nth-child(even){background:var(--lt)}
+tbody td{padding:8px 11px;border-bottom:1px solid var(--bd);color:var(--dk2);vertical-align:middle}
+.ck{color:#059669;font-weight:700;font-size:11pt}
+.cx{color:#dc2626;font-weight:700}
+.cp{color:#d97706;font-size:8pt;font-weight:600}
+.tc{text-align:center}
+
+.hpanel{background:linear-gradient(135deg,var(--hl),#f0f0ff);border:1px solid #c7d2fe;border-radius:12px;padding:18px 22px;margin:16px 0;page-break-inside:avoid}
+.hpanel-title{font-size:10.5pt;font-weight:700;color:var(--p);margin-bottom:9px;display:flex;align-items:center;gap:8px}
+.hpanel-body{font-size:9.5pt;color:var(--dk2);line-height:1.7}
+
+.hpanel-gold{background:linear-gradient(135deg,#fffbeb,#fef3c7);border:1px solid #fde68a;border-radius:12px;padding:18px 22px;margin:16px 0;page-break-inside:avoid}
+.hpanel-gold .hpanel-title{color:#92400e}
+
+.steps{margin:12px 0}
+.step{display:flex;gap:13px;margin-bottom:11px;page-break-inside:avoid}
+.snum{width:26px;height:26px;border-radius:50%;background:var(--p);color:#fff;display:flex;align-items:center;justify-content:center;font-size:9.5pt;font-weight:700;flex-shrink:0}
+.scont{flex:1;padding-top:3px}
+.stitle{font-size:10pt;font-weight:600;color:var(--dk);margin-bottom:2px}
+.sdesc{font-size:9pt;color:var(--gr);line-height:1.5}
+
+.tags{display:flex;flex-wrap:wrap;gap:7px;margin:9px 0}
+.tag{background:var(--hl);color:var(--p);border:1px solid #c7d2fe;border-radius:6px;padding:3px 11px;font-size:8.5pt;font-weight:500}
+.tag.a{background:var(--hl2);color:#92400e;border-color:#fde68a}
+.tag.g{background:var(--hlg);color:#065f46;border-color:#6ee7b7}
+
+.twocol{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:12px 0}
+.box{background:var(--lt);border-radius:10px;padding:14px;border:1px solid var(--bd)}
+.box-title{font-size:10pt;font-weight:700;color:var(--dk);margin-bottom:9px;padding-bottom:7px;border-bottom:1px solid var(--bd)}
+
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:14px 0}
+.stat{background:var(--dk);border-radius:10px;padding:14px;text-align:center}
+.stat-n{font-size:20pt;font-weight:800;color:#818cf8;line-height:1;margin-bottom:3px}
+.stat-l{font-size:8pt;color:rgba(255,255,255,.5);font-weight:500}
+
+/* Module cards */
+.modules{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:14px 0}
+.module{border-radius:12px;padding:16px;page-break-inside:avoid;position:relative;overflow:hidden}
+.module-blue{background:linear-gradient(135deg,#eef2ff,#e0e7ff);border:1px solid #c7d2fe}
+.module-amber{background:linear-gradient(135deg,#fffbeb,#fef3c7);border:1px solid #fde68a}
+.module-green{background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:1px solid #86efac}
+.module-purple{background:linear-gradient(135deg,#fdf4ff,#fae8ff);border:1px solid #e9d5ff}
+.module-teal{background:linear-gradient(135deg,#f0fdfa,#ccfbf1);border:1px solid #5eead4}
+.module-rose{background:linear-gradient(135deg,#fff1f2,#ffe4e6);border:1px solid #fecdd3}
+.module-icon{font-size:22px;margin-bottom:8px}
+.module-title{font-size:10.5pt;font-weight:700;color:var(--dk);margin-bottom:5px}
+.module-desc{font-size:8.5pt;color:var(--gr);line-height:1.6}
+
+/* Plans */
+.plans{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:14px 0}
+.plan{border:1px solid var(--bd);border-radius:10px;overflow:hidden;page-break-inside:avoid}
+.plan.hot{border-color:var(--p);box-shadow:0 0 0 2px #c7d2fe}
+.plan-hdr{background:var(--dk);color:#fff;padding:12px 12px 9px}
+.plan.hot .plan-hdr{background:linear-gradient(135deg,var(--dk2),var(--p))}
+.plan-name{font-size:10.5pt;font-weight:700;margin-bottom:1px}
+.plan-tag{font-size:7.5pt;color:rgba(255,255,255,.5)}
+.plan-body{padding:10px 12px;background:#fff}
+.plan-row{font-size:8.5pt;color:var(--dk2);margin-bottom:4px;display:flex;gap:5px}
+.plan-row::before{content:'→';color:var(--p);font-weight:700}
+
+/* Diff box */
+.diff{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:14px 0}
+.diff-card{border-radius:12px;padding:16px;text-align:center;page-break-inside:avoid}
+.diff-card.d1{background:linear-gradient(135deg,#eef2ff,#e0e7ff);border:1px solid #c7d2fe}
+.diff-card.d2{background:linear-gradient(135deg,#fffbeb,#fef3c7);border:1px solid #fde68a}
+.diff-card.d3{background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:1px solid #86efac}
+.diff-icon{font-size:28px;margin-bottom:8px}
+.diff-title{font-size:10pt;font-weight:700;color:var(--dk);margin-bottom:5px}
+.diff-body{font-size:8.5pt;color:var(--gr);line-height:1.6}
+
+hr{border:none;border-top:1px solid var(--bd);margin:18px 0}
+.pfooter{border-top:1px solid var(--bd);padding-top:6px;margin-top:12px;display:flex;justify-content:space-between;align-items:center}
+.pfooter-l{font-size:7.5pt;color:var(--gr)}
+.pfooter-r{font-size:7.5pt;color:var(--gr)}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════ COVER -->
+<div class="cover">
+  <div class="cr1"></div><div class="cr2"></div><div class="cr3"></div><div class="cr4"></div>
+  <div class="cover-pill">Complete Business Platform</div>
+  <div class="cover-brand">BCS<span>.</span></div>
+  <div class="cover-tagline">Business Commerce System</div>
+  <div class="cover-line"></div>
+  <div class="cover-title">The All-in-One Platform for<br>Modern Lebanese Businesses</div>
+  <div class="cover-sub">Retail POS · Café Management · Online Delivery · AI Intelligence · Customer Loyalty — unified under one powerful platform.</div>
+  <div class="cover-modules">
+    <div class="cmod"><div class="cmod-icon">🛒</div><div class="cmod-name">POS System</div><div class="cmod-sub">Smart checkout</div></div>
+    <div class="cmod"><div class="cmod-icon">☕</div><div class="cmod-name">Café Module</div><div class="cmod-sub">Tables & KDS</div></div>
+    <div class="cmod"><div class="cmod-icon">🌐</div><div class="cmod-name">Online Store</div><div class="cmod-sub">Delivery orders</div></div>
+    <div class="cmod"><div class="cmod-icon">🤖</div><div class="cmod-name">AI Insights</div><div class="cmod-sub">Smart decisions</div></div>
+    <div class="cmod"><div class="cmod-icon">🎮</div><div class="cmod-name">Loyalty Games</div><div class="cmod-sub">5 mini-games</div></div>
+    <div class="cmod"><div class="cmod-icon">🏢</div><div class="cmod-name">SuperAdmin</div><div class="cmod-sub">Multi-store</div></div>
+  </div>
+  <div class="cover-footer">
+    <div class="cover-meta">Confidential Client Proposal</div>
+    <div class="cover-dot">•</div>
+    <div class="cover-meta">BCS Platform — 2026</div>
+    <div class="cover-dot">•</div>
+    <div class="cover-meta">Full Platform Edition</div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════ PAGE 2 — WHAT IS BCS -->
+<div class="page pb">
+  <div class="hdr"><div class="hdr-brand">BCS Platform</div><div class="hdr-sec">Platform Overview</div></div>
+  <div class="ptitle">
+    <div class="ptitle-eye">The BCS Platform</div>
+    <h1>One platform. Every business<br><em>function you need.</em></h1>
+    <div class="ptitle-sub">BCS is a cloud-based business management platform built for Lebanese retail stores, cafés, and restaurants. Unlike generic POS systems, BCS includes every module you'd normally pay for separately — from AI procurement intelligence to a gamified customer loyalty app.</div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-n">6</div><div class="stat-l">Core Modules</div></div>
+    <div class="stat"><div class="stat-n">17+</div><div class="stat-l">Feature Areas</div></div>
+    <div class="stat"><div class="stat-n">AI</div><div class="stat-l">Powered Insights</div></div>
+    <div class="stat"><div class="stat-n">24/7</div><div class="stat-l">Cloud Access</div></div>
+  </div>
+
+  <h2><span class="bar"></span>Platform Modules at a Glance</h2>
+
+  <div class="modules">
+    <div class="module module-blue">
+      <div class="module-icon">🛒</div>
+      <div class="module-title">Retail POS</div>
+      <div class="module-desc">Smart checkout, barcode scanning, split payment, holds, returns, receipt printing, offline mode.</div>
+    </div>
+    <div class="module module-amber">
+      <div class="module-icon">📦</div>
+      <div class="module-title">Inventory &amp; Batches</div>
+      <div class="module-desc">FIFO batch tracking, expiry alerts, stock logs, supplier management, AI reorder engine.</div>
+    </div>
+    <div class="module module-green">
+      <div class="module-icon">🤖</div>
+      <div class="module-title">AI Intelligence</div>
+      <div class="module-desc">Gemini-powered offer suggestions and reorder lists based on real sales velocity data.</div>
+    </div>
+    <div class="module module-teal">
+      <div class="module-icon">🌐</div>
+      <div class="module-title">Online Store</div>
+      <div class="module-desc">Auto-generated storefront, delivery orders, cart injection, Telegram driver alerts.</div>
+    </div>
+    <div class="module module-amber" style="background:linear-gradient(135deg,#fff5f5,#fee2e2);border-color:#fecaca">
+      <div class="module-icon">☕</div>
+      <div class="module-title">Café System</div>
+      <div class="module-desc">Floor map, table orders, kitchen display, reservations, split bill, QR customer app.</div>
+    </div>
+    <div class="module module-purple">
+      <div class="module-icon">🎮</div>
+      <div class="module-title">Gamified Loyalty</div>
+      <div class="module-desc">5 mini-games, loyalty tiers, points system, rewards redemption, QR table ordering.</div>
+    </div>
+  </div>
+
+  <h2><span class="bar"></span>Who Is BCS For?</h2>
+
+  <table>
+    <thead><tr><th>Business Type</th><th>What BCS Gives Them</th></tr></thead>
+    <tbody>
+      <tr><td>🏪 Supermarket / Mini-market</td><td>Full POS + FIFO inventory + AI reorder + delivery + VAT compliance</td></tr>
+      <tr><td>☕ Café / Coffee shop</td><td>Floor map + KDS + reservations + gamified loyalty QR app</td></tr>
+      <tr><td>🍽️ Restaurant</td><td>Table management + kitchen display + split bill + customer ratings</td></tr>
+      <tr><td>🏬 Retail + Café combo</td><td>Both modules in one system, one login, one subscription</td></tr>
+      <tr><td>🌐 Delivery business</td><td>Online storefront + order management + Telegram driver alerts</td></tr>
+      <tr><td>🏢 Multi-branch business</td><td>Centralized SuperAdmin panel — manage all branches from one screen</td></tr>
+    </tbody>
+  </table>
+
+  <div class="pfooter"><div class="pfooter-l">BCS — Complete Business Platform</div><div class="pfooter-r">Confidential · 2026</div></div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════ PAGE 3 — WHY BCS -->
+<div class="page pb">
+  <div class="hdr"><div class="hdr-brand">BCS Platform</div><div class="hdr-sec">Why BCS vs. The Competition</div></div>
+
+  <div class="ptitle">
+    <div class="ptitle-eye">Competitive Advantage</div>
+    <h1>Why BCS beats every<br><em>other POS in the region</em></h1>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Feature</th>
+        <th class="tc">BCS</th>
+        <th class="tc">Square</th>
+        <th class="tc">Toast</th>
+        <th class="tc">Loyverse</th>
+        <th class="tc">iiko</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>Built-in online storefront</td><td class="tc ck">✓</td><td class="tc cp">Extra $</td><td class="tc cp">Extra $</td><td class="tc cx">✗</td><td class="tc cx">✗</td></tr>
+      <tr><td>FIFO batch expiry tracking</td><td class="tc ck">✓</td><td class="tc cx">✗</td><td class="tc cx">✗</td><td class="tc cx">✗</td><td class="tc cp">Partial</td></tr>
+      <tr><td>AI reorder &amp; offer suggestions</td><td class="tc ck">✓</td><td class="tc cx">✗</td><td class="tc cx">✗</td><td class="tc cx">✗</td><td class="tc cx">✗</td></tr>
+      <tr><td>Gamified customer loyalty app</td><td class="tc ck">✓</td><td class="tc cx">✗</td><td class="tc cx">✗</td><td class="tc cx">✗</td><td class="tc cx">✗</td></tr>
+      <tr><td>Lebanese VAT (11%) per product</td><td class="tc ck">✓</td><td class="tc cx">✗</td><td class="tc cx">✗</td><td class="tc cx">✗</td><td class="tc cx">✗</td></tr>
+      <tr><td>Telegram delivery driver alerts</td><td class="tc ck">✓</td><td class="tc cx">✗</td><td class="tc cx">✗</td><td class="tc cx">✗</td><td class="tc cx">✗</td></tr>
+      <tr><td>QR table ordering (customer app)</td><td class="tc ck">✓</td><td class="tc cx">✗</td><td class="tc cp">Extra</td><td class="tc cx">✗</td><td class="tc cp">Partial</td></tr>
+      <tr><td>Split bill (café)</td><td class="tc ck">✓</td><td class="tc cx">✗</td><td class="tc cp">Partial</td><td class="tc cx">✗</td><td class="tc ck">✓</td></tr>
+      <tr><td>Pay later / credit accounts</td><td class="tc ck">✓</td><td class="tc cx">✗</td><td class="tc cx">✗</td><td class="tc cp">Partial</td><td class="tc cx">✗</td></tr>
+      <tr><td>Full audit log (every action)</td><td class="tc ck">✓</td><td class="tc cx">✗</td><td class="tc cp">Partial</td><td class="tc cx">✗</td><td class="tc ck">✓</td></tr>
+      <tr><td>Arabic / English interface</td><td class="tc ck">✓</td><td class="tc cx">✗</td><td class="tc cx">✗</td><td class="tc cp">Partial</td><td class="tc cp">Partial</td></tr>
+      <tr><td>Offline mode</td><td class="tc ck">✓</td><td class="tc ck">✓</td><td class="tc cx">✗</td><td class="tc cp">Partial</td><td class="tc cx">✗</td></tr>
+      <tr><td>Multi-store SuperAdmin panel</td><td class="tc ck">✓</td><td class="tc cp">Extra $</td><td class="tc cp">Extra $</td><td class="tc cx">✗</td><td class="tc ck">✓</td></tr>
+      <tr><td>Local pricing (no USD trap)</td><td class="tc ck">✓</td><td class="tc cx">✗</td><td class="tc cx">✗</td><td class="tc cx">✗</td><td class="tc cx">✗</td></tr>
+    </tbody>
+  </table>
+
+  <h2><span class="bar"></span>3 Unique Differentiators</h2>
+
+  <div class="diff">
+    <div class="diff-card d1">
+      <div class="diff-icon">🤖</div>
+      <div class="diff-title">AI Business Intelligence</div>
+      <div class="diff-body">No other regional POS gives you AI-generated reorder lists and promotional offers based on your own stock velocity and expiry data — built in, no extra cost.</div>
+    </div>
+    <div class="diff-card d2">
+      <div class="diff-icon">🎮</div>
+      <div class="diff-title">Gamified Loyalty App</div>
+      <div class="diff-body">Customers scan a QR, order from their phone, earn points, and play 5 games. No other POS in Lebanon or the region offers anything like this.</div>
+    </div>
+    <div class="diff-card d1" style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);border-color:#86efac">
+      <div class="diff-icon">🚀</div>
+      <div class="diff-title">End-to-End Delivery</div>
+      <div class="diff-body">Auto-generated storefront + cart injection + Telegram driver alerts. A complete delivery pipeline — not a bolt-on add-on.</div>
+    </div>
+  </div>
+
+  <div class="pfooter"><div class="pfooter-l">BCS — Complete Business Platform</div><div class="pfooter-r">Confidential · 2026</div></div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════ PAGE 4 — POS MODULE -->
+<div class="page pb">
+  <div class="hdr"><div class="hdr-brand">BCS Platform</div><div class="hdr-sec">Module 01 — Retail POS System</div></div>
+
+  <div class="ptitle">
+    <div class="ptitle-eye">Module 01</div>
+    <h1>Retail POS<br>&amp; <em>Business Intelligence</em></h1>
+  </div>
+
+  <div class="fcards">
+    <div class="fcard no-break">
+      <div class="fcard-hdr"><div class="fcard-icon">🛒</div><div class="fcard-title">Smart Checkout</div></div>
+      <div class="fcard-body">Barcode scan, category grid, quick search, product variants. Cashier completes a full transaction in under 15 seconds. Hold &amp; resume, offline mode.</div>
+    </div>
+    <div class="fcard no-break">
+      <div class="fcard-hdr"><div class="fcard-icon a">💳</div><div class="fcard-title">Payment Engine</div></div>
+      <div class="fcard-body">Cash, Card, Bank Transfer, Pay Later, Cash on Delivery, Split Payment. Divide one sale across any combination of methods.</div>
+    </div>
+    <div class="fcard no-break">
+      <div class="fcard-hdr"><div class="fcard-icon">📦</div><div class="fcard-title">FIFO Batch Inventory</div></div>
+      <div class="fcard-body">Every stock-in creates a tracked batch with expiry date and cost. Sales auto-deduct from the soonest-to-expire batch first.</div>
+    </div>
+    <div class="fcard no-break">
+      <div class="fcard-hdr"><div class="fcard-icon g">📊</div><div class="fcard-title">Profit &amp; Loss Reports</div></div>
+      <div class="fcard-body">Revenue, COGS, refunds, gross margin. Per-product breakdown with margin % per SKU. Filter by any date range.</div>
+    </div>
+    <div class="fcard no-break">
+      <div class="fcard-hdr"><div class="fcard-icon">🏦</div><div class="fcard-title">Shift Management</div></div>
+      <div class="fcard-body">Open/close with denomination counting. Auto-calculates expected cash. Variance detection. Per-payment-method breakdown.</div>
+    </div>
+    <div class="fcard no-break">
+      <div class="fcard-hdr"><div class="fcard-icon a">👤</div><div class="fcard-title">Customer CRM</div></div>
+      <div class="fcard-body">Profiles with purchase history, credit balances, total spent. Pay Later ledger with payment tracking per account.</div>
+    </div>
+  </div>
+
+  <h2><span class="bar"></span>Lebanese VAT Compliance (11%)</h2>
+  <p>Per-product VAT exempt toggle. VAT computed only on non-exempt items. Full receipt disclosure with subtotal, VAT amount, and VAT registration number — as required by Lebanese law.</p>
+
+  <h2><span class="bar"></span>Audit &amp; Security</h2>
+  <ul class="cl cl-2col">
+    <li>Every action permanently logged</li>
+    <li>Login/logout with IP &amp; device</li>
+    <li>Sale, void, return audit trail</li>
+    <li>Stock adjustment audit trail</li>
+    <li>Manager PIN for void protection</li>
+    <li>Per-user device session control</li>
+    <li>Remote force-logout any device</li>
+    <li>Configurable max devices per user</li>
+  </ul>
+
+  <div class="pfooter"><div class="pfooter-l">BCS — Complete Business Platform</div><div class="pfooter-r">Confidential · 2026</div></div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════ PAGE 5 — AI & DELIVERY -->
+<div class="page pb">
+  <div class="hdr"><div class="hdr-brand">BCS Platform</div><div class="hdr-sec">Module 02 — AI Intelligence &amp; Online Delivery</div></div>
+
+  <div class="ptitle">
+    <div class="ptitle-eye">Modules 02 &amp; 03</div>
+    <h1>AI Business Intelligence<br>&amp; <em>Online Delivery System</em></h1>
+  </div>
+
+  <h2><span class="bar"></span>AI Intelligence — Powered by Google Gemini</h2>
+  <div class="intro">The AI engine analyzes your real sales data — velocity, batch expiry, margins — and makes specific recommendations. Not generic tips. Actual product names, actual quantities, actual profit calculations.</div>
+
+  <div class="twocol">
+    <div class="box">
+      <div class="box-title">🏷️ AI Offer Suggestions</div>
+      <ul class="cl">
+        <li>Identifies products expiring before they sell</li>
+        <li>Flags slow-moving &amp; dead stock</li>
+        <li>Suggests: % discount, bundle, buy X get Y</li>
+        <li>Never suggests an offer below margin</li>
+        <li>Shows urgency (High/Medium/Low)</li>
+        <li>Predicts expected impact in units</li>
+      </ul>
+    </div>
+    <div class="box">
+      <div class="box-title">📋 AI Reorder Suggestions</div>
+      <ul class="cl">
+        <li>Calculates days of stock remaining per product</li>
+        <li>Priority: Urgent (under 7 days)</li>
+        <li>Priority: Normal (7–20 days)</li>
+        <li>Priority: Low (20–30 days)</li>
+        <li>Exact suggested quantities</li>
+        <li>Total estimated cost per order</li>
+        <li>Save as Purchase Order, track to delivery</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2><span class="bar"></span>Online Store &amp; Delivery Module</h2>
+  <div class="intro">Activate in one click. BCS creates a public-facing storefront with your store's URL automatically. Customers browse and order. The delivery flow is fully automated — from order to driver dispatch.</div>
+
+  <div class="fcards">
+    <div class="fcard no-break">
+      <div class="fcard-hdr"><div class="fcard-icon">🌐</div><div class="fcard-title">Auto Storefront</div></div>
+      <div class="fcard-body">Your store URL is live the moment you activate. Product catalog with images, search, categories. Mobile-first responsive design. Share via WhatsApp or print QR code.</div>
+    </div>
+    <div class="fcard no-break">
+      <div class="fcard-hdr"><div class="fcard-icon a">⚡</div><div class="fcard-title">Cart Auto-Injection</div></div>
+      <div class="fcard-body">When admin accepts an online order, the customer's cart automatically appears in the cashier's POS screen — no retyping, no errors.</div>
+    </div>
+    <div class="fcard no-break">
+      <div class="fcard-hdr"><div class="fcard-icon g">📱</div><div class="fcard-title">Telegram Driver Alert</div></div>
+      <div class="fcard-body">When order dispatches, driver gets a Telegram message: customer name, full address, item list, total, and payment method.</div>
+    </div>
+    <div class="fcard no-break">
+      <div class="fcard-hdr"><div class="fcard-icon">🔄</div><div class="fcard-title">Live Order Tracking</div></div>
+      <div class="fcard-body">Customer sees real-time status: Pending → Accepted → Out for Delivery → Delivered. No phone calls needed from either side.</div>
+    </div>
+  </div>
+
+  <div class="pfooter"><div class="pfooter-l">BCS — Complete Business Platform</div><div class="pfooter-r">Confidential · 2026</div></div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════ PAGE 6 — CAFÉ MODULE -->
+<div class="page pb">
+  <div class="hdr"><div class="hdr-brand">BCS Platform</div><div class="hdr-sec">Module 04 — Café Management &amp; Loyalty</div></div>
+
+  <div class="ptitle">
+    <div class="ptitle-eye">Module 04</div>
+    <h1>Café Management<br>&amp; <em>Gamified Loyalty</em></h1>
+  </div>
+
+  <div class="fcards">
+    <div class="fcard no-break">
+      <div class="fcard-hdr"><div class="fcard-icon">🗺️</div><div class="fcard-title">Live Floor Map</div></div>
+      <div class="fcard-body">Visual table grid. Real-time status: Free (green), Occupied (red), Customer QR order (orange). Drag tables to match your physical layout.</div>
+    </div>
+    <div class="fcard no-break">
+      <div class="fcard-hdr"><div class="fcard-icon a">📺</div><div class="fcard-title">Kitchen Display (KDS)</div></div>
+      <div class="fcard-body">Full-screen kitchen dashboard. Audio beep on new orders. Items cycle: Pending → Preparing → Ready → Served. "📱 Customer" badge on QR orders.</div>
+    </div>
+    <div class="fcard no-break">
+      <div class="fcard-hdr"><div class="fcard-icon">📅</div><div class="fcard-title">Reservations</div></div>
+      <div class="fcard-body">Create bookings with name, date, time, table, guest count. Calendar view. One-click "Seat" converts reservation to active table order.</div>
+    </div>
+    <div class="fcard no-break">
+      <div class="fcard-hdr"><div class="fcard-icon g">💸</div><div class="fcard-title">Split Bill</div></div>
+      <div class="fcard-body">Split any table's bill across any number of guests, each paying a different method. Service charge, discount, and split — all in one checkout flow.</div>
+    </div>
+  </div>
+
+  <h2><span class="bar"></span>Customer QR App — 5 Games</h2>
+  <div class="intro">Customers scan the table QR, order on their phone, earn loyalty points, and play games. This is the engagement engine that keeps customers coming back and spending more.</div>
+
+  <div class="fcards-3">
+    <div class="fcard no-break">
+      <div class="fcard-hdr"><div class="fcard-icon">🎰</div><div class="fcard-title">Slot Machine</div></div>
+      <div class="fcard-body">3 reels, coffee symbols. 3-match = 500 pts. Up to 500 points per play.</div>
+    </div>
+    <div class="fcard no-break">
+      <div class="fcard-hdr"><div class="fcard-icon a">🎡</div><div class="fcard-title">Spin Wheel</div></div>
+      <div class="fcard-body">8 animated segments. Points + special prizes (free add-on, double points).</div>
+    </div>
+    <div class="fcard no-break">
+      <div class="fcard-hdr"><div class="fcard-icon g">🎴</div><div class="fcard-title">Scratch Card</div></div>
+      <div class="fcard-body">Canvas drag-to-scratch. Match 3 symbols on a 3×3 grid. Up to 300 pts.</div>
+    </div>
+    <div class="fcard no-break">
+      <div class="fcard-hdr"><div class="fcard-icon">🎁</div><div class="fcard-title">Mystery Box</div></div>
+      <div class="fcard-body">Pick 1 of 3 cards. Reveal pts or "50% off one item" special reward.</div>
+    </div>
+    <div class="fcard no-break">
+      <div class="fcard-hdr"><div class="fcard-icon a">🧠</div><div class="fcard-title">Trivia Challenge</div></div>
+      <div class="fcard-body">3 MCQ, 30s timer. 30 pts/correct + 20 streak bonus for perfect score.</div>
+    </div>
+    <div class="fcard no-break">
+      <div class="fcard-hdr"><div class="fcard-icon g">⭐</div><div class="fcard-title">Loyalty Tiers</div></div>
+      <div class="fcard-body">Bronze → Silver → Gold → Diamond. Diamond customers earn 2× points on every order.</div>
+    </div>
+  </div>
+
+  <div class="pfooter"><div class="pfooter-l">BCS — Complete Business Platform</div><div class="pfooter-r">Confidential · 2026</div></div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════ PAGE 7 — SUPERADMIN -->
+<div class="page pb">
+  <div class="hdr"><div class="hdr-brand">BCS Platform</div><div class="hdr-sec">Module 05 — SuperAdmin &amp; Multi-Store Management</div></div>
+
+  <div class="ptitle">
+    <div class="ptitle-eye">Module 05</div>
+    <h1>SuperAdmin Panel —<br><em>Manage All Your Clients</em></h1>
+    <div class="ptitle-sub">The SuperAdmin is the platform operator. From one dashboard, manage every store, every user, every subscription — across the entire client base.</div>
+  </div>
+
+  <div class="fcards">
+    <div class="fcard no-break">
+      <div class="fcard-hdr"><div class="fcard-icon">📊</div><div class="fcard-title">Platform Overview</div></div>
+      <div class="fcard-body">Total stores, active stores, total revenue across all clients, store growth chart, plan distribution, and stores expiring soon — all on one screen.</div>
+    </div>
+    <div class="fcard no-break">
+      <div class="fcard-hdr"><div class="fcard-icon a">🏪</div><div class="fcard-title">Store Management</div></div>
+      <div class="fcard-body">Create, enable/disable, delete stores. Toggle Café module. Toggle Online Store. Set plan, expiry, user limits, product limits, monthly price.</div>
+    </div>
+    <div class="fcard no-break">
+      <div class="fcard-hdr"><div class="fcard-icon g">👥</div><div class="fcard-title">User Management</div></div>
+      <div class="fcard-body">Create cashiers and admins per store. Reset passwords. Force logout any device remotely. Set max concurrent device sessions.</div>
+    </div>
+    <div class="fcard no-break">
+      <div class="fcard-hdr"><div class="fcard-icon">🎭</div><div class="fcard-title">Impersonation</div></div>
+      <div class="fcard-body">Log in as any store's admin with one click — for demos or support — without knowing their password. Session is isolated and audited.</div>
+    </div>
+    <div class="fcard no-break">
+      <div class="fcard-hdr"><div class="fcard-icon a">📦</div><div class="fcard-title">Store Cloning</div></div>
+      <div class="fcard-body">Clone an existing store's categories and settings into a new store — ideal for franchise clients. New admin credentials set during clone.</div>
+    </div>
+    <div class="fcard no-break">
+      <div class="fcard-hdr"><div class="fcard-icon g">📢</div><div class="fcard-title">Bulk Notifications</div></div>
+      <div class="fcard-body">Send a notification to one store or all stores at once. Extend plans for multiple stores in one action. Bulk enable/disable stores.</div>
+    </div>
+  </div>
+
+  <h2><span class="bar"></span>Subscription Plans</h2>
+  <div class="plans">
+    <div class="plan">
+      <div class="plan-hdr"><div class="plan-name">Trial</div><div class="plan-tag">14 days free</div></div>
+      <div class="plan-body">
+        <div class="plan-row">2 users / 100 products</div>
+        <div class="plan-row">All features</div>
+      </div>
+    </div>
+    <div class="plan hot">
+      <div class="plan-hdr"><div class="plan-name">Basic</div><div class="plan-tag">Most popular</div></div>
+      <div class="plan-body">
+        <div class="plan-row">5 users / 500 products</div>
+        <div class="plan-row">All features</div>
+      </div>
+    </div>
+    <div class="plan">
+      <div class="plan-hdr"><div class="plan-name">Pro</div><div class="plan-tag">Growing business</div></div>
+      <div class="plan-body">
+        <div class="plan-row">20 users / 2,000 products</div>
+        <div class="plan-row">All features</div>
+      </div>
+    </div>
+    <div class="plan">
+      <div class="plan-hdr"><div class="plan-name">Enterprise</div><div class="plan-tag">No limits</div></div>
+      <div class="plan-body">
+        <div class="plan-row">100 users / Unlimited</div>
+        <div class="plan-row">Priority support</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="hpanel-gold no-break" style="margin-top:18px">
+    <div class="hpanel-title">☁️ Fully Cloud-Based — Works Everywhere</div>
+    <div class="hpanel-body">BCS runs in any browser — no installation, no hardware lock-in. Arabic &amp; English interfaces. Any currency with configurable symbol. Offline mode for POS checkout. Automatic daily cloud backups. Access your business from anywhere on any device.</div>
+  </div>
+
+  <div class="pfooter"><div class="pfooter-l">BCS — Complete Business Platform · 2026</div><div class="pfooter-r">For sales inquiries contact the BCS team</div></div>
+</div>
+
+</body>
+</html>

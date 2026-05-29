@@ -124,7 +124,51 @@ function waitForBackend(maxMs = 60_000) {
   });
 }
 
-// ── 4. Create the main browser window ───────────────────────────────────────
+// ── 4. Auto-updater (production only) ────────────────────────────────────────
+function setupAutoUpdater() {
+  if (IS_DEV) return;
+
+  const { autoUpdater } = require("electron-updater");
+
+  autoUpdater.autoDownload        = false; // always ask before downloading
+  autoUpdater.autoInstallOnAppQuit = true;
+
+  autoUpdater.on("update-available", (info) => {
+    dialog.showMessageBox(mainWindow, {
+      type:      "info",
+      title:     "Update Available",
+      message:   `Version ${info.version} is ready to download.`,
+      detail:    "A new version of Nexora POS is available. Your data and licenses will not be affected.",
+      buttons:   ["Download Now", "Later"],
+      defaultId: 0,
+    }).then(({ response }) => {
+      if (response === 0) autoUpdater.downloadUpdate();
+    });
+  });
+
+  autoUpdater.on("update-downloaded", () => {
+    dialog.showMessageBox(mainWindow, {
+      type:      "info",
+      title:     "Update Ready to Install",
+      message:   "Update downloaded successfully.",
+      detail:    "Nexora POS will restart to apply the update. Your data will not be affected.",
+      buttons:   ["Restart & Install", "Later"],
+      defaultId: 0,
+    }).then(({ response }) => {
+      if (response === 0) autoUpdater.quitAndInstall();
+    });
+  });
+
+  autoUpdater.on("error", (err) => {
+    // Silent — don't bother users with update errors
+    console.error("[updater]", err.message);
+  });
+
+  // Check 5 seconds after launch so startup isn't delayed
+  setTimeout(() => { autoUpdater.checkForUpdates().catch(() => {}); }, 5000);
+}
+
+// ── 5. Create the main browser window ────────────────────────────────────────
 function createWindow() {
   mainWindow = new BrowserWindow({
     width:     1400,
@@ -215,6 +259,7 @@ app.whenReady().then(async () => {
     await waitForBackend();
     mainWindow.close();
     createWindow();
+    setupAutoUpdater();
   } catch (err) {
     dialog.showErrorBox("Startup failed", err.message);
     app.quit();

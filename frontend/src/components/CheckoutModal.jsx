@@ -1,4 +1,5 @@
 import { isOnline } from "../lib/connectivity";
+import { printHtml } from "../lib/printHtml";
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { createSale } from "../api/sale.api";
 import { createHoldSale } from "../api/holdSale.api";
@@ -20,8 +21,6 @@ import {
 
 /* ── thermal receipt printer ─────────────────────────────── */
 async function printReceipt(sale, { toLBP, formatLBP, formatUSD, exchangeRate, change, storeName, taxRate, taxNumber, storeUrl, deliveryPhone }) {
-  const win = window.open("", "_blank", "width=360,height=700");
-  if (!win) { window.print(); return; }
 
   let qrDataUrl = null;
   if (storeUrl) {
@@ -141,11 +140,9 @@ async function printReceipt(sale, { toLBP, formatLBP, formatUSD, exchangeRate, c
     ` : ""}
     ${deliveryPhone ? `<p class="del-phone">📞 Delivery: ${deliveryPhone}</p>` : ""}
   </div>` : ""}
-  <script>window.onload=()=>{window.print();window.close();}<\/script>
 </body></html>`;
 
-  win.document.write(html);
-  win.document.close();
+  printHtml(html);
 }
 
 /* ════════════════════════════════════════════════════════════

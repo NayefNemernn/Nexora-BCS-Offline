@@ -68,13 +68,13 @@ export default function DashboardLayout({ children, page, setPage, user }) {
   const isPOS        = page === "pos";
 
   const [open,       setOpen]       = useState(false);
-  const [isOnline,   setIsOnline]   = useState(isOnline());
+  const [online,     setOnline]     = useState(isOnline());
   const [isMobile,   setIsMobile]   = useState(() => window.innerWidth < 640);
   const navRef                      = useRef(null);
 
   useEffect(() => {
-    const up   = () => setIsOnline(true);
-    const down = () => setIsOnline(false);
+    const up   = () => setOnline(true);
+    const down = () => setOnline(false);
     window.addEventListener("online",  up);
     window.addEventListener("offline", down);
     return () => { window.removeEventListener("online", up); window.removeEventListener("offline", down); };
@@ -443,7 +443,7 @@ export default function DashboardLayout({ children, page, setPage, user }) {
       </AnimatePresence>
 
       {/* ── MAIN CONTENT ── */}
-      <main className={`flex-1 overflow-hidden ${!isPOS ? "overflow-y-auto p-6 pb-10" : ""} ${!isOnline ? "pt-9" : ""}`}>
+      <main className={`flex-1 overflow-hidden ${!isPOS ? "overflow-y-auto p-6 pb-10" : ""} ${!online ? "pt-9" : ""}`}>
         {children}
       </main>
     </div>

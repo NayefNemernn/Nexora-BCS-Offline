@@ -1,4 +1,5 @@
 import { isOnline } from "../lib/connectivity";
+import { printHtml } from "../lib/printHtml";
 import React, { useState, useRef, useEffect } from "react";
 import api from "../api/axios";
 import { returnSale } from "../api/sale.api";
@@ -11,8 +12,6 @@ import {
 
 /* ── Print refund receipt ── */
 function printRefundReceipt(sale, refundItems, refundAmount, storeName) {
-  const win = window.open("", "_blank", "width=360,height=500");
-  if (!win) return;
   const rows = refundItems.map(i => `
     <tr>
       <td style="font-weight:900">${i.name}</td>
@@ -20,7 +19,7 @@ function printRefundReceipt(sale, refundItems, refundAmount, storeName) {
       <td style="text-align:right;font-weight:900">$${(i.price * i.returnQty).toFixed(2)}</td>
     </tr>`).join("");
 
-  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Return Receipt</title>
+  printHtml(`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Return Receipt</title>
 <style>
   *{margin:0;padding:0;box-sizing:border-box}
   body{font-family:'Courier New',monospace;font-size:14px;font-weight:700;color:#000;width:80mm;padding:6mm 3mm}
@@ -52,7 +51,6 @@ function printRefundReceipt(sale, refundItems, refundAmount, storeName) {
 <p class="c b" style="font-size:12px;margin-top:8px">REFUND PROCESSED</p>
 <script>window.onload=()=>{window.print();window.close();}<\/script>
 </body></html>`);
-  win.document.close();
 }
 
 export default function QuickReturn({ onClose, storeName }) {

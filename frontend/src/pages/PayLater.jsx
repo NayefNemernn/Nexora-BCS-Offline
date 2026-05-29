@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { printHtml } from "../lib/printHtml";
 import api from "../api/axios";
 import { cachePayLater, getCachedPayLater } from "../lib/offlineDB";
 import { useRefresh } from "../context/RefreshContext";
@@ -26,8 +27,6 @@ function ItemsModal({ sale, close }) {
   const { storeName } = useAuth();
 
   const printItems = () => {
-    const win = window.open("", "_blank", "width=360,height=600");
-    if (!win) return;
     const rows = sale.items.map(i => `
       <tr>
         <td>${i.name}</td>
@@ -36,7 +35,7 @@ function ItemsModal({ sale, close }) {
       </tr>
       <tr class="sub"><td colspan="3">$${i.price.toFixed(2)} each · ${parseInt(toLBP(i.price)).toLocaleString()} ل.ل</td></tr>
     `).join("");
-    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Items — ${sale.customerName}</title>
+    printHtml(`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Items — ${sale.customerName}</title>
 <style>
   *{margin:0;padding:0;box-sizing:border-box}
   body{font-family:'Courier New',monospace;font-size:13px;color:#111;width:80mm;padding:6mm 3mm}
@@ -70,9 +69,7 @@ function ItemsModal({ sale, close }) {
   </tbody></table>
   <p class="footer">Pay Later Account</p>
   <script>window.onload=()=>{window.print();window.close();}<\/script>
-</body></html>`;
-    win.document.write(html);
-    win.document.close();
+</body></html>`);
   };
 
   const grandTotal = sale.items.reduce((s, i) => s + i.price * i.quantity, 0);

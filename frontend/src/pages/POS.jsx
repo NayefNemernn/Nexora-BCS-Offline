@@ -12,7 +12,7 @@ import { useCurrency }   from "../context/CurrencyContext";
 import ExchangeRateBar   from "../components/ExchangeRateBar";
 import VoiceButton       from "../components/common/VoiceButton";
 import { connectSocket } from "../lib/socket";
-import { Truck, X as XIcon, PauseCircle, LockOpen } from "lucide-react";
+import { Truck, X as XIcon, PauseCircle, LockOpen, History } from "lucide-react";
 import { openCashDrawer, connectCashDrawer, cashDrawerSupported } from "../lib/cashDrawer";
 import OnlineOrdersPanel from "../components/pos/OnlineOrdersPanel";
 import {
@@ -24,6 +24,7 @@ import api from "../api/axios";
 import toast             from "react-hot-toast";
 import { ShoppingBag, Search, RotateCcw } from "lucide-react";
 import QuickReturn from "../components/QuickReturn";
+import CashierSalesHistory from "../components/pos/CashierSalesHistory";
 
 import { getCategoryIcon } from "../lib/categoryIcon";
 
@@ -46,6 +47,7 @@ export default function POS({ setPage }) {
   const [search,           setSearch]           = useState("");
   const [openCheckout,     setOpenCheckout]     = useState(false);
   const [openReturn,       setOpenReturn]       = useState(false);
+  const [openHistory,      setOpenHistory]      = useState(false);
   const [loading,          setLoading]          = useState(true);
   const [flashId,          setFlashId]          = useState(null);
   const [posPage,          setPosPage]          = useState(1);
@@ -332,6 +334,17 @@ export default function POS({ setPage }) {
             transition shrink-0">
           <RotateCcw size={11}/> {t.returnBtn || "Return"}
         </button>
+
+        {/* History button — cashier only */}
+        {user?.role === "cashier" && (
+          <button
+            onClick={() => setOpenHistory(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold
+              bg-white/10 hover:bg-blue-500/80 text-white/80 hover:text-white
+              transition shrink-0">
+            <History size={11}/> History
+          </button>
+        )}
       </div>
 
       <div className="flex flex-1 overflow-hidden gap-3 px-3 pb-3">
@@ -731,6 +744,13 @@ export default function POS({ setPage }) {
         <QuickReturn
           onClose={() => setOpenReturn(false)}
           storeName={user?.storeName || "Market POS"}
+        />
+      )}
+
+      {openHistory && user?.role === "cashier" && (
+        <CashierSalesHistory
+          userId={user.id || user._id}
+          onClose={() => setOpenHistory(false)}
         />
       )}
 

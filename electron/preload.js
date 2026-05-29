@@ -1,7 +1,7 @@
 "use strict";
-// Minimal preload — contextBridge can expose safe APIs here if needed later.
-const { contextBridge } = require("electron");
+const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("electronAPI", {
-  platform: process.platform,
+  platform:  process.platform,
+  printHtml: (html) => ipcRenderer.invoke("print-html", html),
 });

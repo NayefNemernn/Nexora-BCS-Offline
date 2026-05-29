@@ -1,6 +1,6 @@
 "use strict";
 
-const { app, BrowserWindow, shell, dialog, utilityProcess, ipcMain } = require("electron");
+const { app, BrowserWindow, shell, dialog, utilityProcess, ipcMain, nativeTheme } = require("electron");
 const path = require("path");
 const http = require("http");
 const fs   = require("fs");
@@ -182,6 +182,37 @@ function createWindow() {
   // Check for updates 10 seconds after launch so startup isn't delayed
   setTimeout(() => checkForUpdates(), 10_000);
 }
+
+// ── Receipt printing via Chromium print engine ────────────────────────────────
+// Opens a hidden BrowserWindow with the receipt HTML, shows Chromium's built-in
+// print dialog (has preview + all CUPS printers), then closes the window.
+ipcMain.handle("print-html", (_event, html) => {
+  return new Promise((resolve) => {
+    const printWin = new BrowserWindow({
+      show:   false,
+      width:  400,
+      height: 600,
+      webPreferences: { contextIsolation: true },
+    });
+
+    printWin.loadURL(
+      `data:text/html;charset=utf-8,${encodeURIComponent(html)}`
+    );
+
+    printWin.webContents.once("did-finish-load", () => {
+      printWin.webContents.print(
+        { silent: false, printBackground: true, color: false },
+        (success) => {
+          printWin.destroy();
+          resolve(success);
+        }
+      );
+    });
+
+    // Safety: if the window is closed by the user before printing
+    printWin.on("closed", () => resolve(false));
+  });
+});
 
 // ── App lifecycle ─────────────────────────────────────────────────────────────
 app.whenReady().then(async () => {

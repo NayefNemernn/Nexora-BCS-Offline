@@ -5,6 +5,7 @@ import { useCurrency } from "../context/CurrencyContext";
 import { useShiftTranslation } from "../hooks/useShiftTranslation";
 import { useLang } from "../context/LanguageContext";
 import toast from "react-hot-toast";
+import { printHtml } from "../lib/printHtml";
 import {
   Clock, DollarSign, TrendingUp, X, CheckCircle2,
   AlertTriangle, BarChart3, CreditCard, RotateCcw, Plus,
@@ -63,9 +64,7 @@ function ZReport({ shift, onClose }) {
   const fmtTime = d => new Date(d).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
 
   const printReport = () => {
-    const win = window.open("", "_blank", "width=360,height=800");
-    if (!win) return;
-    win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>${t.zreportTitle}</title>
+    printHtml(`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>${t.zreportTitle}</title>
 <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Courier New',monospace;font-size:13px;color:#111;width:80mm;padding:6mm 3mm}
 .c{text-align:center}.b{font-weight:900}hr{border:none;border-top:1px dashed #aaa;margin:6px 0}
 .row{display:flex;justify-content:space-between;padding:2px 0}.warn{color:#b45309;font-weight:700}.ok{color:#15803d;font-weight:700}
@@ -98,7 +97,6 @@ ${shift.notes ? `<hr/><p style="font-size:11px;color:#666">${t.notesPrefix} ${sh
 <p style="text-align:center;font-size:10px;color:#999;margin-top:8px">${t.endOfShift}</p>
 <script>window.onload=()=>{window.print();window.close();}<\/script>
 </body></html>`);
-    win.document.close();
   };
 
   return (

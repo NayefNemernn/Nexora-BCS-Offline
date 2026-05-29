@@ -15,7 +15,7 @@ import {
 import {
   TrendingUp, ShoppingCart, CreditCard, Clock, DollarSign,
   AlertCircle, AlertTriangle, Package, Bell, RotateCcw,
-  Download, Users, Shield,
+  Download, Users, Shield, Send,
 } from "lucide-react";
 
 const CARD = "rounded-2xl bg-white dark:bg-[#141414] shadow-[6px_6px_16px_#d1d5db,-6px_-6px_16px_#ffffff] dark:shadow-[6px_6px_16px_#050505,-6px_-6px_16px_#1a1a1a]";
@@ -60,6 +60,7 @@ export default function Reports() {
   const [saleTypeFilter, setSaleTypeFilter] = useState("all");
   const [returnSale,  setReturnSale]  = useState(null);
   const [voidModal,   setVoidModal]   = useState(null);
+  const [sendingTg,   setSendingTg]   = useState(false);
   const [voidPin,     setVoidPin]     = useState("");
   const [voidReason,  setVoidReason]  = useState("");
   const [voidLoading, setVoidLoading] = useState(false);
@@ -255,6 +256,19 @@ export default function Reports() {
             <button onClick={exportCSV}
               className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-sm border border-gray-200 dark:border-white/10 bg-white dark:bg-[#141414] hover:bg-gray-50 text-gray-600 dark:text-gray-300 shadow-[0_4px_0_0_rgba(0,0,0,0.12)] dark:shadow-[0_4px_0_0_rgba(0,0,0,0.4)] active:shadow-none active:translate-y-[4px] transition-[transform,box-shadow] duration-75 select-none">
               <Download size={14}/> CSV
+            </button>
+            <button disabled={sendingTg} onClick={async () => {
+                setSendingTg(true);
+                const periodMap = { day: "today", week: "week", month: "month", year: "year" };
+                try {
+                  await api.post(`/telegram/report?period=${periodMap[period] || "today"}`);
+                  toast.success("Report sent to Telegram ✅");
+                } catch (err) {
+                  toast.error(err.response?.data?.message || "Failed to send to Telegram");
+                } finally { setSendingTg(false); }
+              }}
+              className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-sm border border-[#229ED9]/40 bg-[#229ED9]/10 hover:bg-[#229ED9]/20 text-[#229ED9] font-semibold shadow-[0_4px_0_0_rgba(34,158,217,0.25)] active:shadow-none active:translate-y-[4px] transition-[transform,box-shadow] duration-75 select-none disabled:opacity-50">
+              <Send size={14}/> {sendingTg ? "Sending…" : "Telegram"}
             </button>
           </div>
         </div>

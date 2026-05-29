@@ -44,7 +44,7 @@ export default function StoreSettings() {
   });
 
   const [cashierForm, setCashierForm] = useState({ username: "", password: "", maxDevices: 1 });
-  const [onlineForm,  setOnlineForm]  = useState({ isOnlineStoreActive: false, deliveryFee: 0, minimumOrder: 0, deliveryTimeMin: 30, deliveryTimeMax: 60, pointsEnabled: false, pointsPerUnit: 1, telegramBotToken: "", deliveryDrivers: [], deliveryPhone: "" });
+  const [onlineForm,  setOnlineForm]  = useState({ isOnlineStoreActive: false, deliveryFee: 0, minimumOrder: 0, deliveryTimeMin: 30, deliveryTimeMax: 60, pointsEnabled: false, pointsPerUnit: 1, telegramBotToken: "", adminTelegramChatId: "", deliveryDrivers: [], deliveryPhone: "" });
   const [savingOnline, setSavingOnline] = useState(false);
   const [fetchingChatId, setFetchingChatId] = useState(false);
   const [testingTelegram, setTestingTelegram] = useState(false);
@@ -97,6 +97,7 @@ export default function StoreSettings() {
         pointsEnabled:       storeData.pointsEnabled       || false,
         pointsPerUnit:       storeData.pointsPerUnit       || 1,
         telegramBotToken:    storeData.telegramBotToken    || "",
+        adminTelegramChatId: storeData.adminTelegramChatId || "",
         deliveryDrivers:     storeData.deliveryDrivers     || [],
         deliveryPhone:       storeData.deliveryPhone       || "",
       });
@@ -751,6 +752,40 @@ export default function StoreSettings() {
                   value={onlineForm.telegramBotToken}
                   onChange={e => setOnlineForm(f => ({ ...f, telegramBotToken: e.target.value }))}
                   className="w-full border border-gray-200 dark:border-white/10 rounded-xl px-3 py-2.5 text-sm bg-transparent dark:text-white outline-none focus:ring-2 focus:ring-blue-500 font-mono" />
+              </div>
+
+              {/* Admin chat ID for reports */}
+              <div>
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                  Admin Chat ID <span className="text-blue-500">(for reports)</span>
+                </label>
+                <div className="flex gap-2">
+                  <input type="text" placeholder="Your personal Telegram chat ID"
+                    value={onlineForm.adminTelegramChatId}
+                    onChange={e => setOnlineForm(f => ({ ...f, adminTelegramChatId: e.target.value }))}
+                    className="flex-1 border border-gray-200 dark:border-white/10 rounded-xl px-3 py-2.5 text-sm bg-transparent dark:text-white outline-none focus:ring-2 focus:ring-blue-500 font-mono" />
+                  <button
+                    disabled={fetchingChatId || !onlineForm.telegramBotToken}
+                    onClick={async () => {
+                      setFetchingChatId(true);
+                      try {
+                        const res = await import("../api/axios").then(m => m.default.get("/store/telegram-chat-id", { params: { token: onlineForm.telegramBotToken } }));
+                        if (res.data?.id) {
+                          setOnlineForm(f => ({ ...f, adminTelegramChatId: String(res.data.id) }));
+                          toast.success(`Got chat ID: ${res.data.id}`);
+                        } else {
+                          toast.error("No recent message found. Send any message to your bot first.");
+                        }
+                      } catch { toast.error("Failed to fetch chat ID"); }
+                      finally { setFetchingChatId(false); }
+                    }}
+                    className="px-3 py-2 bg-blue-100 dark:bg-blue-900/30 text-blue-600 text-xs font-semibold rounded-xl transition disabled:opacity-50 whitespace-nowrap">
+                    {fetchingChatId ? "..." : "Get ID"}
+                  </button>
+                </div>
+                <p className="text-[11px] text-gray-400 mt-1">
+                  Send any message to your bot first, then click "Get ID". Used to receive sales reports.
+                </p>
               </div>
 
               {/* Drivers list */}

@@ -4,7 +4,7 @@ import { useLang } from "../context/LanguageContext";
 import {
   LayoutDashboard, ShoppingCart, Package, Tags, Users, BarChart3,
   Clock, Sun, Moon, LogOut, Pencil, Check, X, Shield, Store,
-  UserCircle2, ClipboardList, TrendingDown, Tag, Truck, Globe, Layers, Sparkles,
+  UserCircle2, ClipboardList, TrendingDown, Tag, Truck, Globe, Layers, Sparkles, Smartphone,
 } from "lucide-react";
 import { useTheme }  from "../context/ThemeContext";
 import { useAuth }   from "../context/AuthContext";
@@ -19,6 +19,7 @@ const NAV_LABELS = {
   categories:      "Categories",
   users:           "Users",
   reports:         "Reports",
+  mobilereports:   "Quick Report",
   paylater:        "Pay Later",
   customers:       "Customers",
   shift:           "Shift / Z-Report",
@@ -42,6 +43,7 @@ const NAV_COLORS = {
   categories:      { bg: "#f59e0b", glow: "rgba(245,158,11,0.5)"   },
   users:           { bg: "#ec4899", glow: "rgba(236,72,153,0.5)"   },
   reports:         { bg: "#8b5cf6", glow: "rgba(139,92,246,0.5)"   },
+  mobilereports:   { bg: "#229ED9", glow: "rgba(34,158,217,0.5)"   },
   paylater:        { bg: "#ef4444", glow: "rgba(239,68,68,0.5)"    },
   customers:       { bg: "#0ea5e9", glow: "rgba(14,165,233,0.5)"   },
   shift:           { bg: "#4f46e5", glow: "rgba(79,70,229,0.5)"    },
@@ -112,6 +114,7 @@ export default function DashboardLayout({ children, page, setPage, user }) {
         { key: "customers",       icon: UserCircle2,     adminOnly: false },
         { key: "users",           icon: Users,           adminOnly: true  },
         { key: "reports",         icon: BarChart3,       adminOnly: true  },
+        { key: "mobilereports",   icon: Smartphone,      adminOnly: true  },
         { key: "paylater",        icon: Clock,           adminOnly: false },
         { key: "shift",           icon: ClipboardList,   adminOnly: false },
         { key: "stock",           icon: TrendingDown,    adminOnly: true  },

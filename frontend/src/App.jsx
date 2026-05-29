@@ -26,7 +26,8 @@ import OnlineOrders              from "./pages/OnlineOrders";
 import PendingPayments           from "./pages/PendingPayments";
 import BatchManagement           from "./pages/BatchManagement";
 import AIInsights                from "./pages/AIInsights";
-const ADMIN_PAGES = ["dashboard", "users", "adminpanel", "storesettings", "stock", "expenses", "discounts", "suppliers", "onlineorders", "batches", "aiinsights", "reports"];
+import MobileReports             from "./pages/MobileReports";
+const ADMIN_PAGES = ["dashboard", "users", "adminpanel", "storesettings", "stock", "expenses", "discounts", "suppliers", "onlineorders", "batches", "aiinsights", "reports", "mobilereports"];
 
 function AppInner() {
   const { user, store, planExpired, daysUntilExpiry } = useAuth();
@@ -66,7 +67,8 @@ function AppInner() {
       case "onlineorders":     return user.role === "admin" ? <OnlineOrders />      : <POS setPage={setPage} user={user} />;
       case "pendingpayments":  return <PendingPayments />;
       case "batches":          return user.role === "admin" ? <BatchManagement />   : <POS setPage={setPage} user={user} />;
-      case "aiinsights":       return user.role === "admin" ? <AIInsights />           : <POS setPage={setPage} user={user} />;
+      case "aiinsights":       return user.role === "admin" ? <AIInsights />     : <POS setPage={setPage} user={user} />;
+      case "mobilereports":    return user.role === "admin" ? <MobileReports /> : <POS setPage={setPage} user={user} />;
       default:              return <POS setPage={setPage} user={user} />;
     }
   };

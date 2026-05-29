@@ -5,6 +5,23 @@ import {
   answerCallback, editMessage, sendMessage,
   buildDriverConfirmMessage,
 } from "../services/telegram.service.js";
+import { buildReportMessage } from "./telegram.report.js";
+
+const PERIOD_COMMANDS = {
+  "/report": "today", "/today": "today",
+  "/week":   "week",
+  "/month":  "month",
+  "/year":   "year",
+};
+
+const HELP_TEXT =
+`👋 <b>Nexora POS Bot</b>
+
+Commands:
+/report — Today's sales report
+/week   — This week's report
+/month  — This month's report
+/year   — This year's report`;
 
 export const handleTelegramWebhook = async (req, res) => {
   // Always respond 200 immediately so Telegram doesn't retry
@@ -12,6 +29,32 @@ export const handleTelegramWebhook = async (req, res) => {
 
   try {
     const update = req.body;
+
+    // ── Text commands from the store admin ────────────────────
+    if (update.message?.text) {
+      const chatId = String(update.message.chat.id);
+      const cmd    = update.message.text.trim().toLowerCase().split(" ")[0];
+
+      // Find the store whose admin sent this message
+      const store = await Store.findOne({ adminTelegramChatId: chatId });
+      if (!store?.telegramBotToken) return;
+
+      const token = store.telegramBotToken;
+
+      if (cmd === "/start" || cmd === "/help") {
+        await sendMessage(token, chatId, HELP_TEXT);
+        return;
+      }
+
+      const period = PERIOD_COMMANDS[cmd];
+      if (period) {
+        await sendMessage(token, chatId, "⏳ Building report…");
+        const msg = await buildReportMessage(store._id, period);
+        await sendMessage(token, chatId, msg);
+      }
+      return;
+    }
+
     if (!update.callback_query) return;
 
     const cb     = update.callback_query;

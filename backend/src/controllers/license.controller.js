@@ -147,11 +147,15 @@ export const applyPasswordReset = async (req, res) => {
 // GET /api/license/check   (public — called by Electron before showing UI)
 export const checkLicensePublic = async (req, res) => {
   try {
+    // Superadmin's own machine — no license needed
+    const superadmin = await User.findOne({ role: "superadmin" });
+    if (superadmin) return res.json({ licensed: true, superadminMode: true });
+
     const store = await Store.findOne({ licenseId: { $exists: true, $ne: null } });
     if (!store) return res.json({ licensed: false });
 
-    const now      = new Date();
-    const expired  = store.licenseExpiresAt ? store.licenseExpiresAt < now : false;
+    const now     = new Date();
+    const expired = store.licenseExpiresAt ? store.licenseExpiresAt < now : false;
     res.json({ licensed: !expired, expired, expiresAt: store.licenseExpiresAt });
   } catch (err) {
     res.status(500).json({ message: err.message });

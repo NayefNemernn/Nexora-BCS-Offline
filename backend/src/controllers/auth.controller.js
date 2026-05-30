@@ -85,8 +85,24 @@ export const login = async (req, res) => {
 
       // ── License enforcement (only for stores created from a .nexora license) ──
       if (store.licenseId) {
-        // 1. Expiry check
-        if (store.licenseExpiresAt && store.licenseExpiresAt < new Date()) {
+        const now = new Date();
+
+        // 1. Anti-rollback: reject if system clock is behind issuedAt or last verified date
+        if (store.licenseIssuedAt && now < store.licenseIssuedAt) {
+          return res.status(403).json({
+            message: "System clock has been rolled back to before the license was issued. Please set the correct date and time.",
+            clockTampering: true,
+          });
+        }
+        if (store.lastVerifiedAt && now < store.lastVerifiedAt) {
+          return res.status(403).json({
+            message: "System clock has been rolled back. Please set the correct date and time.",
+            clockTampering: true,
+          });
+        }
+
+        // 2. Expiry check
+        if (store.licenseExpiresAt && store.licenseExpiresAt < now) {
           return res.status(402).json({
             message:        "Your software license has expired. Contact your provider to renew.",
             licenseExpired: true,
@@ -94,12 +110,10 @@ export const login = async (req, res) => {
           });
         }
 
-        // 2. MAC address check
+        // 3. MAC address check
         const currentMAC = getMachineMAC();
         if (store.allowedMACs.length === 0) {
-          // First device ever — auto-register this machine's MAC
           store.allowedMACs.push(currentMAC);
-          await store.save();
         } else if (!store.allowedMACs.includes(currentMAC)) {
           return res.status(403).json({
             message:            "This device is not authorized to use this software. Contact your provider.",
@@ -107,6 +121,10 @@ export const login = async (req, res) => {
             currentMAC,
           });
         }
+
+        // 4. Stamp last verified time (persists the furthest-seen date)
+        store.lastVerifiedAt = now;
+        await store.save();
       }
     }
 

@@ -113,19 +113,21 @@ export async function importLicenseIfNeeded() {
       active:            true,
       licenseId:         payload.licenseId,
       licenseSignature:  signature,
+      licenseIssuedAt:   payload.issuedAt ? new Date(payload.issuedAt) : null,
       licenseExpiresAt:  new Date(payload.expiresAt),
       maxLicenseDevices: payload.maxDevices    || 1,
       allowedMACs:       [],
       planExpiresAt:     new Date(payload.expiresAt),
     });
 
-    // Create the admin user — password is plaintext from the license, bcrypt hook fires on save
+    // adminPasswordHash (new licenses) is already bcrypt-hashed; the pre-save hook detects this and skips re-hashing.
+    // adminPassword (old licenses) is plain text; the hook hashes it normally.
     const admin = new User({
-      username: payload.adminUsername,
-      password: payload.adminPassword,
-      role:     "admin",
-      storeId:  store._id,
-      active:   true,
+      username:   payload.adminUsername,
+      password:   payload.adminPasswordHash || payload.adminPassword,
+      role:       "admin",
+      storeId:    store._id,
+      active:     true,
       maxDevices: payload.maxDevices || 1,
     });
     await admin.save();
@@ -164,6 +166,22 @@ export function parseAddDeviceCode(code) {
   if (!verifySignature(payload, signature)) throw new Error("Device code signature is invalid.");
   if (!payload.licenseId)               throw new Error("Device code missing licenseId.");
   if (!payload.macAddress)              throw new Error("Device code missing MAC address.");
+
+  return payload;
+}
+
+// ── Validate a password reset code ────────────────────────────────────────────
+
+export function parsePasswordResetCode(code) {
+  let parsed;
+  try { parsed = fromCode(code); } catch { throw new Error("Invalid reset code format."); }
+
+  const { payload, signature } = parsed;
+  if (!payload || !signature)              throw new Error("Reset code is incomplete.");
+  if (payload.type !== "password-reset")   throw new Error("This is not a password reset code.");
+  if (!verifySignature(payload, signature)) throw new Error("Reset code signature is invalid.");
+  if (!payload.licenseId)                  throw new Error("Reset code missing licenseId.");
+  if (!payload.adminPasswordHash)          throw new Error("Reset code missing password hash.");
 
   return payload;
 }

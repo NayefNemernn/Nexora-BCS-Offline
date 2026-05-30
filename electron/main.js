@@ -1,6 +1,6 @@
 "use strict";
 
-const { app, BrowserWindow, shell, dialog, utilityProcess, ipcMain, nativeTheme } = require("electron");
+const { app, BrowserWindow, shell, dialog, utilityProcess, ipcMain, nativeTheme, session } = require("electron");
 const path = require("path");
 const http = require("http");
 const fs   = require("fs");
@@ -214,13 +214,95 @@ ipcMain.handle("print-html", (_event, html) => {
   });
 });
 
+// ── License helpers ───────────────────────────────────────────────────────────
+async function isLicensed() {
+  return new Promise((resolve) => {
+    http.get(`http://localhost:${BACKEND_PORT}/api/license/check`, (res) => {
+      let body = "";
+      res.on("data", (chunk) => { body += chunk; });
+      res.on("end", () => {
+        try {
+          const json = JSON.parse(body);
+          resolve(json.licensed === true);
+        } catch {
+          resolve(false);
+        }
+      });
+    }).on("error", () => resolve(false));
+  });
+}
+
+async function activateLicenseFile(filePath) {
+  const content = fs.readFileSync(filePath, "utf8");
+  return new Promise((resolve, reject) => {
+    const body = JSON.stringify({ licenseContent: content });
+    const req = http.request({
+      hostname: "localhost",
+      port:     BACKEND_PORT,
+      path:     "/api/license/activate",
+      method:   "POST",
+      headers:  { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(body) },
+    }, (res) => {
+      let data = "";
+      res.on("data", (chunk) => { data += chunk; });
+      res.on("end", () => {
+        try {
+          const json = JSON.parse(data);
+          if (res.statusCode === 200 && json.ok) resolve(json);
+          else reject(new Error(json.message || "Activation failed."));
+        } catch {
+          reject(new Error("Invalid response from server."));
+        }
+      });
+    });
+    req.on("error", reject);
+    req.write(body);
+    req.end();
+  });
+}
+
+async function runLicenseActivation() {
+  while (true) {
+    const result = await dialog.showOpenDialog({
+      title:       "Activate Nexora POS — Select License File",
+      buttonLabel: "Activate",
+      filters:     [{ name: "Nexora License", extensions: ["nexora"] }],
+      properties:  ["openFile"],
+    });
+
+    if (result.canceled) {
+      const choice = dialog.showMessageBoxSync({
+        type:    "warning",
+        title:   "License Required",
+        message: "A valid license file is required to run Nexora POS.",
+        buttons: ["Select License File", "Quit"],
+      });
+      if (choice === 1) { app.quit(); return false; }
+      continue;
+    }
+
+    try {
+      const res = await activateLicenseFile(result.filePaths[0]);
+      dialog.showMessageBoxSync({
+        type:    "info",
+        title:   "License Activated",
+        message: res.message || "License activated successfully.",
+      });
+      return true;
+    } catch (err) {
+      const choice = dialog.showMessageBoxSync({
+        type:    "error",
+        title:   "Invalid License",
+        message: err.message,
+        buttons: ["Try Another File", "Quit"],
+      });
+      if (choice === 1) { app.quit(); return false; }
+    }
+  }
+}
+
 // ── App lifecycle ─────────────────────────────────────────────────────────────
 app.whenReady().then(async () => {
-  const adminUser = process.env.DESKTOP_ADMIN_USER || "admin";
-  const adminPass = process.env.DESKTOP_ADMIN_PASS || "886659";
-
-  const isFirstLaunch = !fs.existsSync(path.join(mongoDataDir, "WiredTiger"));
-
   const splashHtml = `<!DOCTYPE html>
 <html><head><meta charset="utf-8">
 <style>
@@ -230,10 +312,6 @@ app.whenReady().then(async () => {
        justify-content:center;height:100vh;gap:12px}
   h1{font-size:22px;font-weight:700}
   p{font-size:13px;color:#94a3b8}
-  .box{background:#1e293b;border:1px solid #334155;border-radius:8px;
-       padding:14px 24px;margin-top:8px;text-align:center}
-  .box b{color:#38bdf8}
-  .warn{font-size:11px;color:#f59e0b;margin-top:4px}
   .dot{width:8px;height:8px;border-radius:50%;background:#38bdf8;
        animation:blink 1s infinite;display:inline-block;margin:0 2px}
   @keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
@@ -241,17 +319,11 @@ app.whenReady().then(async () => {
 <body>
   <h1>Nexora POS</h1>
   <p>Starting database &amp; server… <span class="dot"></span></p>
-  ${isFirstLaunch ? `
-  <div class="box">
-    <p style="color:#94a3b8;font-size:12px;margin-bottom:6px">First launch — default superadmin login:</p>
-    <p>Username: <b>${adminUser}</b> &nbsp;|&nbsp; Password: <b>${adminPass}</b></p>
-    <p class="warn">⚠ Change your password after first login</p>
-  </div>` : ""}
 </body></html>`;
 
   // Show splash
   mainWindow = new BrowserWindow({
-    width: 480, height: isFirstLaunch ? 320 : 240,
+    width: 480, height: 240,
     frame: false, resizable: false,
     webPreferences: { contextIsolation: true },
   });
@@ -261,6 +333,18 @@ app.whenReady().then(async () => {
     const mongoUri = await startMongoDB();
     startBackend(mongoUri);
     await waitForBackend();
+
+    // Gate: require a valid license before opening the app
+    const licensed = await isLicensed();
+    if (!licensed) {
+      mainWindow.hide();
+      const activated = await runLicenseActivation();
+      if (!activated) return; // user quit
+      // Clear any stale session (e.g. superadmin token from a previous run)
+      // so the login screen opens fresh after activation.
+      await session.defaultSession.clearStorageData({ storages: ["localstorage", "cookies", "indexdb"] });
+    }
+
     mainWindow.close();
     createWindow();
   } catch (err) {

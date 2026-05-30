@@ -3,11 +3,11 @@ import toast from "react-hot-toast";
 import {
   getLicenseKeyStatus, setupLicenseKey, listLicenses, createLicense,
   downloadLicenseFile, renewLicense, addDeviceToLicense, deleteLicense,
-  updateLicenseNotes,
+  updateLicenseNotes, generateLicenseResetCode,
 } from "../api/superadmin.api";
 import {
   Key, Plus, Download, RefreshCw, Monitor, Trash2, FileText,
-  CheckCircle, XCircle, Clock, ChevronDown, ChevronUp, Copy, Eye, EyeOff,
+  CheckCircle, XCircle, Clock, ChevronDown, ChevronUp, Copy, Eye, EyeOff, KeyRound,
 } from "lucide-react";
 
 /* ── Tiny helpers ────────────────────────────────────────────────────────────── */
@@ -224,12 +224,16 @@ function LicenseRow({ record, onRefresh }) {
   const [renewModal,   setRenewModal]   = useState(false);
   const [deviceModal,  setDeviceModal]  = useState(false);
   const [notesModal,   setNotesModal]   = useState(false);
+  const [resetModal,   setResetModal]   = useState(false);
   const [renewDays,    setRenewDays]    = useState(365);
   const [macInput,     setMacInput]     = useState("");
   const [notesText,    setNotesText]    = useState(record.notes || "");
+  const [newResetPass, setNewResetPass] = useState("");
+  const [resetResult,  setResetResult]  = useState(null);
   const [renewResult,  setRenewResult]  = useState(null);
   const [deviceResult, setDeviceResult] = useState(null);
   const [loading,      setLoading]      = useState(false);
+  const [showResetPass, setShowResetPass] = useState(false);
 
   const days = daysLeft(record.expiresAt);
   const copyCode = (txt) => { navigator.clipboard?.writeText(txt); toast.success("Code copied — paste it in the client's app."); };
@@ -276,6 +280,17 @@ function LicenseRow({ record, onRefresh }) {
     } catch { toast.error("Failed"); }
   };
 
+  const handleResetPassword = async () => {
+    if (!newResetPass.trim() || newResetPass.length < 4) return toast.error("New password must be at least 4 characters.");
+    setLoading(true);
+    try {
+      const res = await generateLicenseResetCode(record.licenseId, newResetPass.trim());
+      setResetResult(res);
+      toast.success("Password reset code generated.");
+    } catch (e) { toast.error(e.response?.data?.message || "Failed"); }
+    finally { setLoading(false); }
+  };
+
   const handleDelete = async () => {
     if (!confirm(`Delete license record for "${record.storeName}"? The client's app will still work until expiry.`)) return;
     try {
@@ -317,6 +332,10 @@ function LicenseRow({ record, onRefresh }) {
             <button onClick={() => setDeviceModal(true)} title="Add device"
               className="p-2 rounded-lg text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-500/10 transition">
               <Monitor size={14}/>
+            </button>
+            <button onClick={() => setResetModal(true)} title="Reset admin password"
+              className="p-2 rounded-lg text-gray-400 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-500/10 transition">
+              <KeyRound size={14}/>
             </button>
             <button onClick={() => setNotesModal(true)} title="Edit notes"
               className="p-2 rounded-lg text-gray-400 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-500/10 transition">
@@ -445,6 +464,43 @@ function LicenseRow({ record, onRefresh }) {
             </Field>
             <button onClick={handleSaveNotes} className={`${btn("blue")} w-full`}>Save Notes</button>
           </div>
+        </Modal>
+      )}
+
+      {/* Reset Password Modal */}
+      {resetModal && (
+        <Modal title={`Reset Admin Password — ${record.storeName}`} onClose={() => { setResetModal(false); setResetResult(null); setNewResetPass(""); }}>
+          {resetResult ? (
+            <div className="space-y-4">
+              <p className="text-sm text-green-600 dark:text-green-400 font-semibold">✅ Password reset code generated.</p>
+              <div className="p-3 rounded-xl bg-gray-50 dark:bg-white/[0.04] border border-gray-200 dark:border-white/[0.08]">
+                <p className="text-xs text-gray-400 mb-2">Tell the client to go to <strong>Settings → License → Reset Password</strong> and paste this code:</p>
+                <textarea rows={4} readOnly className={`${inp} font-mono text-xs resize-none`} value={resetResult.resetCode}/>
+              </div>
+              <button onClick={() => copyCode(resetResult.resetCode)} className={`${btn("blue")} w-full flex items-center justify-center gap-2`}>
+                <Copy size={14}/> Copy Reset Code
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Enter a new password for the admin user <strong className="text-gray-800 dark:text-white">{record.adminUsername}</strong>.<br/>
+                This generates a signed code — send it to the client to apply.
+              </p>
+              <Field label="New Password">
+                <div className="relative">
+                  <input className={`${inp} pr-10`} type={showResetPass ? "text" : "password"}
+                    placeholder="New password (min 4 chars)" value={newResetPass} onChange={e => setNewResetPass(e.target.value)}/>
+                  <button onClick={() => setShowResetPass(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition">
+                    {showResetPass ? <EyeOff size={15}/> : <Eye size={15}/>}
+                  </button>
+                </div>
+              </Field>
+              <button onClick={handleResetPassword} disabled={loading || newResetPass.length < 4} className={`${btn("amber")} w-full`}>
+                {loading ? "Generating…" : "Generate Reset Code"}
+              </button>
+            </div>
+          )}
         </Modal>
       )}
     </>

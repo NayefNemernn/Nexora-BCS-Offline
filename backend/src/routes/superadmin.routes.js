@@ -4,6 +4,7 @@ import {
   getKeyStatus, setupPrivateKey, createLicense, listLicenses,
   downloadLicense, renewLicenseRecord, addDeviceToLicense,
   deleteLicenseRecord, updateLicenseNotes, getMacInfo,
+  generatePasswordResetCode,
 } from "../controllers/licenseAdmin.controller.js";
 import {
   getAllStores, getStoreDetails, createStore, deleteStore,
@@ -87,8 +88,9 @@ router.get("/licenses",                        listLicenses);
 router.post("/licenses/create",                createLicense);
 router.get("/licenses/:licenseId/download",    downloadLicense);
 router.post("/licenses/:licenseId/renew",      renewLicenseRecord);
-router.post("/licenses/:licenseId/add-device", addDeviceToLicense);
-router.delete("/licenses/:licenseId",          deleteLicenseRecord);
-router.put("/licenses/:licenseId/notes",       updateLicenseNotes);
+router.post("/licenses/:licenseId/add-device",       addDeviceToLicense);
+router.post("/licenses/:licenseId/reset-password",   generatePasswordResetCode);
+router.delete("/licenses/:licenseId",                deleteLicenseRecord);
+router.put("/licenses/:licenseId/notes",             updateLicenseNotes);
 
 export default router;

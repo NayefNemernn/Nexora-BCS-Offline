@@ -59,6 +59,7 @@ const userSchema = new mongoose.Schema(
 
 userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();
+  if (/^\$2[ab]\$/.test(this.password)) return next(); // already bcrypt-hashed (from license file)
   this.password = await bcrypt.hash(this.password, 10);
   next();
 });

@@ -1,10 +1,16 @@
 import os from "os";
 import Store from "../models/Store.js";
+import User  from "../models/User.js";
 import {
   getMachineMAC,
+  parseLicenseFile,
   parseRenewalCode,
   parseAddDeviceCode,
+  parsePasswordResetCode,
 } from "../services/licenseManager.js";
+import { existsSync, writeFileSync, unlinkSync } from "fs";
+import { join } from "path";
+import { tmpdir } from "os";
 
 // GET /api/license/status
 export const getLicenseStatus = async (req, res) => {
@@ -109,4 +115,105 @@ export const getMachineInfo = async (req, res) => {
     hostname: os.hostname(),
     platform: process.platform,
   });
+};
+
+// POST /api/license/reset-password   body: { resetCode }
+// Public — user may be locked out so no auth required.
+export const applyPasswordReset = async (req, res) => {
+  try {
+    const { resetCode } = req.body;
+    if (!resetCode) return res.status(400).json({ message: "resetCode is required." });
+
+    const reset = parsePasswordResetCode(resetCode);
+
+    const store = await Store.findOne({ licenseId: reset.licenseId });
+    if (!store) return res.status(404).json({ message: "No license with that ID is installed on this machine." });
+
+    const admin = await User.findOne({ storeId: store._id, role: "admin" });
+    if (!admin) return res.status(404).json({ message: "Admin user not found." });
+
+    // adminPasswordHash is already bcrypt-hashed; the pre-save hook detects this and skips re-hashing
+    admin.password = reset.adminPasswordHash;
+    admin.devices  = [];       // invalidate all existing sessions
+    admin.sessionToken = null;
+    await admin.save();
+
+    res.json({ ok: true, message: "Password reset successfully. Please log in with your new password." });
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+};
+
+// GET /api/license/check   (public — called by Electron before showing UI)
+export const checkLicensePublic = async (req, res) => {
+  try {
+    const store = await Store.findOne({ licenseId: { $exists: true, $ne: null } });
+    if (!store) return res.json({ licensed: false });
+
+    const now      = new Date();
+    const expired  = store.licenseExpiresAt ? store.licenseExpiresAt < now : false;
+    res.json({ licensed: !expired, expired, expiresAt: store.licenseExpiresAt });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// POST /api/license/activate   body: { licenseContent: string (raw JSON of .nexora file) }
+// Public — used on first launch before any user exists.
+export const activateLicense = async (req, res) => {
+  const { licenseContent } = req.body;
+  if (!licenseContent) return res.status(400).json({ message: "licenseContent is required." });
+
+  // Write to a temp file so parseLicenseFile can read it
+  const tmpFile = join(tmpdir(), `nexora-activate-${Date.now()}.nexora`);
+  try {
+    writeFileSync(tmpFile, typeof licenseContent === "string" ? licenseContent : JSON.stringify(licenseContent));
+    const { payload, signature } = parseLicenseFile(tmpFile);
+
+    // Idempotent — reject if already activated with a different license
+    const existing = await Store.findOne({ licenseId: payload.licenseId });
+    if (existing) {
+      return res.json({ ok: true, message: "License already activated.", alreadyActive: true });
+    }
+
+    const store = await Store.create({
+      name:              payload.storeName,
+      slug:              payload.storeSlug,
+      plan:              "enterprise",
+      maxUsers:          payload.maxUsers      || 50,
+      maxProducts:       payload.maxProducts   || 999999,
+      currency:          payload.currency      || "USD",
+      currencySymbol:    payload.currencySymbol || "$",
+      language:          payload.language      || "en",
+      active:            true,
+      licenseId:         payload.licenseId,
+      licenseSignature:  signature,
+      licenseIssuedAt:   payload.issuedAt ? new Date(payload.issuedAt) : null,
+      licenseExpiresAt:  new Date(payload.expiresAt),
+      maxLicenseDevices: payload.maxDevices    || 1,
+      allowedMACs:       [],
+      planExpiresAt:     new Date(payload.expiresAt),
+    });
+
+    const admin = new User({
+      username:   payload.adminUsername,
+      password:   payload.adminPasswordHash || payload.adminPassword,
+      role:       "admin",
+      storeId:    store._id,
+      active:     true,
+      maxDevices: payload.maxDevices || 1,
+    });
+    await admin.save();
+
+    res.json({
+      ok:         true,
+      message:    `License activated for "${payload.storeName}".`,
+      storeName:  payload.storeName,
+      expiresAt:  store.licenseExpiresAt,
+    });
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  } finally {
+    try { if (existsSync(tmpFile)) unlinkSync(tmpFile); } catch {}
+  }
 };

@@ -57,9 +57,9 @@ function toCode(obj) {
 
 // ── Generate a full .nexora license object ─────────────────────────────────────
 
-export function buildLicenseObject({ licenseId, storeName, storeSlug, adminUsername, adminPassword, maxDevices, maxUsers, maxProducts, currency, currencySymbol, language, issuedAt, expiresAt }) {
+export function buildLicenseObject({ licenseId, storeName, storeSlug, adminUsername, adminPasswordHash, maxDevices, maxUsers, maxProducts, currency, currencySymbol, language, issuedAt, expiresAt }) {
   const payload = {
-    licenseId, version: 1, storeName, storeSlug, adminUsername, adminPassword,
+    licenseId, version: 1, storeName, storeSlug, adminUsername, adminPasswordHash,
     maxDevices, maxUsers, maxProducts, currency, currencySymbol, language, issuedAt, expiresAt,
   };
   const signature = signPayload(payload);
@@ -78,6 +78,14 @@ export function buildRenewalCode(licenseId, newExpiresAt) {
 
 export function buildAddDeviceCode(licenseId, macAddress) {
   const payload = { type: "add-device", licenseId, macAddress: macAddress.toLowerCase().trim(), issuedAt: new Date().toISOString() };
+  const signature = signPayload(payload);
+  return toCode({ payload, signature });
+}
+
+// ── Generate a password reset code (base64 string) ─────────────────────────────
+
+export function buildPasswordResetCode(licenseId, adminPasswordHash) {
+  const payload = { type: "password-reset", licenseId, adminPasswordHash, issuedAt: new Date().toISOString() };
   const signature = signPayload(payload);
   return toCode({ payload, signature });
 }

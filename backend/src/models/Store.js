@@ -74,7 +74,9 @@ const storeSchema = new mongoose.Schema(
     // Stores created directly (superadmin's own machine) leave them null.
     licenseId:         { type: String,  default: null },
     licenseSignature:  { type: String,  default: null },
+    licenseIssuedAt:   { type: Date,    default: null },  // floor for clock-rollback check
     licenseExpiresAt:  { type: Date,    default: null },
+    lastVerifiedAt:    { type: Date,    default: null },  // updated on every login
     maxLicenseDevices: { type: Number,  default: 1 },
     allowedMACs:       [{ type: String }],   // authorized MAC addresses
 

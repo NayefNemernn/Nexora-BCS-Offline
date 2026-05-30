@@ -5,12 +5,18 @@ import {
   renewLicense,
   addDevice,
   getMachineInfo,
+  checkLicensePublic,
+  activateLicense,
+  applyPasswordReset,
 } from "../controllers/license.controller.js";
 
 const router = express.Router();
 
-// Machine info — no auth needed (used on login screen to show MAC)
-router.get("/machine-info", getMachineInfo);
+// Public — no auth needed
+router.get("/machine-info",       getMachineInfo);
+router.get("/check",              checkLicensePublic);
+router.post("/activate",          activateLicense);
+router.post("/reset-password",    applyPasswordReset);
 
 // All other routes require a logged-in user
 router.get("/status",        protect, getLicenseStatus);

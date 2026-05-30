@@ -1,4 +1,5 @@
 import { randomUUID } from "crypto";
+import bcrypt from "bcryptjs";
 import LicenseRecord from "../models/LicenseRecord.js";
 import {
   isPrivateKeyConfigured,
@@ -6,6 +7,7 @@ import {
   buildLicenseObject,
   buildRenewalCode,
   buildAddDeviceCode,
+  buildPasswordResetCode,
 } from "../services/licenseSigner.js";
 import { getMachineMAC } from "../services/licenseManager.js";
 
@@ -52,8 +54,11 @@ export const createLicense = async (req, res) => {
     const storeSlug  = storeName.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "").slice(0, 40)
                        + "-" + Date.now().toString(36);
 
+    // Hash password before embedding in the license file so it is never stored in plain text
+    const adminPasswordHash = await bcrypt.hash(adminPassword, 10);
+
     const licenseObj = buildLicenseObject({
-      licenseId, storeName, storeSlug, adminUsername, adminPassword,
+      licenseId, storeName, storeSlug, adminUsername, adminPasswordHash,
       maxDevices: Number(maxDevices), maxUsers, maxProducts,
       currency, currencySymbol, language, issuedAt, expiresAt,
     });
@@ -173,6 +178,26 @@ export const updateLicenseNotes = async (req, res) => {
     record.notes = req.body.notes || "";
     await record.save();
     res.json({ message: "Notes saved." });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// POST /api/superadmin/licenses/:licenseId/reset-password   body: { newPassword }
+export const generatePasswordResetCode = async (req, res) => {
+  try {
+    if (!isPrivateKeyConfigured()) return res.status(400).json({ message: "Private key not configured." });
+
+    const { newPassword } = req.body;
+    if (!newPassword || newPassword.length < 4) return res.status(400).json({ message: "newPassword must be at least 4 characters." });
+
+    const record = await LicenseRecord.findOne({ licenseId: req.params.licenseId });
+    if (!record) return res.status(404).json({ message: "License not found." });
+
+    const adminPasswordHash = await bcrypt.hash(newPassword, 10);
+    const resetCode = buildPasswordResetCode(record.licenseId, adminPasswordHash);
+
+    res.json({ message: "Password reset code generated.", resetCode });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

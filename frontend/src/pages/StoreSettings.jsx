@@ -24,11 +24,13 @@ const PLAN_COLORS = {
 
 /* ── License client tab (shown in client's StoreSettings → License) ─────────── */
 function LicenseClientTab() {
-  const [status,       setStatus]       = useState(null);
-  const [renewCode,    setRenewCode]    = useState("");
-  const [deviceCode,   setDeviceCode]   = useState("");
-  const [renewLoading, setRenewLoading] = useState(false);
-  const [devLoading,   setDevLoading]   = useState(false);
+  const [status,        setStatus]        = useState(null);
+  const [renewCode,     setRenewCode]     = useState("");
+  const [deviceCode,    setDeviceCode]    = useState("");
+  const [resetCode,     setResetCode]     = useState("");
+  const [renewLoading,  setRenewLoading]  = useState(false);
+  const [devLoading,    setDevLoading]    = useState(false);
+  const [resetLoading,  setResetLoading]  = useState(false);
 
   useEffect(() => {
     api.get("/license/status").then(r => setStatus(r.data)).catch(() => {});
@@ -56,6 +58,17 @@ function LicenseClientTab() {
       api.get("/license/status").then(r => setStatus(r.data)).catch(() => {});
     } catch (e) { toast.error(e.response?.data?.message || "Invalid code."); }
     finally { setDevLoading(false); }
+  };
+
+  const handlePasswordReset = async () => {
+    if (!resetCode.trim()) return toast.error("Paste the reset code.");
+    setResetLoading(true);
+    try {
+      const r = await api.post("/license/reset-password", { resetCode: resetCode.trim() });
+      toast.success(r.data.message);
+      setResetCode("");
+    } catch (e) { toast.error(e.response?.data?.message || "Invalid reset code."); }
+    finally { setResetLoading(false); }
   };
 
   const inp2 = "w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-white/10 bg-transparent dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-mono";
@@ -132,6 +145,21 @@ function LicenseClientTab() {
         <button onClick={handleAddDevice} disabled={devLoading || !deviceCode.trim()}
           className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white rounded-xl font-semibold text-sm shadow-[0_4px_0_0_#3730a3] active:shadow-none active:translate-y-[4px] transition-[transform,box-shadow] duration-75 select-none">
           {devLoading ? "Applying…" : "Apply Device Code"}
+        </button>
+      </div>
+
+      {/* Reset Password */}
+      <div className="p-5 rounded-2xl border border-orange-200 dark:border-orange-500/20 bg-orange-50 dark:bg-orange-500/5 space-y-3">
+        <div className="flex items-center gap-2 mb-1">
+          <Shield size={16} className="text-orange-500"/>
+          <h3 className="font-semibold text-sm text-gray-700 dark:text-gray-300">Reset Admin Password</h3>
+        </div>
+        <p className="text-xs text-gray-400">If you forgot your password, ask your software provider for a password reset code and paste it below.</p>
+        <textarea rows={4} value={resetCode} onChange={e => setResetCode(e.target.value)}
+          className={`${inp2} resize-none text-xs`} placeholder="Paste password reset code here…"/>
+        <button onClick={handlePasswordReset} disabled={resetLoading || !resetCode.trim()}
+          className="w-full py-3 bg-orange-600 hover:bg-orange-700 disabled:opacity-40 text-white rounded-xl font-semibold text-sm transition select-none">
+          {resetLoading ? "Applying…" : "Apply Password Reset"}
         </button>
       </div>
     </div>

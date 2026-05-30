@@ -147,10 +147,12 @@ export const applyPasswordReset = async (req, res) => {
 // GET /api/license/check   (public — called by Electron before showing UI)
 export const checkLicensePublic = async (req, res) => {
   try {
-    // Superadmin's own machine — no license needed
-    const superadmin = await User.findOne({ role: "superadmin" });
-    if (superadmin) return res.json({ licensed: true, superadminMode: true });
+    // Superadmin's machine is identified by the presence of the RSA private key —
+    // only the superadmin has this file, never a client machine.
+    const { isPrivateKeyConfigured } = await import("../services/licenseSigner.js");
+    if (isPrivateKeyConfigured()) return res.json({ licensed: true, superadminMode: true });
 
+    // Client machine: check for an activated .nexora license
     const store = await Store.findOne({ licenseId: { $exists: true, $ne: null } });
     if (!store) return res.json({ licensed: false });
 

@@ -167,6 +167,14 @@ export default function Login() {
                   text-white font-semibold text-sm transition shadow-[0_0_20px_rgba(59,130,246,0.3)]">
                 {activating ? "Activating…" : "Select License File (.nexora)"}
               </motion.button>
+
+              <p className="text-center text-xs text-gray-700 mt-1">
+                Manager?{" "}
+                <button onClick={() => setLicenseStatus(true)}
+                  className="text-gray-500 hover:text-gray-400 underline transition">
+                  Sign in here
+                </button>
+              </p>
             </motion.div>
           )}
 

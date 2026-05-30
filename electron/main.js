@@ -1,6 +1,6 @@
 "use strict";
 
-const { app, BrowserWindow, shell, dialog, utilityProcess, ipcMain, nativeTheme, session } = require("electron");
+const { app, BrowserWindow, shell, dialog, utilityProcess, ipcMain, nativeTheme } = require("electron");
 const path = require("path");
 const http = require("http");
 const fs   = require("fs");
@@ -214,92 +214,17 @@ ipcMain.handle("print-html", (_event, html) => {
   });
 });
 
-// ── License helpers ───────────────────────────────────────────────────────────
-async function isLicensed() {
-  return new Promise((resolve) => {
-    http.get(`http://localhost:${BACKEND_PORT}/api/license/check`, (res) => {
-      let body = "";
-      res.on("data", (chunk) => { body += chunk; });
-      res.on("end", () => {
-        try {
-          const json = JSON.parse(body);
-          resolve(json.licensed === true);
-        } catch {
-          resolve(false);
-        }
-      });
-    }).on("error", () => resolve(false));
+// ── IPC: open native file picker for .nexora files (called from renderer) ────
+ipcMain.handle("pick-nexora-file", async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title:       "Select License File",
+    buttonLabel: "Activate",
+    filters:     [{ name: "Nexora License", extensions: ["nexora"] }],
+    properties:  ["openFile"],
   });
-}
-
-async function activateLicenseFile(filePath) {
-  const content = fs.readFileSync(filePath, "utf8");
-  return new Promise((resolve, reject) => {
-    const body = JSON.stringify({ licenseContent: content });
-    const req = http.request({
-      hostname: "localhost",
-      port:     BACKEND_PORT,
-      path:     "/api/license/activate",
-      method:   "POST",
-      headers:  { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(body) },
-    }, (res) => {
-      let data = "";
-      res.on("data", (chunk) => { data += chunk; });
-      res.on("end", () => {
-        try {
-          const json = JSON.parse(data);
-          if (res.statusCode === 200 && json.ok) resolve(json);
-          else reject(new Error(json.message || "Activation failed."));
-        } catch {
-          reject(new Error("Invalid response from server."));
-        }
-      });
-    });
-    req.on("error", reject);
-    req.write(body);
-    req.end();
-  });
-}
-
-async function runLicenseActivation() {
-  while (true) {
-    const result = await dialog.showOpenDialog({
-      title:       "Activate Nexora POS — Select License File",
-      buttonLabel: "Activate",
-      filters:     [{ name: "Nexora License", extensions: ["nexora"] }],
-      properties:  ["openFile"],
-    });
-
-    if (result.canceled) {
-      const choice = dialog.showMessageBoxSync({
-        type:    "warning",
-        title:   "License Required",
-        message: "A valid license file is required to run Nexora POS.",
-        buttons: ["Select License File", "Quit"],
-      });
-      if (choice === 1) { app.quit(); return false; }
-      continue;
-    }
-
-    try {
-      const res = await activateLicenseFile(result.filePaths[0]);
-      dialog.showMessageBoxSync({
-        type:    "info",
-        title:   "License Activated",
-        message: res.message || "License activated successfully.",
-      });
-      return true;
-    } catch (err) {
-      const choice = dialog.showMessageBoxSync({
-        type:    "error",
-        title:   "Invalid License",
-        message: err.message,
-        buttons: ["Try Another File", "Quit"],
-      });
-      if (choice === 1) { app.quit(); return false; }
-    }
-  }
-}
+  if (result.canceled || !result.filePaths.length) return null;
+  return fs.readFileSync(result.filePaths[0], "utf8");
+});
 
 // ── App lifecycle ─────────────────────────────────────────────────────────────
 app.whenReady().then(async () => {
@@ -333,18 +258,6 @@ app.whenReady().then(async () => {
     const mongoUri = await startMongoDB();
     startBackend(mongoUri);
     await waitForBackend();
-
-    // Gate: require a valid license before opening the app
-    const licensed = await isLicensed();
-    if (!licensed) {
-      mainWindow.hide();
-      const activated = await runLicenseActivation();
-      if (!activated) return; // user quit
-      // Clear any stale session (e.g. superadmin token from a previous run)
-      // so the login screen opens fresh after activation.
-      await session.defaultSession.clearStorageData({ storages: ["localstorage", "cookies", "indexdb"] });
-    }
-
     mainWindow.close();
     createWindow();
   } catch (err) {

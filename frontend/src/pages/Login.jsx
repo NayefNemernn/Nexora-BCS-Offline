@@ -2,26 +2,38 @@ import React, { useState, useEffect, useRef } from "react";
 import { login as loginApi } from "../api/auth.api";
 import { useAuth } from "../context/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaUserShield, FaUser, FaCashRegister } from "react-icons/fa";
+import { FaUser, FaCashRegister } from "react-icons/fa";
 import ThemeToggle from "../components/ThemeToggle";
 import { useAuthTranslation } from "../hooks/useAuthTranslation";
+import api from "../api/axios";
 
-export default function Login({ onShowRegister }) {
+export default function Login() {
   const { login } = useAuth();
   const t = useAuthTranslation();
 
+  const [licenseStatus, setLicenseStatus] = useState(null); // null=checking, true=ok, false=needed
+  const [activating,    setActivating]    = useState(false);
+  const [activateError, setActivateError] = useState("");
+
   const [username, setUsername] = useState("");
   const [pin,      setPin]      = useState("");
-  const [step,     setStep]     = useState("username"); // "username" | "pin"
+  const [step,     setStep]     = useState("username");
   const [error,    setError]    = useState("");
   const [loading,  setLoading]  = useState(false);
 
   const inputRef = useRef(null);
 
-  // Focus input on mount and on step change
+  // Check license on mount
   useEffect(() => {
-    setTimeout(() => inputRef.current?.focus(), 100);
-  }, [step]);
+    api.get("/license/check")
+      .then(r => setLicenseStatus(r.data.licensed === true))
+      .catch(() => setLicenseStatus(true)); // if check fails, show login anyway
+  }, []);
+
+  // Focus input on step change
+  useEffect(() => {
+    if (licenseStatus) setTimeout(() => inputRef.current?.focus(), 100);
+  }, [step, licenseStatus]);
 
   // Keyboard PIN entry
   useEffect(() => {
@@ -70,6 +82,30 @@ export default function Login({ onShowRegister }) {
     setError("");
   };
 
+  const handleActivateLicense = async () => {
+    setActivateError("");
+    let content = null;
+
+    // Use Electron native file picker if available, otherwise fall back to input
+    if (window.electronAPI?.pickNexoraFile) {
+      content = await window.electronAPI.pickNexoraFile();
+      if (!content) return; // user cancelled
+    } else {
+      // Browser fallback — shouldn't happen in production
+      return;
+    }
+
+    setActivating(true);
+    try {
+      await api.post("/license/activate", { licenseContent: content });
+      setLicenseStatus(true);
+    } catch (err) {
+      setActivateError(err.response?.data?.message || "Invalid license file.");
+    } finally {
+      setActivating(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#0b0b0b] flex items-center justify-center relative overflow-hidden">
       <ThemeToggle />
@@ -89,158 +125,169 @@ export default function Login({ onShowRegister }) {
             shadow-[0_0_20px_rgba(59,130,246,0.5)]">
             <FaCashRegister />
           </div>
-          <h1 className="text-2xl text-white font-bold">Market POS</h1>
+          <h1 className="text-2xl text-white font-bold">Nexora POS</h1>
           <p className="text-gray-500 text-sm mt-1">
-            {step === "pin" ? `${t.enterPinFor} ${username}` : t.typeUsernameHint}
+            {licenseStatus === null
+              ? "Checking license…"
+              : !licenseStatus
+              ? "Activate your license to continue"
+              : step === "pin" ? `${t.enterPinFor} ${username}` : t.typeUsernameHint}
           </p>
         </div>
 
         <AnimatePresence mode="wait">
 
-          {/* ── STEP 1: Username ── */}
-          {step === "username" && (
-            <motion.div key="step-username"
-              initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}>
+          {/* ── Checking license ── */}
+          {licenseStatus === null && (
+            <motion.div key="checking" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="flex justify-center py-6">
+              <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+            </motion.div>
+          )}
 
-              <div className="relative mb-3">
-                <input
-                  ref={inputRef}
-                  type="text"
-                  placeholder={t.usernamePlaceholder}
-                  value={username}
-                  onChange={e => { setUsername(e.target.value); setError(""); }}
-                  onKeyDown={e => { if (e.key === "Enter") goToPin(); }}
-                  className="w-full px-4 py-3.5 rounded-2xl
-                    bg-[#1c1c1c] border border-white/10
-                    text-white placeholder-gray-600
-                    focus:outline-none focus:border-blue-500/60
-                    focus:shadow-[0_0_15px_rgba(59,130,246,0.1)]
-                    transition text-sm"
-                />
+          {/* ── No license — activation screen ── */}
+          {licenseStatus === false && (
+            <motion.div key="activate"
+              initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+              className="space-y-4">
+              <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-center space-y-2">
+                <p className="text-amber-400 text-sm font-semibold">No license installed</p>
+                <p className="text-gray-400 text-xs">Contact your software provider to get a <code className="text-amber-300">.nexora</code> license file, then activate below.</p>
               </div>
 
-              {error && (
-                <p className="text-red-400 text-center text-sm mb-3">{error}</p>
+              {activateError && (
+                <p className="text-red-400 text-sm text-center">{activateError}</p>
               )}
 
               <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.97 }}
-                onClick={goToPin}
-                className="w-full py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm transition
-                  shadow-[0_0_20px_rgba(59,130,246,0.3)]"
-              >
-                {t.continueBtn}
+                whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+                onClick={handleActivateLicense}
+                disabled={activating}
+                className="w-full py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50
+                  text-white font-semibold text-sm transition shadow-[0_0_20px_rgba(59,130,246,0.3)]">
+                {activating ? "Activating…" : "Select License File (.nexora)"}
               </motion.button>
-
-              <p className="text-center text-gray-700 text-xs mt-4">
-                {t.startTypingHint}
-              </p>
             </motion.div>
           )}
 
-          {/* ── STEP 2: PIN pad ── */}
-          {step === "pin" && (
-            <motion.div key="step-pin"
-              initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
-
-              {/* Selected user chip */}
-              <div className="flex items-center gap-3 mb-5 px-4 py-3 rounded-2xl bg-[#1c1c1c]">
-                <div className="w-8 h-8 rounded-lg bg-blue-600/20 flex items-center justify-center text-blue-400 text-sm">
-                  <FaUser />
-                </div>
-                <span className="text-white font-medium text-sm flex-1">{username}</span>
-                <button onClick={clearSelection}
-                  className="text-gray-500 hover:text-gray-300 text-xs transition-colors px-2 py-1 rounded-lg hover:bg-white/5">
-                  {t.changeUser}
-                </button>
-              </div>
-
-              {/* PIN dots */}
-              <div className="flex justify-center gap-3 mb-3">
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <motion.div key={i}
-                    animate={{ scale: pin.length > i ? 1.25 : 1 }}
-                    transition={{ type: "spring", stiffness: 400, damping: 20 }}
-                    className={`w-3 h-3 rounded-full transition-colors duration-150 ${
-                      pin.length > i
-                        ? "bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.8)]"
-                        : "bg-gray-700"
-                    }`}
-                  />
-                ))}
-              </div>
-
-              <p className="text-center text-gray-600 text-xs mb-3">
-                {t.tapOrKeyboard}
-              </p>
-
-              {/* Error */}
-              <AnimatePresence>
-                {error && (
-                  <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                    className="text-red-400 text-center text-sm mb-3">
-                    {error}
-                  </motion.p>
-                )}
-              </AnimatePresence>
-
-              {/* Keypad */}
-              <div className="grid grid-cols-3 gap-2.5">
-                {[1,2,3,4,5,6,7,8,9].map(n => (
-                  <motion.button key={n}
-                    whileHover={{ scale: 1.05, boxShadow: "0 0 12px rgba(59,130,246,0.25)" }}
-                    whileTap={{ scale: 0.92 }}
-                    onClick={() => { if (pin.length < 6) setPin(p => p + String(n)); }}
-                    disabled={loading}
-                    className="py-4 rounded-2xl text-xl font-semibold text-white
-                      bg-[#1c1c1c] border border-white/5
-                      hover:border-blue-500/30 transition-all disabled:opacity-40">
-                    {n}
+          {/* ── Licensed — normal login ── */}
+          {licenseStatus === true && (
+            <>
+              {/* STEP 1: Username */}
+              {step === "username" && (
+                <motion.div key="step-username"
+                  initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}>
+                  <div className="relative mb-3">
+                    <input
+                      ref={inputRef}
+                      type="text"
+                      placeholder={t.usernamePlaceholder}
+                      value={username}
+                      onChange={e => { setUsername(e.target.value); setError(""); }}
+                      onKeyDown={e => { if (e.key === "Enter") goToPin(); }}
+                      className="w-full px-4 py-3.5 rounded-2xl
+                        bg-[#1c1c1c] border border-white/10
+                        text-white placeholder-gray-600
+                        focus:outline-none focus:border-blue-500/60
+                        focus:shadow-[0_0_15px_rgba(59,130,246,0.1)]
+                        transition text-sm"
+                    />
+                  </div>
+                  {error && <p className="text-red-400 text-center text-sm mb-3">{error}</p>}
+                  <motion.button
+                    whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+                    onClick={goToPin}
+                    className="w-full py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm transition
+                      shadow-[0_0_20px_rgba(59,130,246,0.3)]">
+                    {t.continueBtn}
                   </motion.button>
-                ))}
-                <motion.button whileTap={{ scale: 0.92 }}
-                  onClick={() => { setPin(""); setError(""); }}
-                  className="py-4 rounded-2xl text-red-400 font-bold text-sm
-                    bg-[#1c1c1c] border border-white/5 hover:border-red-500/30 transition-all">
-                  C
-                </motion.button>
-                <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.92 }}
-                  onClick={() => { if (pin.length < 6) setPin(p => p + "0"); }}
-                  disabled={loading}
-                  className="py-4 rounded-2xl text-xl font-semibold text-white
-                    bg-[#1c1c1c] border border-white/5
-                    hover:border-blue-500/30 transition-all disabled:opacity-40">
-                  0
-                </motion.button>
-                <motion.button whileTap={{ scale: 0.92 }}
-                  onClick={() => setPin(p => p.slice(0, -1))}
-                  className="py-4 rounded-2xl text-white text-lg
-                    bg-[#1c1c1c] border border-white/5 hover:border-white/20 transition-all">
-                  ⌫
-                </motion.button>
-              </div>
-
-              {loading && (
-                <div className="flex justify-center mt-4">
-                  <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                </div>
+                  <p className="text-center text-gray-700 text-xs mt-4">{t.startTypingHint}</p>
+                </motion.div>
               )}
-            </motion.div>
+
+              {/* STEP 2: PIN pad */}
+              {step === "pin" && (
+                <motion.div key="step-pin"
+                  initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
+                  <div className="flex items-center gap-3 mb-5 px-4 py-3 rounded-2xl bg-[#1c1c1c]">
+                    <div className="w-8 h-8 rounded-lg bg-blue-600/20 flex items-center justify-center text-blue-400 text-sm">
+                      <FaUser />
+                    </div>
+                    <span className="text-white font-medium text-sm flex-1">{username}</span>
+                    <button onClick={clearSelection}
+                      className="text-gray-500 hover:text-gray-300 text-xs transition-colors px-2 py-1 rounded-lg hover:bg-white/5">
+                      {t.changeUser}
+                    </button>
+                  </div>
+
+                  <div className="flex justify-center gap-3 mb-3">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      <motion.div key={i}
+                        animate={{ scale: pin.length > i ? 1.25 : 1 }}
+                        transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                        className={`w-3 h-3 rounded-full transition-colors duration-150 ${
+                          pin.length > i ? "bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.8)]" : "bg-gray-700"
+                        }`}
+                      />
+                    ))}
+                  </div>
+
+                  <p className="text-center text-gray-600 text-xs mb-3">{t.tapOrKeyboard}</p>
+
+                  <AnimatePresence>
+                    {error && (
+                      <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                        className="text-red-400 text-center text-sm mb-3">{error}</motion.p>
+                    )}
+                  </AnimatePresence>
+
+                  <div className="grid grid-cols-3 gap-2.5">
+                    {[1,2,3,4,5,6,7,8,9].map(n => (
+                      <motion.button key={n}
+                        whileHover={{ scale: 1.05, boxShadow: "0 0 12px rgba(59,130,246,0.25)" }}
+                        whileTap={{ scale: 0.92 }}
+                        onClick={() => { if (pin.length < 6) setPin(p => p + String(n)); }}
+                        disabled={loading}
+                        className="py-4 rounded-2xl text-xl font-semibold text-white
+                          bg-[#1c1c1c] border border-white/5
+                          hover:border-blue-500/30 transition-all disabled:opacity-40">
+                        {n}
+                      </motion.button>
+                    ))}
+                    <motion.button whileTap={{ scale: 0.92 }}
+                      onClick={() => { setPin(""); setError(""); }}
+                      className="py-4 rounded-2xl text-red-400 font-bold text-sm
+                        bg-[#1c1c1c] border border-white/5 hover:border-red-500/30 transition-all">
+                      C
+                    </motion.button>
+                    <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.92 }}
+                      onClick={() => { if (pin.length < 6) setPin(p => p + "0"); }}
+                      disabled={loading}
+                      className="py-4 rounded-2xl text-xl font-semibold text-white
+                        bg-[#1c1c1c] border border-white/5
+                        hover:border-blue-500/30 transition-all disabled:opacity-40">
+                      0
+                    </motion.button>
+                    <motion.button whileTap={{ scale: 0.92 }}
+                      onClick={() => setPin(p => p.slice(0, -1))}
+                      className="py-4 rounded-2xl text-white text-lg
+                        bg-[#1c1c1c] border border-white/5 hover:border-white/20 transition-all">
+                      ⌫
+                    </motion.button>
+                  </div>
+
+                  {loading && (
+                    <div className="flex justify-center mt-4">
+                      <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                    </div>
+                  )}
+                </motion.div>
+              )}
+            </>
           )}
         </AnimatePresence>
 
-        {/* Register link */}
-        {onShowRegister && (
-          <p className="text-center text-xs text-gray-600 mt-5">
-            {t.newStore}{" "}
-            <button onClick={onShowRegister} className="text-blue-500 hover:text-blue-400 transition">
-              {t.createAccount}
-            </button>
-          </p>
-        )}
-
-        <p className="text-center text-xs text-gray-700 mt-3">
+        <p className="text-center text-xs text-gray-700 mt-5">
           {t.madeBy} <span className="text-blue-500">Abbas El Nemer</span>
         </p>
       </motion.div>

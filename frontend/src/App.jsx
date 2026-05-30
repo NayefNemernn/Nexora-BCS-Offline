@@ -11,7 +11,6 @@ import Reports                    from "./pages/Reports";
 import Users                      from "./pages/Users";
 import AdminPanel                 from "./pages/AdminPanel";
 import Login                      from "./pages/Login";
-import Register                   from "./pages/Register";
 import PayLater                   from "./pages/PayLater";
 import StoreSettings              from "./pages/StoreSettings";
 import SuperAdminPanel            from "./pages/SuperAdminPanel";
@@ -34,16 +33,14 @@ function AppInner() {
   const token = localStorage.getItem("token");
 
   const defaultPage = user?.role === "admin" ? "dashboard" : "pos";
-  const [page,         setPage]         = useState(defaultPage);
-  const [showRegister, setShowRegister] = useState(false);
+  const [page, setPage] = useState(defaultPage);
 
   React.useEffect(() => {
     if (user?.role === "cashier" && ADMIN_PAGES.includes(page)) setPage("pos");
   }, [page, user?.role]);
 
   if (!token || !user) {
-    if (showRegister) return <Register onBackToLogin={() => setShowRegister(false)} />;
-    return <Login onShowRegister={() => setShowRegister(true)} />;
+    return <Login />;
   }
 
   const renderPage = () => {

@@ -3,12 +3,14 @@ import { motion } from "framer-motion";
 import { Check, Layers, Trash2 } from "lucide-react";
 import { useProductsTranslation } from "../../hooks/useProductsTranslation";
 import { getCategoryIcon } from "../../lib/categoryIcon";
+import { useCurrency } from "../../context/CurrencyContext";
 
 const LOW_STOCK_THRESHOLD = 5;
 const nameHue = (str) => [...(str || "")].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 0);
 
 export default function ProductCard({ product, onDelete, onEdit, onBatches, selected, onToggleSelect }) {
   const t = useProductsTranslation();
+  const { formatUSD, formatLBP, toLBPNice } = useCurrency();
   const lowStock = product.stock <= LOW_STOCK_THRESHOLD;
 
   return (
@@ -59,9 +61,14 @@ export default function ProductCard({ product, onDelete, onEdit, onBatches, sele
       </h3>
 
       {/* PRICE */}
-      <p className="text-sm font-semibold text-blue-600 dark:text-blue-400">
-        ${parseFloat(product.price).toFixed(1)}
-      </p>
+      <div className="flex flex-col gap-0.5">
+        <p className="text-sm font-semibold text-amber-500 dark:text-amber-400">
+          {formatLBP(toLBPNice(product.price))}
+        </p>
+        <p className="text-xs text-blue-500 dark:text-blue-400">
+          {formatUSD(product.price)}
+        </p>
+      </div>
 
       {/* BARCODE */}
       <p className="text-sm text-gray-500 dark:text-gray-400">

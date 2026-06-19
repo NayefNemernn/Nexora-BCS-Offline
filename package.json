@@ -10,13 +10,14 @@
   "main": "electron/main.js",
   "productName": "Nexora-POS",
   "scripts": {
-    "build:frontend": "cd frontend && npm install && VITE_API_URL=http://localhost:5000/api npm run build",
+    "build:frontend": "cd frontend && npm install && cross-env VITE_API_URL=http://localhost:5000/api npm run build",
     "install:backend": "cd backend && npm install",
     "install:all": "npm run install:backend && npm run build:frontend",
     "electron:dev": "npm run build:frontend && electron .",
+    "dev:browser": "node scripts/dev-server.mjs",
     "package:linux": "electron-builder --linux",
-    "package:win": "CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win",
-    "package:all": "CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --linux --win",
+    "package:win": "cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win",
+    "package:all": "cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --linux --win",
     "postinstall": "electron-builder install-app-deps"
   },
   "build": {
@@ -98,6 +99,7 @@
     "mongodb-memory-server": "^10.1.4"
   },
   "devDependencies": {
+    "cross-env": "^10.1.0",
     "electron": "^31.0.0",
     "electron-builder": "^24.13.3",
     "playwright-core": "^1.60.0"

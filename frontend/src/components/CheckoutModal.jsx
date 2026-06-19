@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 
 /* ── thermal receipt printer ─────────────────────────────── */
-async function printReceipt(sale, { toLBP, formatLBP, formatUSD, exchangeRate, change, storeName, taxRate, taxNumber, storeUrl, deliveryPhone }) {
+async function printReceipt(sale, { toLBP, toLBPNice, formatLBP, formatUSD, exchangeRate, change, storeName, taxRate, taxNumber, storeUrl, deliveryPhone }) {
 
   let qrDataUrl = null;
   if (storeUrl) {
@@ -35,7 +35,7 @@ async function printReceipt(sale, { toLBP, formatLBP, formatUSD, exchangeRate, c
       <td style="text-align:right">$${(i.price * i.quantity).toFixed(2)}</td>
     </tr>
     <tr class="sub-row">
-      <td colspan="3">$${i.price.toFixed(2)} each &nbsp;·&nbsp; ${parseInt(toLBP(i.price)).toLocaleString()} ل.ل</td>
+      <td colspan="3">$${i.price.toFixed(2)} each &nbsp;·&nbsp; ${parseInt(toLBPNice(i.price)).toLocaleString()} ل.ل</td>
     </tr>
   `).join("");
 
@@ -74,7 +74,7 @@ async function printReceipt(sale, { toLBP, formatLBP, formatUSD, exchangeRate, c
       <td>Change</td><td></td>
       <td style="text-align:right">$${change.toFixed(2)}</td>
     </tr>
-    <tr class="sub-row"><td colspan="3">${parseInt(toLBP(change)).toLocaleString()} ل.ل</td></tr>` : "";
+    <tr class="sub-row"><td colspan="3">${parseInt(toLBPNice(change)).toLocaleString()} ل.ل</td></tr>` : "";
 
   const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Receipt</title>
 <style>
@@ -124,7 +124,7 @@ async function printReceipt(sale, { toLBP, formatLBP, formatUSD, exchangeRate, c
     ${discountRow}
     ${vatRow}
     <tr class="total-row"><td>TOTAL</td><td></td><td style="text-align:right">$${sale.total.toFixed(2)}</td></tr>
-    <tr class="lbp-row"><td colspan="3">${parseInt(toLBP(sale.total)).toLocaleString()} ل.ل &nbsp;·&nbsp; @ ${parseInt(exchangeRate).toLocaleString()} ل.ل/$1</td></tr>
+    <tr class="lbp-row"><td colspan="3">${parseInt(toLBPNice((sale.items||[]).reduce((s,i)=>s+i.price*i.quantity,0)-(sale.discountAmount||0)+(sale.taxAmount||0))).toLocaleString()} ل.ل &nbsp;·&nbsp; @ ${parseInt(exchangeRate).toLocaleString()} ل.ل/$1</td></tr>
     ${changeRow}
     <tr><td colspan="3" class="method">Payment: <span class="badge">${methodLabel}</span></td></tr>
   </tbody></table>
@@ -162,7 +162,7 @@ export default function CheckoutModal({ cart, total, close, clearCart, deliveryO
 
   /* ── payment method ── */
   const [method, setMethod]               = useState(isDelivery ? "cash_on_delivery" : "cash");   // cash | card | paylater | split | bank_transfer | cash_on_delivery
-  const [amountCurrency, setAmountCurrency] = useState("usd");
+  const [amountCurrency, setAmountCurrency] = useState("lbp");
 
   /* ── cash amount & change ── */
   const [cashAmount, setCashAmount]       = useState("");
@@ -197,22 +197,30 @@ export default function CheckoutModal({ cart, total, close, clearCart, deliveryO
     if (discountType === "percent") return +Math.min((v / 100) * total, total).toFixed(2);
     return +Math.min(v, total).toFixed(2);
   })();
+  const discountAmountRaw = (() => {
+    const v = parseFloat(discountValue) || 0;
+    if (discountType === "percent") return Math.min((v / 100) * total, total);
+    return Math.min(v, total);
+  })();
 
   /* ── VAT calculation (only on non-exempt items) ── */
   const vatableSubtotal = cart.reduce((sum, i) => i.vatExempt ? sum : sum + i.price * i.quantity, 0);
   const vatAmount = taxRate > 0 ? +(vatableSubtotal * (taxRate / 100)).toFixed(2) : 0;
+  const vatAmountRaw = taxRate > 0 ? vatableSubtotal * (taxRate / 100) : 0;
 
   const finalTotal = +(total + vatAmount - discountAmount).toFixed(2);
+  // Raw total (full precision) used for LBP display so the value matches exactly what was entered
+  const finalTotalRaw = total + vatAmountRaw - discountAmountRaw;
 
   /* ── change calc ── */
   useEffect(() => {
     if (method !== "cash") { setChange(0); setShortfall(0); return; }
     const received = parseFloat(cashAmount) || 0;
     const receivedUSD = amountCurrency === "lbp" ? (received * 1000) / exchangeRate : received;
-    const diff = receivedUSD - finalTotal;
+    const diff = receivedUSD - finalTotalRaw;
     setChange(Math.max(diff, 0));
     setShortfall(received > 0 ? Math.max(-diff, 0) : 0);
-  }, [cashAmount, finalTotal, amountCurrency, exchangeRate, method]);
+  }, [cashAmount, finalTotalRaw, amountCurrency, exchangeRate, method]);
 
   /* ── auto-fill split paylater when cash entered ── */
   useEffect(() => {
@@ -409,7 +417,7 @@ export default function CheckoutModal({ cart, total, close, clearCart, deliveryO
                 <span>Total</span>
                 <div className="text-right">
                   <div>{formatUSD(receipt.total)}</div>
-                  <div className="text-amber-500">{formatLBP(toLBPNice(receipt.total))}</div>
+                  <div className="text-amber-500">{formatLBP(toLBPNice((receipt.items||[]).reduce((s,i)=>s+i.price*i.quantity,0)-(receipt.discountAmount||0)+(receipt.taxAmount||0)))}</div>
                 </div>
               </div>
               {change > 0 && (
@@ -437,7 +445,7 @@ export default function CheckoutModal({ cart, total, close, clearCart, deliveryO
 
           <div className="px-6 pb-6 flex gap-3">
             <button
-              onClick={() => printReceipt(receipt, { toLBP, formatLBP, formatUSD, exchangeRate, change, storeName, taxRate, taxNumber: store?.taxNumber || "", storeUrl, deliveryPhone })}
+              onClick={() => printReceipt(receipt, { toLBP, toLBPNice, formatLBP, formatUSD, exchangeRate, change, storeName, taxRate, taxNumber: store?.taxNumber || "", storeUrl, deliveryPhone })}
               className="flex-1 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-semibold transition"
             >
               <Printer size={16}/> Print
@@ -506,7 +514,7 @@ export default function CheckoutModal({ cart, total, close, clearCart, deliveryO
                   <p className="text-blue-300 text-sm line-through mb-1">{formatUSD(total)}</p>
                 )}
               </div>
-              <p className="text-3xl font-black tabular-nums">{formatLBP(toLBPNice(finalTotal))}</p>
+              <p className="text-3xl font-black tabular-nums">{formatLBP(toLBPNice(finalTotalRaw))}</p>
             </div>
             {(discountAmount > 0 || vatAmount > 0) && (
               <div className="flex items-center gap-2 mt-2 flex-wrap">

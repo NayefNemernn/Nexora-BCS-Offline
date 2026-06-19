@@ -23,6 +23,11 @@ const productSchema = new mongoose.Schema(
     imageUrl:   { type: String, default: "" }, // URL-based image (alternative to Supabase upload)
     active:     { type: Boolean, default: true }, // auto-disabled when expired
 
+    // ── Coffee Express (street coffee-cup stand shown on POS) ─
+    isCoffeeCup:    { type: Boolean, default: false },
+    cupSize:        { type: String, default: "" }, // e.g. "Small" / "Medium" / "Large" — empty = single-size cup
+    coffeeCategory: { type: String, default: "" }, // e.g. "Hot" / "Cold" / "Bakery" — menu filter tab
+
     // ── Variants (sizes, colors, etc.) ────────────────────────
     hasVariants: { type: Boolean, default: false },
     variants:    { type: [variantSchema], default: [] },

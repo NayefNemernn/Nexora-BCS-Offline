@@ -212,10 +212,11 @@ export const activateLicense = async (req, res) => {
     await admin.save();
 
     res.json({
-      ok:         true,
-      message:    `License activated for "${payload.storeName}".`,
-      storeName:  payload.storeName,
-      expiresAt:  store.licenseExpiresAt,
+      ok:            true,
+      message:       `License activated for "${payload.storeName}".`,
+      storeName:     payload.storeName,
+      adminUsername: payload.adminUsername,
+      expiresAt:     store.licenseExpiresAt,
     });
   } catch (err) {
     res.status(400).json({ message: err.message });

@@ -27,7 +27,7 @@ export default function ProductEditPanel({
   categories = [],
 }) {
   const t                              = useProductsTranslation();
-  const { exchangeRate, formatLBP }   = useCurrency();
+  const { exchangeRate, formatLBP, toLBPNice } = useCurrency();
   const barcodeRef                    = useRef(null);
   const expiryPickerRef               = useRef(null);
 
@@ -41,7 +41,7 @@ export default function ProductEditPanel({
   const [removeExistingImage, setRemoveExistingImage] = useState(false);
 
   // Shared currency mode for BOTH price and cost fields
-  const [fieldCurrency, setFieldCurrency] = useState("usd"); // "usd" | "lbp"
+  const [fieldCurrency, setFieldCurrency] = useState("lbp"); // "usd" | "lbp"
   const [priceRaw,      setPriceRaw]      = useState("");
   const [costRaw,       setCostRaw]       = useState("");
 
@@ -689,9 +689,9 @@ export default function ProductEditPanel({
                     )}
                     <div className="grid grid-cols-3 divide-x divide-gray-100 dark:divide-white/5">
                       {[
-                        { label: "Price",  usd: priceUSD, lbp: priceUSD * exchangeRate },
-                        { label: "Cost",   usd: costUSD,  lbp: costUSD  * exchangeRate },
-                        { label: "Profit", usd: profit,   lbp: profit   * exchangeRate, colored: true },
+                        { label: "Price",  usd: priceUSD, lbp: toLBPNice(priceUSD) },
+                        { label: "Cost",   usd: costUSD,  lbp: toLBPNice(costUSD) },
+                        { label: "Profit", usd: profit,   lbp: toLBPNice(profit), colored: true },
                       ].map(({ label, usd, lbp, colored }) => (
                         <div key={label} className="px-2.5 py-2">
                           <p className="text-[10px] text-gray-400 mb-0.5">{label}</p>

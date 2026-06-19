@@ -23,7 +23,7 @@ const CARD = "rounded-2xl bg-white dark:bg-[#141414] shadow-[6px_6px_16px_#d1d5d
 
 /* ── Items modal ── */
 function ItemsModal({ sale, close }) {
-  const { formatUSD, formatLBP, toLBP, exchangeRate } = useCurrency();
+  const { formatUSD, formatLBP, toLBP, toLBPNice, exchangeRate } = useCurrency();
   const { storeName } = useAuth();
 
   const printItems = () => {
@@ -33,7 +33,7 @@ function ItemsModal({ sale, close }) {
         <td style="text-align:center">${i.quantity}</td>
         <td style="text-align:right">$${(i.price * i.quantity).toFixed(2)}</td>
       </tr>
-      <tr class="sub"><td colspan="3">$${i.price.toFixed(2)} each · ${parseInt(toLBP(i.price)).toLocaleString()} ل.ل</td></tr>
+      <tr class="sub"><td colspan="3">$${i.price.toFixed(2)} each · ${parseInt(toLBPNice(i.price)).toLocaleString()} ل.ل</td></tr>
     `).join("");
     printHtml(`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Items — ${sale.customerName}</title>
 <style>
@@ -65,7 +65,7 @@ function ItemsModal({ sale, close }) {
   <hr/>
   <table><tbody>
     <tr class="total-row"><td>TOTAL DEBT</td><td></td><td style="text-align:right">$${sale.balance.toFixed(2)}</td></tr>
-    <tr><td colspan="3" class="lbp" style="padding-top:3px">${parseInt(toLBP(sale.balance)).toLocaleString()} ل.ل · @ ${parseInt(exchangeRate).toLocaleString()} ل.ل/$1</td></tr>
+    <tr><td colspan="3" class="lbp" style="padding-top:3px">${parseInt(toLBPNice(sale.balance)).toLocaleString()} ل.ل · @ ${parseInt(exchangeRate).toLocaleString()} ل.ل/$1</td></tr>
   </tbody></table>
   <p class="footer">Pay Later Account</p>
   <script>window.onload=()=>{window.print();window.close();}<\/script>
@@ -121,7 +121,7 @@ function ItemsModal({ sale, close }) {
                   <div>
                     <p className="text-sm font-semibold">{item.name}</p>
                     <p className="text-xs text-gray-400">
-                      {formatUSD(item.price)} each · {formatLBP(toLBP(item.price))}
+                      {formatUSD(item.price)} each · {formatLBP(toLBPNice(item.price))}
                     </p>
                   </div>
                 </div>
@@ -148,7 +148,7 @@ function ItemsModal({ sale, close }) {
             <span className="font-bold">Outstanding balance</span>
             <div className="text-right">
               <p className="font-black text-base text-orange-500">{formatUSD(sale.balance)}</p>
-              <p className="text-xs text-amber-500">{formatLBP(toLBP(sale.balance))}</p>
+              <p className="text-xs text-amber-500">{formatLBP(toLBPNice(sale.balance))}</p>
             </div>
           </div>
 

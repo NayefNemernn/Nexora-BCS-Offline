@@ -68,7 +68,7 @@ export const deleteWarehouse = async (req, res) => {
 // GET /api/warehouses/:id/stock
 export const getWarehouseStock = async (req, res) => {
   try {
-    const entries = await WarehouseStock.find({ warehouseId: req.params.id, storeId: req.storeId })
+    const entries = await WarehouseStock.find({ warehouseId: req.params.id, storeId: req.storeId, quantity: { $gt: 0 } })
       .populate("productId", "name barcode price cost category image stock")
       .sort({ updatedAt: -1 });
     res.json(entries.filter(e => e.productId)); // remove orphaned entries
@@ -164,7 +164,8 @@ export const moveFromWarehouse = async (req, res) => {
     if (!entry || entry.quantity < qty) return res.status(400).json({ message: "Insufficient warehouse stock" });
 
     entry.quantity -= qty;
-    await entry.save();
+    if (entry.quantity <= 0) await entry.deleteOne();
+    else await entry.save();
 
     const beforeShowroom = product.stock;
     product.stock += qty;

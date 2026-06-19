@@ -26,7 +26,9 @@ import PendingPayments           from "./pages/PendingPayments";
 import BatchManagement           from "./pages/BatchManagement";
 import AIInsights                from "./pages/AIInsights";
 import MobileReports             from "./pages/MobileReports";
-const ADMIN_PAGES = ["dashboard", "users", "adminpanel", "storesettings", "stock", "expenses", "discounts", "suppliers", "onlineorders", "batches", "aiinsights", "reports", "mobilereports"];
+import ProductsList              from "./pages/ProductsList";
+import CoffeeExpress             from "./pages/CoffeeExpress";
+const ADMIN_PAGES = ["dashboard", "users", "adminpanel", "storesettings", "stock", "expenses", "discounts", "suppliers", "onlineorders", "batches", "aiinsights", "reports", "mobilereports", "coffeeexpress"];
 
 function AppInner() {
   const { user, store, planExpired, daysUntilExpiry } = useAuth();
@@ -49,6 +51,7 @@ function AppInner() {
       case "dashboard":     return user.role === "admin" ? <Dashboard setPage={setPage} /> : <POS setPage={setPage} user={user} />;
       case "pos":           return <POS setPage={setPage} user={user} />;
       case "products":      return <Products />;
+      case "productslist":  return <ProductsList />;
       case "categories":    return <Categories />;
       case "reports":       return user.role === "admin" ? <Reports /> : <POS setPage={setPage} user={user} />;
       case "paylater":      return <PayLater />;
@@ -66,6 +69,7 @@ function AppInner() {
       case "batches":          return user.role === "admin" ? <BatchManagement />   : <POS setPage={setPage} user={user} />;
       case "aiinsights":       return user.role === "admin" ? <AIInsights />     : <POS setPage={setPage} user={user} />;
       case "mobilereports":    return user.role === "admin" ? <MobileReports /> : <POS setPage={setPage} user={user} />;
+      case "coffeeexpress":    return user.role === "admin" ? <CoffeeExpress /> : <POS setPage={setPage} user={user} />;
       default:              return <POS setPage={setPage} user={user} />;
     }
   };

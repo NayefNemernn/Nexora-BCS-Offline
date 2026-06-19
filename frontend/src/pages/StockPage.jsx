@@ -32,8 +32,11 @@ export default function StockPage() {
   const [tab,        setTab]        = useState("showroom");
 
   // ── Showroom adjust modal ────────────────────────────────────────────────
-  const [adjustModal, setAdjustModal] = useState(null);
-  const [adjustForm,  setAdjustForm]  = useState({ change: "", reason: "", type: "manual_add" });
+  const [adjustModal,   setAdjustModal]   = useState(null);
+  const [adjustForm,    setAdjustForm]    = useState({ change: "", reason: "", type: "manual_add" });
+  const [adjustPwd,     setAdjustPwd]     = useState("");
+  const [adjustPwdErr,  setAdjustPwdErr]  = useState("");
+  const [adjustPwdShow, setAdjustPwdShow] = useState(false);
 
   // ── Store in Warehouse modal (showroom → warehouse) ──────────────────────
   const [storeModal,    setStoreModal]    = useState(null); // product
@@ -115,6 +118,15 @@ export default function StockPage() {
   // ── Showroom adjust ──────────────────────────────────────────────────────
   const handleAdjust = async () => {
     if (!adjustForm.change || adjustForm.change === "0") return toast.error(t.enterQuantity);
+    if (!adjustPwd.trim()) { setAdjustPwdErr("Password is required"); return; }
+    setAdjustPwdErr("");
+    // Verify password before proceeding
+    try {
+      await api.post("/auth/verify-password", { password: adjustPwd });
+    } catch (err) {
+      setAdjustPwdErr(err.response?.data?.message || "Incorrect password");
+      return;
+    }
     if (!isOnline()) {
       const payload = { productId: adjustModal._id, change: +adjustForm.change, reason: adjustForm.reason, type: adjustForm.type };
       await queueMutation("stock_adjust", "/api/stock/adjust", "POST", payload);
@@ -123,12 +135,12 @@ export default function StockPage() {
       await cacheByKey("stock_products_list", updated);
       await cacheProducts(updated);
       toast.success("📴 Queued — will sync when connected");
-      setAdjustModal(null); setAdjustForm({ change: "", reason: "", type: "manual_add" }); return;
+      setAdjustModal(null); setAdjustForm({ change: "", reason: "", type: "manual_add" }); setAdjustPwd(""); setAdjustPwdErr(""); return;
     }
     try {
       await api.post("/stock/adjust", { productId: adjustModal._id, change: +adjustForm.change, reason: adjustForm.reason, type: adjustForm.type });
       toast.success(t.stockAdjusted);
-      setAdjustModal(null); setAdjustForm({ change: "", reason: "", type: "manual_add" });
+      setAdjustModal(null); setAdjustForm({ change: "", reason: "", type: "manual_add" }); setAdjustPwd(""); setAdjustPwdErr("");
       loadAll();
     } catch (err) { toast.error(err.response?.data?.message || t.failed); }
   };
@@ -392,7 +404,7 @@ export default function StockPage() {
                       <td className="px-4 py-3 text-xs text-gray-500">{fmtDate(p.expiryDate)}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
-                          <button onClick={() => { setAdjustModal(p); setAdjustForm({ change: "", reason: "", type: "manual_add" }); }}
+                          <button onClick={() => { setAdjustModal(p); setAdjustForm({ change: "", reason: "", type: "manual_add" }); setAdjustPwd(""); setAdjustPwdErr(""); setAdjustPwdShow(false); }}
                             className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-600 hover:bg-blue-100 transition font-medium">
                             <Plus size={11}/> {t.adjustBtn}
                           </button>
@@ -756,7 +768,7 @@ export default function StockPage() {
 
       {/* ══ SHOWROOM ADJUST MODAL ══════════════════════════════════════════ */}
       {adjustModal && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={e => { if (e.target === e.currentTarget) setAdjustModal(null); }}>
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={e => { if (e.target === e.currentTarget) { setAdjustModal(null); setAdjustPwd(""); setAdjustPwdErr(""); } }}>
           <div className="bg-white dark:bg-[#1a1a1a] rounded-3xl p-6 w-full max-w-sm shadow-2xl">
             <h2 className="font-bold mb-1">{t.adjustStock}</h2>
             <p className="text-sm text-gray-500 mb-4">{adjustModal.name} — {t.current} <strong>{adjustModal.stock}</strong></p>
@@ -779,9 +791,27 @@ export default function StockPage() {
                 <input type="text" placeholder="e.g. Received delivery…" value={adjustForm.reason}
                   onChange={e => setAdjustForm(f => ({ ...f, reason: e.target.value }))} className={INP}/>
               </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Password *</label>
+                <div className="relative">
+                  <input
+                    type={adjustPwdShow ? "text" : "password"}
+                    placeholder="Enter your password to confirm"
+                    value={adjustPwd}
+                    onChange={e => { setAdjustPwd(e.target.value); setAdjustPwdErr(""); }}
+                    onKeyDown={e => e.key === "Enter" && handleAdjust()}
+                    className={INP + (adjustPwdErr ? " border-red-400" : "")}
+                  />
+                  <button type="button" onClick={() => setAdjustPwdShow(v => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 hover:text-gray-600 select-none">
+                    {adjustPwdShow ? "Hide" : "Show"}
+                  </button>
+                </div>
+                {adjustPwdErr && <p className="text-xs text-red-500 mt-1">{adjustPwdErr}</p>}
+              </div>
               <div className="flex gap-3 pt-2">
                 <button onClick={handleAdjust} className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold text-sm shadow-[0_4px_0_0_#1d4ed8] active:shadow-none active:translate-y-[4px] transition-[transform,box-shadow] duration-75">{t.apply}</button>
-                <button onClick={() => setAdjustModal(null)} className="flex-1 py-3 bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-gray-300 rounded-xl font-semibold text-sm transition">{t.cancel}</button>
+                <button onClick={() => { setAdjustModal(null); setAdjustPwd(""); setAdjustPwdErr(""); }} className="flex-1 py-3 bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-gray-300 rounded-xl font-semibold text-sm transition">{t.cancel}</button>
               </div>
             </div>
           </div>

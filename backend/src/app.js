@@ -36,6 +36,7 @@ import cafeRoutes        from "./routes/cafe.routes.js";
 import cafePublicRoutes  from "./routes/cafePublic.routes.js";
 import warehouseRoutes   from "./routes/warehouse.routes.js";
 import licenseRoutes     from "./routes/license.routes.js";
+import coffeeExpressRoutes from "./routes/coffeeExpress.routes.js";
 
 dotenv.config();
 const app = express();
@@ -92,6 +93,7 @@ app.use("/api/cafe",          cafeRoutes);
 app.use("/api/cafe/public/:slug", cafePublicRoutes);
 app.use("/api/warehouses",    warehouseRoutes);
 app.use("/api/license",       licenseRoutes);
+app.use("/api/coffee-express", coffeeExpressRoutes);
 
 /* Public demo-request endpoint — called from the nexora marketing website */
 app.post("/api/demo-request", async (req, res) => {

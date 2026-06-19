@@ -70,10 +70,10 @@ export default function ProductForm({
   ImageDropzone
 }) {
   const t = useProductsTranslation();
-  const { exchangeRate, formatLBP, toLBP, formatUSD } = useCurrency();
+  const { exchangeRate, formatLBP, toLBP, toLBPNice, formatUSD } = useCurrency();
 
   // Shared currency for BOTH price and cost — one toggle controls both
-  const [priceCurrency, setPriceCurrency] = useState("usd"); // "usd" | "lbp"
+  const [priceCurrency, setPriceCurrency] = useState("lbp"); // "usd" | "lbp"
   const [priceInput,    setPriceInput]    = useState(form.price || "");
   const [costInput,     setCostInput]     = useState(form.cost || "");
   const [expiryDisplay, setExpiryDisplay] = useState(
@@ -210,7 +210,7 @@ export default function ProductForm({
       if (!isNaN(p) && p > 0) setPriceInput(Math.round((p * exchangeRate) / 1000).toString());
       if (!isNaN(c) && c > 0) setCostInput(Math.round((c * exchangeRate) / 1000).toString());
     } else {
-      const toUSD2 = (n) => parseFloat(((n * 1000) / exchangeRate).toFixed(2)).toString();
+      const toUSD2 = (n) => String((n * 1000) / exchangeRate);
       if (!isNaN(p) && p > 0) setPriceInput(toUSD2(p));
       if (!isNaN(c) && c > 0) setCostInput(toUSD2(c));
     }
@@ -231,7 +231,7 @@ export default function ProductForm({
     const num = parseFloat(priceInput);
     if (isNaN(num) || num <= 0) return null;
     if (priceCurrency === "usd") {
-      return `≈ ${formatLBP(toLBP(num))}`;
+      return `≈ ${formatLBP(toLBPNice(num))}`;
     } else {
       const fullLBP = num * 1000;
       return `${formatLBP(fullLBP)}  ≈  ${formatUSD(fullLBP / exchangeRate)}`;
@@ -426,7 +426,7 @@ export default function ProductForm({
           {costInput && parseFloat(costInput) > 0 && (
             <p className={`text-xs mt-1.5 px-1 font-medium ${priceCurrency === "usd" ? "text-amber-500" : "text-green-500"}`}>
               {priceCurrency === "usd"
-                ? `≈ ${formatLBP(parseFloat(costInput) * exchangeRate)}`
+                ? `≈ ${formatLBP(toLBPNice(parseFloat(costInput)))}`
                 : `${formatLBP(parseFloat(costInput) * 1000)} ≈ $${((parseFloat(costInput) * 1000) / exchangeRate).toFixed(2)}`
               }
             </p>

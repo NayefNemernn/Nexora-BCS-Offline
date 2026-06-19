@@ -12,7 +12,7 @@ export const CurrencyProvider = ({ children }) => {
   });
 
   const [displayCurrency, setDisplayCurrency] = useState(() => {
-    return localStorage.getItem("display_currency") || "both";
+    return localStorage.getItem("display_currency") || "lbp";
     // "usd" | "lbp" | "both"
   });
 
@@ -34,13 +34,8 @@ export const CurrencyProvider = ({ children }) => {
     return (parseFloat(usdPrice) * exchangeRate).toFixed(0);
   };
 
-  // Like toLBP but rounds to nearest 1,000 for amounts ≥ 1,000 to eliminate
-  // floating-point drift from LBP→USD→LBP round-trips (e.g. 50,120 → 50,000)
-  const toLBPNice = (usdPrice) => {
-    const lbp = parseFloat(usdPrice) * exchangeRate;
-    if (lbp >= 1000) return String(Math.round(lbp / 1000) * 1000);
-    return lbp.toFixed(0);
-  };
+  // No rounding — show exact LBP value as entered by the user
+  const toLBPNice = (usdPrice) => toLBP(usdPrice);
 
   // Format LBP with thousands separator
   const formatLBP = (amount) => {

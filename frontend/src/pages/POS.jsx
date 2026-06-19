@@ -12,7 +12,7 @@ import { useCurrency }   from "../context/CurrencyContext";
 import ExchangeRateBar   from "../components/ExchangeRateBar";
 import VoiceButton       from "../components/common/VoiceButton";
 import { connectSocket } from "../lib/socket";
-import { Truck, X as XIcon, PauseCircle, LockOpen, History } from "lucide-react";
+import { Truck, X as XIcon, PauseCircle, LockOpen, History, Coffee } from "lucide-react";
 import { openCashDrawer, connectCashDrawer, cashDrawerSupported } from "../lib/cashDrawer";
 import OnlineOrdersPanel from "../components/pos/OnlineOrdersPanel";
 import {
@@ -27,6 +27,7 @@ import QuickReturn from "../components/QuickReturn";
 import CashierSalesHistory from "../components/pos/CashierSalesHistory";
 
 import { getCategoryIcon } from "../lib/categoryIcon";
+import { coffeeBeansStyle } from "../lib/coffeeTheme";
 
 const nameHue = (str) => [...(str || "")].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 0);
 
@@ -191,6 +192,36 @@ export default function POS({ setPage }) {
     return map;
   }, [products]);
 
+  // Group coffee cups sharing the same name — each size is its own real product
+  // (own stock/price), so picking a size just adds that real product to the cart.
+  const coffeeCupGroups = useMemo(() => {
+    const byName = new Map();
+    for (const p of products) {
+      if (!p.isCoffeeCup) continue;
+      if (!byName.has(p.name)) byName.set(p.name, { name: p.name, image: p.image, category: p.coffeeCategory || "", items: [] });
+      const g = byName.get(p.name);
+      // A size added later (e.g. via "+ Medium") has no photo/category of its own — don't let it
+      // blank out one a sibling size already has, since createdAt-desc sort puts it first.
+      if (!g.image && p.image) g.image = p.image;
+      if (!g.category && p.coffeeCategory) g.category = p.coffeeCategory;
+      g.items.push(p);
+    }
+    return [...byName.values()];
+  }, [products]);
+
+  const [expandedCupGroup, setExpandedCupGroup] = useState(null);
+
+  // ── Coffee menu category filter — "All" + whatever categories the cups actually use ──
+  const [coffeeCategoryFilter, setCoffeeCategoryFilter] = useState("All");
+  const coffeeCategories = useMemo(() => {
+    const set = new Set(coffeeCupGroups.map(g => g.category).filter(Boolean));
+    return ["All", ...set];
+  }, [coffeeCupGroups]);
+  const filteredCoffeeGroups = useMemo(() => {
+    if (coffeeCategoryFilter === "All") return coffeeCupGroups;
+    return coffeeCupGroups.filter(g => g.category === coffeeCategoryFilter);
+  }, [coffeeCupGroups, coffeeCategoryFilter]);
+
   const addProductSafe = (product) => {
     if (!product)            { toast.error(t.productNotFound); return; }
     if (product.stock === 0) { toast.error(t.outOfStock);      return; }
@@ -255,6 +286,7 @@ export default function POS({ setPage }) {
   };
 
   const filteredProducts = products.filter(p => {
+    if (p.isCoffeeCup) return false; // shown only in the Today's Menu coffee section
     const matchCat    = selectedCategory === "all" || p.category?._id === selectedCategory;
     const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) ||
                         (p.barcode && p.barcode.includes(search));
@@ -272,11 +304,11 @@ export default function POS({ setPage }) {
     if (displayCurrency === "usd")
       return <span className="text-green-500 dark:text-green-400 font-bold text-sm tabular-nums">{formatUSD(price)}</span>;
     if (displayCurrency === "lbp")
-      return <span className="text-amber-500 dark:text-amber-400 font-bold text-sm tabular-nums">{formatLBP(toLBP(price))}</span>;
+      return <span className="text-amber-500 dark:text-amber-400 font-bold text-sm tabular-nums">{formatLBP(toLBPNice(price))}</span>;
     return (
       <div className="flex flex-col leading-tight">
         <span className="text-green-500 dark:text-green-400 font-bold text-sm tabular-nums">{formatUSD(price)}</span>
-        <span className="text-amber-500 dark:text-amber-400 font-semibold text-sm tabular-nums">{formatLBP(toLBP(price))}</span>
+        <span className="text-amber-500 dark:text-amber-400 font-semibold text-sm tabular-nums">{formatLBP(toLBPNice(price))}</span>
       </div>
     );
   };
@@ -351,6 +383,107 @@ export default function POS({ setPage }) {
 
         {/* ── LEFT: Products ── */}
         <div className="flex-1 flex flex-col overflow-hidden gap-2 min-w-0">
+
+          {/* ── Today's Menu — Coffee Express drinks, separate from the regular product grid ── */}
+          {ctxStore?.coffeeExpressEnabled && coffeeCupGroups.length > 0 && (
+            <div className="shrink-0 rounded-2xl border border-amber-200 overflow-hidden" style={coffeeBeansStyle}>
+              <div className="px-4 pt-3 pb-2 flex items-center justify-between gap-3 flex-wrap">
+                <div>
+                  <h2 className="text-sm font-bold text-amber-950 flex items-center gap-1.5">
+                    <Coffee size={14} className="text-amber-700" /> Today's Menu
+                  </h2>
+                  <p className="text-[10px] text-amber-700/60">Tap a card to add it to the ticket</p>
+                </div>
+                <div className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
+                  {coffeeCategories.map(cat => (
+                    <button key={cat} onClick={() => setCoffeeCategoryFilter(cat)}
+                      className={`px-3 py-1.5 rounded-full text-[11px] font-bold whitespace-nowrap transition shrink-0 ${
+                        coffeeCategoryFilter === cat
+                          ? "bg-amber-700 text-white"
+                          : "bg-white text-amber-700 border border-amber-200 hover:bg-amber-50"
+                      }`}>
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="px-3 pb-3 max-h-60 overflow-y-auto">
+                <div className="grid gap-2.5" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(110px, 1fr))" }}>
+                  {filteredCoffeeGroups.map(group => {
+                    const single = group.items.length === 1;
+                    const expanded = expandedCupGroup === group.name;
+                    const cartQtyFor = (id) => cart.find(i => i.productId === id)?.quantity || 0;
+                    const totalQty = group.items.reduce((s, it) => s + cartQtyFor(it._id), 0);
+                    const allOut = group.items.every(it => it.stock === 0);
+                    const handleCardClick = () => {
+                      if (single) addProductSafe(group.items[0]);
+                      else setExpandedCupGroup(expanded ? null : group.name);
+                    };
+                    return (
+                      <div key={group.name} className="flex flex-col">
+                        <div
+                          onClick={handleCardClick}
+                          className={`relative rounded-2xl overflow-hidden bg-white select-none
+                            transition-[transform,box-shadow] duration-150
+                            shadow-[0_4px_0_0_rgba(146,64,14,0.18)]
+                            ${allOut ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:-translate-y-0.5 active:translate-y-0 active:shadow-none"}
+                            ${totalQty > 0 ? "ring-2 ring-amber-400" : ""}`}
+                        >
+                          <div className="h-20 flex items-center justify-center bg-gradient-to-br from-amber-50 to-amber-100">
+                            {group.image
+                              ? <img src={group.image} className="max-h-[85%] max-w-[85%] object-contain drop-shadow" />
+                              : <span className="text-3xl">☕</span>}
+                          </div>
+                          {totalQty > 0 && (
+                            <span className="absolute top-1.5 left-1.5 min-w-[20px] h-5 px-1 rounded-full
+                              bg-amber-600 text-white text-[10px] font-bold flex items-center justify-center shadow">
+                              {totalQty}
+                            </span>
+                          )}
+                          <span className="absolute bottom-1.5 right-1.5 text-[10px] font-bold px-2 py-0.5
+                            rounded-full bg-amber-600 text-white shadow tabular-nums">
+                            {single ? formatUSD(group.items[0].price) : `${group.items.length} sizes`}
+                          </span>
+                          <div className="px-2 pt-1.5 pb-2">
+                            <p className="text-[11px] font-semibold text-amber-950 leading-tight truncate">{group.name}</p>
+                            {group.category && (
+                              <span className="text-[9px] font-medium text-amber-600 uppercase tracking-wide">{group.category}</span>
+                            )}
+                          </div>
+                        </div>
+
+                        {!single && expanded && (
+                          <div className="mt-1 flex flex-col gap-1">
+                            {group.items.map(item => {
+                              const qty = cartQtyFor(item._id);
+                              const out = item.stock === 0;
+                              return (
+                                <button
+                                  key={item._id}
+                                  onClick={(e) => { e.stopPropagation(); addProductSafe(item); }}
+                                  disabled={out}
+                                  className={`flex items-center justify-between gap-1 px-2 py-1.5 rounded-lg text-[10px]
+                                    bg-white border border-amber-200 transition select-none
+                                    ${out ? "opacity-40 cursor-not-allowed" : "hover:bg-amber-50 active:scale-95"}
+                                    ${qty > 0 ? "ring-1 ring-amber-400" : ""}`}
+                                >
+                                  <span className="font-medium text-amber-800">{item.cupSize || "Regular"}</span>
+                                  <span className="flex items-center gap-1 font-bold text-amber-700 tabular-nums">
+                                    {qty > 0 && <span className="text-amber-500">×{qty}</span>}
+                                    {formatUSD(item.price)}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* ── Search bar ── */}
           <div className="shrink-0 flex items-center gap-2
@@ -504,7 +637,7 @@ export default function POS({ setPage }) {
 
                       {/* Info */}
                       <div className="p-2.5 flex flex-col gap-1.5">
-                        <p className="text-xs font-semibold truncate leading-tight text-gray-800 dark:text-white">
+                        <p className="text-xs font-semibold leading-tight text-gray-800 dark:text-white break-words line-clamp-2">
                           {p.name}
                         </p>
 

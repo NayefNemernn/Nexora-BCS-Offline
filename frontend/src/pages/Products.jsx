@@ -456,8 +456,8 @@ export default function Products() {
 
     // Convert LBP prices to USD using the current exchange rate
     if (fields.priceCurrency === "LBP" && exchangeRate > 0) {
-      price = parseFloat((price / exchangeRate).toFixed(4));
-      cost  = parseFloat((cost  / exchangeRate).toFixed(4));
+      price = price / exchangeRate;
+      cost  = cost  / exchangeRate;
     }
 
     setForm(prev => ({

@@ -169,8 +169,16 @@ export const createProduct = async (req, res) => {
       return res.status(403).json({ message: `Product limit (${store.maxProducts}) reached. Upgrade your plan.` });
     }
 
-    const { name, barcode, price, cost, stock, category, expiryDate, expiryAlertDays } = req.body;
+    const { name, price, cost, category, expiryDate, expiryAlertDays, cupSize, coffeeCategory } = req.body;
+    let { barcode, stock } = req.body;
+    const isCoffeeCup = req.body.isCoffeeCup === true || req.body.isCoffeeCup === "true";
     let imageUrl = "";
+
+    // Coffee Express cups skip barcode/stock entry — they're simple "always in stock" items
+    if (isCoffeeCup) {
+      if (!barcode) barcode = `CFE-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      if (stock === undefined || stock === "") stock = 9999;
+    }
 
     if (req.file) {
       if (supabase) {
@@ -183,8 +191,11 @@ export const createProduct = async (req, res) => {
 
     const product = await Product.create({
       name, barcode, price, cost: cost || 0, stock,
-      category, expiryDate: expiryDate || null,
+      category: category || undefined, expiryDate: expiryDate || null,
       expiryAlertDays: expiryAlertDays ? Number(expiryAlertDays) : 180,
+      isCoffeeCup,
+      cupSize:        cupSize || "",
+      coffeeCategory: coffeeCategory || "",
       image:   imageUrl,
       storeId: req.storeId,
     });
@@ -208,6 +219,9 @@ export const updateProduct = async (req, res) => {
     }
     if (typeof updateData.vatExempt === "string") {
       updateData.vatExempt = updateData.vatExempt === "true";
+    }
+    if (typeof updateData.isCoffeeCup === "string") {
+      updateData.isCoffeeCup = updateData.isCoffeeCup === "true";
     }
     if (typeof updateData.variants === "string") {
       try { updateData.variants = JSON.parse(updateData.variants); } catch {}

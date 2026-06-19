@@ -1,5 +1,5 @@
 import express from "express";
-import { login, logout, register, getUsers, changePassword } from "../controllers/auth.controller.js";
+import { login, logout, register, getUsers, changePassword, verifyPassword } from "../controllers/auth.controller.js";
 import { protect, isAdmin } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
@@ -11,6 +11,7 @@ router.post("/login",    login);
 // Protected
 router.post("/logout",          protect,          logout);
 router.get( "/users",           protect,          getUsers);         // cashiers in same store
-router.post("/change-password", protect, isAdmin, changePassword);
+router.post("/change-password",   protect, isAdmin, changePassword);
+router.post("/verify-password",   protect,          verifyPassword);
 
 export default router;

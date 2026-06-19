@@ -85,7 +85,7 @@ export default function OfflineIndicator() {
     /* every 30 s: auto-sync if online and there are pending items */
     const interval = setInterval(async () => {
       await refreshCount();
-      if (isOnline()) await runSync();
+      if (isOnline) await runSync();
     }, 30000);
 
     return () => {

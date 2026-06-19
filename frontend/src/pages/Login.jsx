@@ -15,11 +15,13 @@ export default function Login() {
   const [activating,    setActivating]    = useState(false);
   const [activateError, setActivateError] = useState("");
 
-  const [username, setUsername] = useState("");
-  const [pin,      setPin]      = useState("");
-  const [step,     setStep]     = useState("username");
-  const [error,    setError]    = useState("");
-  const [loading,  setLoading]  = useState(false);
+  const [username,    setUsername]    = useState("");
+  const [pin,         setPin]         = useState("");
+  const [textPass,    setTextPass]    = useState("");
+  const [useTextMode, setUseTextMode] = useState(false);
+  const [step,        setStep]        = useState("username");
+  const [error,       setError]       = useState("");
+  const [loading,     setLoading]     = useState(false);
 
   const inputRef = useRef(null);
 
@@ -37,7 +39,7 @@ export default function Login() {
 
   // Keyboard PIN entry
   useEffect(() => {
-    if (step !== "pin") return;
+    if (step !== "pin" || useTextMode) return;
     const handleKey = (e) => {
       if (e.target.tagName === "INPUT") return;
       if (e.key === "Backspace")                        setPin(p => p.slice(0, -1));
@@ -47,12 +49,12 @@ export default function Login() {
     };
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [step, pin]);
+  }, [step, pin, useTextMode]);
 
-  // Auto-submit at 6 digits
+  // Auto-submit at 6 digits (PIN mode only)
   useEffect(() => {
-    if (pin.length === 6) submitLogin(pin);
-  }, [pin]);
+    if (!useTextMode && pin.length === 6) submitLogin(pin);
+  }, [pin, useTextMode]);
 
   const goToPin = () => {
     if (!username.trim()) { setError(t.enterUsername); return; }
@@ -63,14 +65,17 @@ export default function Login() {
 
   const submitLogin = async (currentPin) => {
     if (loading) return;
+    const password = useTextMode ? textPass : currentPin;
+    if (!password) return;
     setLoading(true);
     setError("");
     try {
-      const data = await loginApi({ username: username.trim(), password: currentPin });
+      const data = await loginApi({ username: username.trim(), password });
       login(data);
     } catch (err) {
       setError(err.response?.data?.message || t.invalidCredentials);
       setPin("");
+      setTextPass("");
     } finally {
       setLoading(false);
     }
@@ -79,6 +84,7 @@ export default function Login() {
   const clearSelection = () => {
     setStep("username");
     setPin("");
+    setTextPass("");
     setError("");
   };
 
@@ -97,7 +103,11 @@ export default function Login() {
 
     setActivating(true);
     try {
-      await api.post("/license/activate", { licenseContent: content });
+      const res = await api.post("/license/activate", { licenseContent: content });
+      if (res.data.adminUsername) {
+        setUsername(res.data.adminUsername);
+        setStep("pin");
+      }
       setLicenseStatus(true);
     } catch (err) {
       setActivateError(err.response?.data?.message || "Invalid license file.");
@@ -228,66 +238,108 @@ export default function Login() {
                     </button>
                   </div>
 
-                  <div className="flex justify-center gap-3 mb-3">
-                    {Array.from({ length: 6 }).map((_, i) => (
-                      <motion.div key={i}
-                        animate={{ scale: pin.length > i ? 1.25 : 1 }}
-                        transition={{ type: "spring", stiffness: 400, damping: 20 }}
-                        className={`w-3 h-3 rounded-full transition-colors duration-150 ${
-                          pin.length > i ? "bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.8)]" : "bg-gray-700"
-                        }`}
+                  {/* Toggle between PIN pad and text password */}
+                  <div className="flex justify-end mb-2">
+                    <button
+                      onClick={() => { setUseTextMode(m => !m); setPin(""); setTextPass(""); setError(""); }}
+                      className="text-xs text-gray-500 hover:text-gray-300 transition underline">
+                      {useTextMode ? "Use PIN pad" : "Use text password"}
+                    </button>
+                  </div>
+
+                  {useTextMode ? (
+                    /* ── Text password input ── */
+                    <div className="space-y-3">
+                      <input
+                        ref={inputRef}
+                        type="password"
+                        placeholder="Enter password"
+                        value={textPass}
+                        onChange={e => { setTextPass(e.target.value); setError(""); }}
+                        onKeyDown={e => { if (e.key === "Enter" && textPass) submitLogin(textPass); }}
+                        autoFocus
+                        className="w-full px-4 py-3.5 rounded-2xl
+                          bg-[#1c1c1c] border border-white/10
+                          text-white placeholder-gray-600
+                          focus:outline-none focus:border-blue-500/60
+                          focus:shadow-[0_0_15px_rgba(59,130,246,0.1)]
+                          transition text-sm"
                       />
-                    ))}
-                  </div>
-
-                  <p className="text-center text-gray-600 text-xs mb-3">{t.tapOrKeyboard}</p>
-
-                  <AnimatePresence>
-                    {error && (
-                      <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                        className="text-red-400 text-center text-sm mb-3">{error}</motion.p>
-                    )}
-                  </AnimatePresence>
-
-                  <div className="grid grid-cols-3 gap-2.5">
-                    {[1,2,3,4,5,6,7,8,9].map(n => (
-                      <motion.button key={n}
-                        whileHover={{ scale: 1.05, boxShadow: "0 0 12px rgba(59,130,246,0.25)" }}
-                        whileTap={{ scale: 0.92 }}
-                        onClick={() => { if (pin.length < 6) setPin(p => p + String(n)); }}
-                        disabled={loading}
-                        className="py-4 rounded-2xl text-xl font-semibold text-white
-                          bg-[#1c1c1c] border border-white/5
-                          hover:border-blue-500/30 transition-all disabled:opacity-40">
-                        {n}
+                      {error && <p className="text-red-400 text-center text-sm">{error}</p>}
+                      <motion.button
+                        whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+                        onClick={() => submitLogin(textPass)}
+                        disabled={loading || !textPass}
+                        className="w-full py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50
+                          text-white font-semibold text-sm transition shadow-[0_0_20px_rgba(59,130,246,0.3)]">
+                        {loading ? "Signing in…" : "Sign In"}
                       </motion.button>
-                    ))}
-                    <motion.button whileTap={{ scale: 0.92 }}
-                      onClick={() => { setPin(""); setError(""); }}
-                      className="py-4 rounded-2xl text-red-400 font-bold text-sm
-                        bg-[#1c1c1c] border border-white/5 hover:border-red-500/30 transition-all">
-                      C
-                    </motion.button>
-                    <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.92 }}
-                      onClick={() => { if (pin.length < 6) setPin(p => p + "0"); }}
-                      disabled={loading}
-                      className="py-4 rounded-2xl text-xl font-semibold text-white
-                        bg-[#1c1c1c] border border-white/5
-                        hover:border-blue-500/30 transition-all disabled:opacity-40">
-                      0
-                    </motion.button>
-                    <motion.button whileTap={{ scale: 0.92 }}
-                      onClick={() => setPin(p => p.slice(0, -1))}
-                      className="py-4 rounded-2xl text-white text-lg
-                        bg-[#1c1c1c] border border-white/5 hover:border-white/20 transition-all">
-                      ⌫
-                    </motion.button>
-                  </div>
-
-                  {loading && (
-                    <div className="flex justify-center mt-4">
-                      <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
                     </div>
+                  ) : (
+                    /* ── Numeric PIN pad ── */
+                    <>
+                      <div className="flex justify-center gap-3 mb-3">
+                        {Array.from({ length: 6 }).map((_, i) => (
+                          <motion.div key={i}
+                            animate={{ scale: pin.length > i ? 1.25 : 1 }}
+                            transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                            className={`w-3 h-3 rounded-full transition-colors duration-150 ${
+                              pin.length > i ? "bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.8)]" : "bg-gray-700"
+                            }`}
+                          />
+                        ))}
+                      </div>
+
+                      <p className="text-center text-gray-600 text-xs mb-3">{t.tapOrKeyboard}</p>
+
+                      <AnimatePresence>
+                        {error && (
+                          <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                            className="text-red-400 text-center text-sm mb-3">{error}</motion.p>
+                        )}
+                      </AnimatePresence>
+
+                      <div className="grid grid-cols-3 gap-2.5">
+                        {[1,2,3,4,5,6,7,8,9].map(n => (
+                          <motion.button key={n}
+                            whileHover={{ scale: 1.05, boxShadow: "0 0 12px rgba(59,130,246,0.25)" }}
+                            whileTap={{ scale: 0.92 }}
+                            onClick={() => { if (pin.length < 6) setPin(p => p + String(n)); }}
+                            disabled={loading}
+                            className="py-4 rounded-2xl text-xl font-semibold text-white
+                              bg-[#1c1c1c] border border-white/5
+                              hover:border-blue-500/30 transition-all disabled:opacity-40">
+                            {n}
+                          </motion.button>
+                        ))}
+                        <motion.button whileTap={{ scale: 0.92 }}
+                          onClick={() => { setPin(""); setError(""); }}
+                          className="py-4 rounded-2xl text-red-400 font-bold text-sm
+                            bg-[#1c1c1c] border border-white/5 hover:border-red-500/30 transition-all">
+                          C
+                        </motion.button>
+                        <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.92 }}
+                          onClick={() => { if (pin.length < 6) setPin(p => p + "0"); }}
+                          disabled={loading}
+                          className="py-4 rounded-2xl text-xl font-semibold text-white
+                            bg-[#1c1c1c] border border-white/5
+                            hover:border-blue-500/30 transition-all disabled:opacity-40">
+                          0
+                        </motion.button>
+                        <motion.button whileTap={{ scale: 0.92 }}
+                          onClick={() => setPin(p => p.slice(0, -1))}
+                          className="py-4 rounded-2xl text-white text-lg
+                            bg-[#1c1c1c] border border-white/5 hover:border-white/20 transition-all">
+                          ⌫
+                        </motion.button>
+                      </div>
+
+                      {loading && (
+                        <div className="flex justify-center mt-4">
+                          <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                        </div>
+                      )}
+                    </>
                   )}
                 </motion.div>
               )}

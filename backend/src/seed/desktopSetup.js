@@ -1,8 +1,8 @@
 /**
  * Runs on every Electron launch.
- * - Creates the platform superadmin if none exists (superadmin has NO store — they manage all stores).
- * - Lifts plan limits on every existing store so the desktop app is never
- *   capped by SaaS trial defaults.
+ * - Creates the platform superadmin ONLY on the superadmin's machine (private key present).
+ *   Client machines use the license-created admin instead — skip to avoid username conflicts.
+ * - Lifts plan limits on every existing non-licensed store.
  */
 import User  from "../models/User.js";
 import Store from "../models/Store.js";
@@ -10,15 +10,19 @@ import Store from "../models/Store.js";
 export async function ensureDesktopSuperAdmin() {
   if (process.env.ELECTRON_RUN !== "true") return;
 
-  const username = process.env.DESKTOP_ADMIN_USER || "admin";
-  const password = process.env.DESKTOP_ADMIN_PASS || "886659";
-
   // Lift limits only on stores that are NOT from a .nexora license.
-  // Licensed stores keep their real expiry and device limits enforced.
   await Store.updateMany(
     { maxProducts: { $lt: 999999 }, licenseId: null },
     { $set: { maxProducts: 999999, maxUsers: 100, plan: "enterprise", planExpiresAt: new Date("2099-01-01") } }
   );
+
+  // Only create/maintain the superadmin account on the superadmin's own machine.
+  // Client machines have a private-key-less install — they log in via a licensed admin account.
+  const { isPrivateKeyConfigured } = await import("../services/licenseSigner.js");
+  if (!isPrivateKeyConfigured()) return;
+
+  const username = process.env.DESKTOP_ADMIN_USER || "admin";
+  const password = process.env.DESKTOP_ADMIN_PASS || "886659";
 
   const existing = await User.findOne({ role: "superadmin" });
 

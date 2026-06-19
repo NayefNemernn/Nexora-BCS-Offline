@@ -46,7 +46,8 @@ export default function Reports() {
   const { lang }  = useLang();
   const t         = useReportsTranslation();
   const isAr      = lang === "ar";
-  const { formatUSD } = useCurrency();
+  const { formatUSD, formatLBP, toLBPNice } = useCurrency();
+  const fLBP = (v) => formatLBP(toLBPNice(v));
 
   const [sales,     setSales]     = useState([]);
   const [holdSales, setHoldSales] = useState([]);
@@ -54,10 +55,22 @@ export default function Reports() {
   const [auditLogs, setAuditLogs] = useState([]);
   const [plData,    setPlData]    = useState(null);
   const [plSubTab,  setPlSubTab]  = useState("pl"); // "pl" | "earned"
+  const [plDateFrom,setPlDateFrom]= useState("");
+  const [plDateTo,  setPlDateTo]  = useState("");
   const [loading,   setLoading]   = useState(true);
   const [period,    setPeriod]    = useState("week");
   const [tab,       setTab]       = useState("overview");
   const [saleTypeFilter, setSaleTypeFilter] = useState("all");
+  const [txMethodFilter, setTxMethodFilter] = useState("all");
+  const [txStatusFilter, setTxStatusFilter] = useState("all");
+  const [txSearch,       setTxSearch]       = useState("");
+  const [txDateFrom,     setTxDateFrom]     = useState("");
+  const [txDateTo,       setTxDateTo]       = useState("");
+  const [txMinAmount,    setTxMinAmount]    = useState("");
+  const [txMaxAmount,    setTxMaxAmount]    = useState("");
+  const [txSortBy,       setTxSortBy]       = useState("date");   // date | amount | customer
+  const [txSortDir,      setTxSortDir]      = useState("desc");   // asc | desc
+  const [txPage,         setTxPage]         = useState(1);
   const [returnSale,  setReturnSale]  = useState(null);
   const [voidModal,   setVoidModal]   = useState(null);
   const [sendingTg,   setSendingTg]   = useState(false);
@@ -69,7 +82,7 @@ export default function Reports() {
   const load = useCallback(async () => {
     try {
       const [sRes, hRes, aRes] = await Promise.all([
-        api.get("/sales"), api.get("/hold-sales"), api.get("/products/alerts"),
+        api.get("/sales", { params: { limit: 0 } }), api.get("/hold-sales"), api.get("/products/alerts"),
       ]);
       setSales(sRes.data); setHoldSales(hRes.data); setAlerts(aRes.data);
     } catch (err) { console.error(err); }
@@ -81,14 +94,20 @@ export default function Reports() {
   const loadPL = useCallback(async () => {
     try {
       const now = new Date();
-      let from;
-      if (period === "day") from = now.toISOString().split("T")[0];
-      else if (period === "week") from = new Date(Date.now() - 7*86400000).toISOString().split("T")[0];
-      else if (period === "month") from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
-      else from = new Date(now.getFullYear(), 0, 1).toISOString().split("T")[0];
-      setPlData(await getProfitLoss(from, now.toISOString().split("T")[0]));
+      let from, to;
+      if (plDateFrom) {
+        from = plDateFrom;
+        to   = plDateTo || now.toISOString().split("T")[0];
+      } else {
+        if (period === "day") from = now.toISOString().split("T")[0];
+        else if (period === "week") from = new Date(Date.now() - 7*86400000).toISOString().split("T")[0];
+        else if (period === "month") from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
+        else from = new Date(now.getFullYear(), 0, 1).toISOString().split("T")[0];
+        to = now.toISOString().split("T")[0];
+      }
+      setPlData(await getProfitLoss(from, to));
     } catch { setPlData(null); }
-  }, [period]);
+  }, [period, plDateFrom, plDateTo]);
 
   const loadAudit = useCallback(async () => {
     try { setAuditLogs((await api.get("/audit", { params: { limit: 200 } })).data); } catch {}
@@ -97,7 +116,7 @@ export default function Reports() {
   useEffect(() => {
     if (tab === "profit") loadPL();
     if (tab === "audit")  loadAudit();
-  }, [tab, loadPL, loadAudit]);
+  }, [tab, loadPL, loadAudit, plDateFrom, plDateTo]);
 
   /* ── filter ── */
   const filteredSales = useMemo(() => {
@@ -303,10 +322,10 @@ export default function Reports() {
           <div className="space-y-5">
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {[
-                {label:t.totalRevenue,value:`$${totalRevenue.toFixed(2)}`,icon:<DollarSign size={18}/>,  color:"text-green-600 dark:text-green-400",   bg:"bg-green-50 dark:bg-green-900/20"  },
+                {label:t.totalRevenue,value:fLBP(totalRevenue),              icon:<DollarSign size={18}/>,  color:"text-green-600 dark:text-green-400",   bg:"bg-green-50 dark:bg-green-900/20"  },
                 {label:t.totalSales,  value:filteredSales.length,          icon:<ShoppingCart size={18}/>,color:"text-blue-600 dark:text-blue-400",     bg:"bg-blue-50 dark:bg-blue-900/20"   },
-                {label:t.averageSale, value:`$${avgSale.toFixed(2)}`,      icon:<TrendingUp size={18}/>,  color:"text-purple-600 dark:text-purple-400", bg:"bg-purple-50 dark:bg-purple-900/20"},
-                {label:t.outstanding, value:`$${outstandingCredit.toFixed(2)}`,icon:<AlertCircle size={18}/>,color:"text-red-600 dark:text-red-400",   bg:"bg-red-50 dark:bg-red-900/20"     },
+                {label:t.averageSale, value:fLBP(avgSale),                 icon:<TrendingUp size={18}/>,  color:"text-purple-600 dark:text-purple-400", bg:"bg-purple-50 dark:bg-purple-900/20"},
+                {label:t.outstanding, value:fLBP(outstandingCredit),       icon:<AlertCircle size={18}/>,color:"text-red-600 dark:text-red-400",   bg:"bg-red-50 dark:bg-red-900/20"     },
               ].map(({label,value,icon,color,bg})=>(
                 <motion.div key={label} whileHover={{scale:1.03}} className={`${CARD} ${bg} p-4`}>
                   <div className={`${color} mb-2`}>{icon}</div>
@@ -319,11 +338,11 @@ export default function Reports() {
               <div className="grid grid-cols-2 gap-4">
                 <motion.div whileHover={{scale:1.03}} className={`${CARD} bg-gray-50 dark:bg-[#141414] p-4`}>
                   <p className="text-xs text-gray-500 dark:text-gray-400">In-Store Sales</p>
-                  <p className="text-2xl font-bold mt-1 text-gray-700 dark:text-gray-300">${inStoreTotal.toFixed(2)}</p>
+                  <p className="text-2xl font-bold mt-1 text-gray-700 dark:text-gray-300">{fLBP(inStoreTotal)}</p>
                 </motion.div>
                 <motion.div whileHover={{scale:1.03}} className={`${CARD} bg-orange-50 dark:bg-orange-900/20 p-4`}>
                   <p className="text-xs text-gray-500 dark:text-gray-400">🚚 Delivery Sales</p>
-                  <p className="text-2xl font-bold mt-1 text-orange-600 dark:text-orange-400">${deliveryTotal.toFixed(2)}</p>
+                  <p className="text-2xl font-bold mt-1 text-orange-600 dark:text-orange-400">{fLBP(deliveryTotal)}</p>
                 </motion.div>
               </div>
             )}
@@ -338,7 +357,7 @@ export default function Reports() {
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb"/>
                     <XAxis dataKey="label" tick={{fontSize:11}}/>
                     <YAxis tick={{fontSize:11}}/>
-                    <Tooltip formatter={v=>[`$${Number(v).toFixed(2)}`,t.revenue||"Revenue"]}/>
+                    <Tooltip formatter={v=>[fLBP(Number(v)),t.revenue||"Revenue"]}/>
                     <Line type="monotone" dataKey="revenue" stroke="#8b5cf6" strokeWidth={2.5} dot={{r:4}} activeDot={{r:6}}/>
                   </LineChart>
                 </ResponsiveContainer>
@@ -370,7 +389,7 @@ export default function Reports() {
                           <span className="w-2 h-2 rounded-full shrink-0" style={{background:PM_COLORS[m.key].hex}}/>
                           <p className="text-xs text-gray-400">{m.name}</p>
                         </div>
-                        <p className={`text-sm font-bold ${PM_COLORS[m.key].text}`}>$0.00</p>
+                        <p className={`text-sm font-bold ${PM_COLORS[m.key].text}`}>0 ل.ل</p>
                       </div>
                     ))}
                   </div>
@@ -388,7 +407,7 @@ export default function Reports() {
                             <Cell key={m.key} fill={PM_COLORS[m.key].hex}/>
                           ))}
                         </Pie>
-                        <Tooltip formatter={v=>`$${Number(v).toFixed(2)}`}/>
+                        <Tooltip formatter={v=>fLBP(Number(v))}/>
                       </PieChart>
                     </ResponsiveContainer>
                     <div className="grid grid-cols-3 gap-2 mt-3">
@@ -398,7 +417,7 @@ export default function Reports() {
                             <span className="w-2 h-2 rounded-full shrink-0" style={{background:PM_COLORS[m.key].hex}}/>
                             <p className="text-xs text-gray-400">{m.name}</p>
                           </div>
-                          <p className={`text-sm font-bold ${PM_COLORS[m.key].text}`}>${m.value.toFixed(2)}</p>
+                          <p className={`text-sm font-bold ${PM_COLORS[m.key].text}`}>{fLBP(m.value)}</p>
                         </div>
                       ))}
                     </div>
@@ -414,7 +433,7 @@ export default function Reports() {
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb"/>
                     <XAxis dataKey="hour" tick={{fontSize:11}}/>
                     <YAxis tick={{fontSize:11}}/>
-                    <Tooltip formatter={v=>[`$${Number(v).toFixed(2)}`,t.revenue||"Revenue"]}/>
+                    <Tooltip formatter={v=>[fLBP(Number(v)),t.revenue||"Revenue"]}/>
                     <Bar dataKey="sales" fill="#f59e0b" radius={[4,4,0,0]}/>
                   </BarChart>
                 </ResponsiveContainer>
@@ -426,6 +445,29 @@ export default function Reports() {
         {/* ═══ P&L ═══ */}
         {tab==="profit"&&(
           <div className="space-y-5">
+            {/* Date range filter */}
+            <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-gray-200 dark:border-white/10 bg-white dark:bg-[#141414] px-4 py-3">
+              <span className="text-xs font-semibold text-gray-500">Date range:</span>
+              <input type="date" value={plDateFrom} onChange={e=>{setPlDateFrom(e.target.value);setPlData(null);}}
+                className="px-2 py-1.5 rounded-xl text-xs border border-gray-200 dark:border-white/10 bg-white dark:bg-[#141414] text-gray-700 dark:text-gray-300 focus:outline-none focus:border-purple-500"/>
+              <span className="text-xs text-gray-400">→</span>
+              <input type="date" value={plDateTo} onChange={e=>{setPlDateTo(e.target.value);setPlData(null);}}
+                className="px-2 py-1.5 rounded-xl text-xs border border-gray-200 dark:border-white/10 bg-white dark:bg-[#141414] text-gray-700 dark:text-gray-300 focus:outline-none focus:border-purple-500"/>
+              {(plDateFrom||plDateTo)&&(
+                <button onClick={()=>{setPlDateFrom("");setPlDateTo("");setPlData(null);}}
+                  className="px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-red-50 dark:bg-red-900/20 text-red-500 border border-red-200 dark:border-red-500/30">
+                  Clear
+                </button>
+              )}
+              {plDateFrom&&(
+                <span className="ml-auto text-xs text-purple-600 dark:text-purple-400 font-medium">
+                  Custom range: {plDateFrom} → {plDateTo||"today"}
+                </span>
+              )}
+              {!plDateFrom&&(
+                <span className="ml-auto text-xs text-gray-400">Using period: <strong>{period}</strong></span>
+              )}
+            </div>
             {/* Sub-tab switcher */}
             <div className="flex gap-2">
               {[{id:"pl",label:"P&L Report"},{id:"earned",label:"Earned from Sales"}].map(s=>(
@@ -445,9 +487,9 @@ export default function Reports() {
                   <>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       {[
-                        {title:"Revenue",      value:formatUSD(plData.revenue),     color:"text-blue-600 dark:text-blue-400",    bg:"bg-blue-50 dark:bg-blue-900/20"   },
-                        {title:"COGS",         value:formatUSD(plData.cogs),        color:"text-red-600 dark:text-red-400",      bg:"bg-red-50 dark:bg-red-900/20"     },
-                        {title:"Gross Profit", value:formatUSD(plData.grossProfit), color:plData.grossProfit>=0?"text-green-600 dark:text-green-400":"text-red-600", bg:plData.grossProfit>=0?"bg-green-50 dark:bg-green-900/20":"bg-red-50 dark:bg-red-900/20"},
+                        {title:"Revenue",      value:fLBP(plData.revenue),     color:"text-blue-600 dark:text-blue-400",    bg:"bg-blue-50 dark:bg-blue-900/20"   },
+                        {title:"COGS",         value:fLBP(plData.cogs),        color:"text-red-600 dark:text-red-400",      bg:"bg-red-50 dark:bg-red-900/20"     },
+                        {title:"Gross Profit", value:fLBP(plData.grossProfit), color:plData.grossProfit>=0?"text-green-600 dark:text-green-400":"text-red-600", bg:plData.grossProfit>=0?"bg-green-50 dark:bg-green-900/20":"bg-red-50 dark:bg-red-900/20"},
                         {title:"Margin",       value:`${plData.grossMargin}%`,      color:"text-purple-600 dark:text-purple-400",bg:"bg-purple-50 dark:bg-purple-900/20"},
                       ].map(k=>(
                         <div key={k.title} className={`${CARD} p-4 ${k.bg}`}>
@@ -462,7 +504,7 @@ export default function Reports() {
                           <p className="text-xs text-gray-500 dark:text-gray-400">Total Inventory Cost</p>
                           <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Current stock valued at purchase (batch) cost</p>
                         </div>
-                        <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{formatUSD(plData.inventoryValue)}</p>
+                        <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{fLBP(plData.inventoryValue)}</p>
                       </div>
                     )}
                     <div className={`${CARD} p-5 space-y-2`}>
@@ -474,12 +516,12 @@ export default function Reports() {
                       ].map(x=>(
                         <div key={x.label} className="flex justify-between text-sm">
                           <span className="text-gray-500 dark:text-gray-400">{x.label}</span>
-                          <span className={x.c}>{x.s}{formatUSD(x.r)}</span>
+                          <span className={x.c}>{x.s}{fLBP(x.r)}</span>
                         </div>
                       ))}
                       <div className="flex justify-between border-t border-dashed border-gray-200 dark:border-white/10 pt-3">
                         <span className="font-bold">Gross Profit</span>
-                        <span className={`text-xl font-black ${plData.grossProfit>=0?"text-green-600 dark:text-green-400":"text-red-600"}`}>{formatUSD(plData.grossProfit)}</span>
+                        <span className={`text-xl font-black ${plData.grossProfit>=0?"text-green-600 dark:text-green-400":"text-red-600"}`}>{fLBP(plData.grossProfit)}</span>
                       </div>
                     </div>
                     <div className={`${CARD} overflow-hidden`}>
@@ -498,8 +540,8 @@ export default function Reports() {
                               <tr key={p.name} className="hover:bg-gray-50 dark:hover:bg-white/5">
                                 <td className="px-5 py-3 font-medium truncate max-w-[160px]">{p.name}</td>
                                 <td className="px-3 py-3 text-center text-gray-500">{p.quantity}</td>
-                                <td className="px-3 py-3 text-right text-blue-600 dark:text-blue-400">{formatUSD(p.revenue)}</td>
-                                <td className={`px-3 py-3 text-right font-semibold ${p.profit>=0?"text-green-600 dark:text-green-400":"text-red-500"}`}>{formatUSD(p.profit)}</td>
+                                <td className="px-3 py-3 text-right text-blue-600 dark:text-blue-400">{fLBP(p.revenue)}</td>
+                                <td className={`px-3 py-3 text-right font-semibold ${p.profit>=0?"text-green-600 dark:text-green-400":"text-red-500"}`}>{fLBP(p.profit)}</td>
                                 <td className="px-3 py-3 text-right text-purple-600 dark:text-purple-400">{p.margin}%</td>
                               </tr>
                             ))}
@@ -521,17 +563,17 @@ export default function Reports() {
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className={`${CARD} p-5`}>
                           <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Total Earned from Sales</p>
-                          <p className={`text-3xl font-black ${totalEarned>=0?"text-green-600 dark:text-green-400":"text-red-500"}`}>{formatUSD(totalEarned)}</p>
+                          <p className={`text-3xl font-black ${totalEarned>=0?"text-green-600 dark:text-green-400":"text-red-500"}`}>{fLBP(totalEarned)}</p>
                           <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">SUM of (price − cost) × qty per product</p>
                         </div>
                         <div className={`${CARD} p-5`}>
                           <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Earned (profitable items only)</p>
-                          <p className="text-3xl font-black text-green-600 dark:text-green-400">{formatUSD(earnedProfitable)}</p>
+                          <p className="text-3xl font-black text-green-600 dark:text-green-400">{fLBP(earnedProfitable)}</p>
                           <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">Products where price &gt; cost</p>
                         </div>
                         <div className={`${CARD} p-5`}>
                           <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Revenue (money collected)</p>
-                          <p className="text-3xl font-black text-blue-600 dark:text-blue-400">{formatUSD(plData.revenue)}</p>
+                          <p className="text-3xl font-black text-blue-600 dark:text-blue-400">{fLBP(plData.revenue)}</p>
                           <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">Total charged to customers</p>
                         </div>
                       </div>
@@ -556,9 +598,9 @@ export default function Reports() {
                                 <tr key={p.name} className="hover:bg-gray-50 dark:hover:bg-white/5">
                                   <td className="px-5 py-3 font-medium truncate max-w-[200px]">{p.name}</td>
                                   <td className="px-3 py-3 text-center text-gray-500">{p.quantity}</td>
-                                  <td className="px-3 py-3 text-right text-blue-600 dark:text-blue-400">{formatUSD(p.revenue)}</td>
+                                  <td className="px-3 py-3 text-right text-blue-600 dark:text-blue-400">{fLBP(p.revenue)}</td>
                                   <td className={`px-3 py-3 text-right font-bold ${p.profit>0?"text-green-600 dark:text-green-400":p.profit<0?"text-red-500":"text-gray-400"}`}>
-                                    {formatUSD(p.profit)}
+                                    {fLBP(p.profit)}
                                   </td>
                                   <td className="px-3 py-3 text-right text-purple-600 dark:text-purple-400">{p.margin}%</td>
                                 </tr>
@@ -567,8 +609,8 @@ export default function Reports() {
                             <tfoot className="bg-gray-50 dark:bg-[#1c1c1c] border-t-2 border-gray-200 dark:border-white/10">
                               <tr>
                                 <td className="px-5 py-3 font-bold text-sm" colSpan={2}>Total</td>
-                                <td className="px-3 py-3 text-right font-bold text-blue-600 dark:text-blue-400">{formatUSD(plData.revenue)}</td>
-                                <td className={`px-3 py-3 text-right font-black text-base ${totalEarned>=0?"text-green-600 dark:text-green-400":"text-red-500"}`}>{formatUSD(totalEarned)}</td>
+                                <td className="px-3 py-3 text-right font-bold text-blue-600 dark:text-blue-400">{fLBP(plData.revenue)}</td>
+                                <td className={`px-3 py-3 text-right font-black text-base ${totalEarned>=0?"text-green-600 dark:text-green-400":"text-red-500"}`}>{fLBP(totalEarned)}</td>
                                 <td className="px-3 py-3 text-right font-bold text-purple-600 dark:text-purple-400">
                                   {plData.revenue>0?((totalEarned/plData.revenue)*100).toFixed(1):0}%
                                 </td>
@@ -587,23 +629,111 @@ export default function Reports() {
 
         {/* ═══ TRANSACTIONS ═══ */}
         {tab==="transactions"&&(()=>{
-          const txSales = saleTypeFilter==="all" ? filteredSales
-            : saleTypeFilter==="delivery"  ? filteredSales.filter(s=>s.saleType==="delivery")
-            : filteredSales.filter(s=>!s.saleType||s.saleType==="in_store");
-          const txTotal = txSales.reduce((s,x)=>s+x.total,0);
+          const TX_PAGE_SIZE = 200;
+          const rawTotal = (s) => (s.items||[]).reduce((a,i)=>a+i.price*i.quantity,0)-(s.discountAmount||0)+(s.taxAmount||0);
+          // Use ALL sales (unlimited — not filtered by period)
+          let txSales = saleTypeFilter==="delivery" ? sales.filter(s=>s.saleType==="delivery")
+            : saleTypeFilter==="in_store" ? sales.filter(s=>!s.saleType||s.saleType==="in_store")
+            : sales;
+          if (txMethodFilter !== "all") txSales = txSales.filter(s=>s.paymentMethod===txMethodFilter);
+          if (txStatusFilter !== "all") txSales = txSales.filter(s=>s.status===txStatusFilter);
+          if (txSearch.trim()) txSales = txSales.filter(s=>
+            (s.customerName||"").toLowerCase().includes(txSearch.toLowerCase()) ||
+            (s.items||[]).some(i=>i.name.toLowerCase().includes(txSearch.toLowerCase()))
+          );
+          if (txDateFrom) txSales = txSales.filter(s=>new Date(s.createdAt) >= new Date(txDateFrom));
+          if (txDateTo)   txSales = txSales.filter(s=>new Date(s.createdAt) <= new Date(txDateTo + "T23:59:59"));
+          if (txMinAmount) txSales = txSales.filter(s=>parseFloat(toLBPNice(rawTotal(s))) >= parseFloat(txMinAmount));
+          if (txMaxAmount) txSales = txSales.filter(s=>parseFloat(toLBPNice(rawTotal(s))) <= parseFloat(txMaxAmount));
+          // Sort
+          txSales = [...txSales].sort((a,b)=>{
+            let va, vb;
+            if (txSortBy==="amount")   { va=rawTotal(a);              vb=rawTotal(b); }
+            else if (txSortBy==="customer") { va=(a.customerName||"").toLowerCase(); vb=(b.customerName||"").toLowerCase(); }
+            else                       { va=new Date(a.createdAt);    vb=new Date(b.createdAt); }
+            const cmp = typeof va==="string" ? va.localeCompare(vb) : va-vb;
+            return txSortDir==="asc" ? cmp : -cmp;
+          });
+          const txTotal   = txSales.reduce((s,x)=>s+rawTotal(x),0);
+          const totalPages = Math.max(1, Math.ceil(txSales.length / TX_PAGE_SIZE));
+          const safePage   = Math.min(txPage, totalPages);
+          const txPageSales = txSales.slice((safePage-1)*TX_PAGE_SIZE, safePage*TX_PAGE_SIZE);
+          const hasFilter = txSearch||txMethodFilter!=="all"||txStatusFilter!=="all"||saleTypeFilter!=="all"||txDateFrom||txDateTo||txMinAmount||txMaxAmount;
+          const clearAll  = ()=>{setTxSearch("");setTxMethodFilter("all");setTxStatusFilter("all");setSaleTypeFilter("all");setTxDateFrom("");setTxDateTo("");setTxMinAmount("");setTxMaxAmount("");setTxSortBy("date");setTxSortDir("desc");setTxPage(1);};
+          const selClass  = "px-2 py-1.5 rounded-xl text-xs font-semibold border bg-white dark:bg-[#141414] border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-300 focus:outline-none focus:border-purple-500";
+          const inpClass  = "px-2 py-1.5 rounded-xl text-xs border bg-white dark:bg-[#141414] border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 focus:outline-none focus:border-purple-500";
           return (
             <div className="space-y-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {txSales.length} {t.transactionsDesc} · {t.total}: <span className="font-bold text-green-600">${txTotal.toFixed(2)}</span>
-                </p>
-                <div className="flex gap-2">
-                  {[["all","All"],["in_store","In-Store"],["delivery","🚚 Delivery"]].map(([val,label])=>(
-                    <button key={val} onClick={()=>setSaleTypeFilter(val)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition ${saleTypeFilter===val?"bg-purple-600 text-white":"bg-white dark:bg-[#141414] border border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-400"}`}>
-                      {label}
+              {/* Filters */}
+              <div className="rounded-2xl border border-gray-200 dark:border-white/10 bg-white dark:bg-[#141414] p-3 space-y-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Search */}
+                  <input value={txSearch} onChange={e=>{setTxSearch(e.target.value);setTxPage(1);}} placeholder="Search customer / item…"
+                    className={inpClass + " w-44"}/>
+                  {/* Type */}
+                  <select value={saleTypeFilter} onChange={e=>{setSaleTypeFilter(e.target.value);setTxPage(1);}} className={selClass}>
+                    <option value="all">All Types</option>
+                    <option value="in_store">In-Store</option>
+                    <option value="delivery">Delivery</option>
+                  </select>
+                  {/* Method */}
+                  <select value={txMethodFilter} onChange={e=>{setTxMethodFilter(e.target.value);setTxPage(1);}} className={selClass}>
+                    <option value="all">All Methods</option>
+                    <option value="cash">Cash</option>
+                    <option value="card">Card</option>
+                    <option value="bank_transfer">Bank Transfer</option>
+                    <option value="paylater">Pay Later</option>
+                    <option value="split">Split</option>
+                    <option value="cash_on_delivery">Cash on Delivery</option>
+                  </select>
+                  {/* Status */}
+                  <select value={txStatusFilter} onChange={e=>{setTxStatusFilter(e.target.value);setTxPage(1);}} className={selClass}>
+                    <option value="all">All Statuses</option>
+                    <option value="completed">Completed</option>
+                    <option value="pending_payment">Pending</option>
+                    <option value="fully_returned">Returned</option>
+                    <option value="voided">Voided</option>
+                  </select>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Date range */}
+                  <label className="text-xs text-gray-400 shrink-0">Date:</label>
+                  <input type="date" value={txDateFrom} onChange={e=>{setTxDateFrom(e.target.value);setTxPage(1);}}
+                    className={inpClass}/>
+                  <span className="text-xs text-gray-400">→</span>
+                  <input type="date" value={txDateTo} onChange={e=>{setTxDateTo(e.target.value);setTxPage(1);}}
+                    className={inpClass}/>
+                  {/* Amount range */}
+                  <label className="text-xs text-gray-400 shrink-0 ml-2">Amount ل.ل:</label>
+                  <input type="number" value={txMinAmount} onChange={e=>{setTxMinAmount(e.target.value);setTxPage(1);}} placeholder="Min"
+                    className={inpClass + " w-28"}/>
+                  <span className="text-xs text-gray-400">—</span>
+                  <input type="number" value={txMaxAmount} onChange={e=>{setTxMaxAmount(e.target.value);setTxPage(1);}} placeholder="Max"
+                    className={inpClass + " w-28"}/>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Sort */}
+                  <label className="text-xs text-gray-400 shrink-0">Sort by:</label>
+                  {[
+                    {val:"date",     label:"Date"},
+                    {val:"amount",   label:"Amount"},
+                    {val:"customer", label:"Customer A→Z"},
+                  ].map(opt=>(
+                    <button key={opt.val} onClick={()=>{ if(txSortBy===opt.val) setTxSortDir(d=>d==="asc"?"desc":"asc"); else {setTxSortBy(opt.val); setTxSortDir(opt.val==="customer"?"asc":"desc");} setTxPage(1); }}
+                      className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition ${txSortBy===opt.val?"bg-purple-600 text-white border-purple-600":"bg-white dark:bg-[#141414] border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-300"}`}>
+                      {opt.label}
+                      {txSortBy===opt.val && <span>{txSortDir==="asc" ? "↑" : "↓"}</span>}
                     </button>
                   ))}
+                  {hasFilter && (
+                    <button onClick={clearAll}
+                      className="px-2 py-1.5 rounded-xl text-xs font-semibold bg-red-50 dark:bg-red-900/20 text-red-500 border border-red-200 dark:border-red-500/30 ml-1">
+                      Clear all
+                    </button>
+                  )}
+                  <p className="text-xs text-gray-400 ml-auto">
+                    {txSales.length} {t.transactionsDesc} · {t.total}: <span className="font-bold text-green-600">{fLBP(txTotal)}</span>
+                  </p>
                 </div>
               </div>
               <div className={`${CARD} overflow-hidden`}>
@@ -620,20 +750,19 @@ export default function Reports() {
                         <th className="px-4 py-3 text-center">Actions</th>
                       </tr></thead>
                       <tbody className="divide-y divide-gray-50 dark:divide-white/5">
-                        {txSales.map(sale=>(
+                        {txPageSales.map(sale=>(
                           <tr key={sale._id} className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
                             <td className="px-5 py-3 text-gray-500 dark:text-gray-400 whitespace-nowrap text-xs">{fmtDate(sale.createdAt)}</td>
                             <td className="px-4 py-3">
                               <div className="flex flex-wrap gap-1">
-                                {sale.items.slice(0,2).map((item,i)=>(
-                                  <span key={i} className="text-xs bg-gray-100 dark:bg-[#252525] px-2 py-0.5 rounded-full">{item.name} ×{item.quantity}</span>
+                                {(sale.items||[]).map((item,i)=>(
+                                  <span key={i} className="text-xs bg-gray-100 dark:bg-[#252525] px-2 py-0.5 rounded-full whitespace-nowrap">{item.name} ×{item.quantity}</span>
                                 ))}
-                                {sale.items.length>2&&<span className="text-xs text-gray-400">+{sale.items.length-2} {t.more}</span>}
                               </div>
                             </td>
                             <td className="px-4 py-3 text-right font-semibold">
-                              <div className="text-green-600 dark:text-green-400">${sale.total.toFixed(2)}</div>
-                              {(sale.totalRefunded||0)>0&&<div className="text-xs text-red-500">−${sale.totalRefunded.toFixed(2)}</div>}
+                              <div className="text-green-600 dark:text-green-400">{fLBP(rawTotal(sale))}</div>
+                              {(sale.totalRefunded||0)>0&&<div className="text-xs text-red-500">−{fLBP(sale.totalRefunded)}</div>}
                             </td>
                             <td className="px-4 py-3 text-center">
                               <span className={`px-2.5 py-1 rounded-full text-xs font-medium capitalize ${METHOD_COLOR[sale.paymentMethod]||"bg-gray-100 text-gray-600"}`}>
@@ -666,8 +795,10 @@ export default function Reports() {
                       </tbody>
                       <tfoot className="bg-gray-50 dark:bg-[#1c1c1c]">
                         <tr>
-                          <td className="px-5 py-3 font-semibold text-xs text-gray-500" colSpan={2}>{txSales.length} {t.transactionsDesc}</td>
-                          <td className="px-4 py-3 text-right font-bold text-green-600">${txTotal.toFixed(2)}</td>
+                          <td className="px-5 py-3 font-semibold text-xs text-gray-500" colSpan={2}>
+                            {txSales.length} {t.transactionsDesc} — page {safePage} of {totalPages}
+                          </td>
+                          <td className="px-4 py-3 text-right font-bold text-green-600">{fLBP(txTotal)}</td>
                           <td colSpan={4}/>
                         </tr>
                       </tfoot>
@@ -675,6 +806,39 @@ export default function Reports() {
                   </div>
                 )}
               </div>
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-center gap-2 flex-wrap">
+                  <button onClick={()=>setTxPage(1)} disabled={safePage===1}
+                    className="px-3 py-1.5 rounded-xl text-xs font-semibold border border-gray-200 dark:border-white/10 bg-white dark:bg-[#141414] text-gray-600 dark:text-gray-300 disabled:opacity-40 hover:bg-gray-50 transition">
+                    «
+                  </button>
+                  <button onClick={()=>setTxPage(p=>Math.max(1,p-1))} disabled={safePage===1}
+                    className="px-3 py-1.5 rounded-xl text-xs font-semibold border border-gray-200 dark:border-white/10 bg-white dark:bg-[#141414] text-gray-600 dark:text-gray-300 disabled:opacity-40 hover:bg-gray-50 transition">
+                    ‹ Prev
+                  </button>
+                  {Array.from({length:totalPages},(_,i)=>i+1).filter(p=>Math.abs(p-safePage)<=2||p===1||p===totalPages).reduce((acc,p,idx,arr)=>{
+                    if(idx>0&&arr[idx-1]!==p-1) acc.push("…");
+                    acc.push(p);
+                    return acc;
+                  },[]).map((p,i)=>(
+                    typeof p==="string"
+                      ? <span key={i} className="px-1 text-xs text-gray-400">…</span>
+                      : <button key={p} onClick={()=>setTxPage(p)}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition ${safePage===p?"bg-purple-600 text-white border-purple-600":"border-gray-200 dark:border-white/10 bg-white dark:bg-[#141414] text-gray-600 dark:text-gray-300 hover:bg-gray-50"}`}>
+                          {p}
+                        </button>
+                  ))}
+                  <button onClick={()=>setTxPage(p=>Math.min(totalPages,p+1))} disabled={safePage===totalPages}
+                    className="px-3 py-1.5 rounded-xl text-xs font-semibold border border-gray-200 dark:border-white/10 bg-white dark:bg-[#141414] text-gray-600 dark:text-gray-300 disabled:opacity-40 hover:bg-gray-50 transition">
+                    Next ›
+                  </button>
+                  <button onClick={()=>setTxPage(totalPages)} disabled={safePage===totalPages}
+                    className="px-3 py-1.5 rounded-xl text-xs font-semibold border border-gray-200 dark:border-white/10 bg-white dark:bg-[#141414] text-gray-600 dark:text-gray-300 disabled:opacity-40 hover:bg-gray-50 transition">
+                    »
+                  </button>
+                </div>
+              )}
             </div>
           );
         })()}
@@ -693,9 +857,9 @@ export default function Reports() {
                   <tr key={c.name} className="hover:bg-gray-50 dark:hover:bg-white/5">
                     <td className="px-5 py-3 font-medium">{c.name}</td>
                     <td className="px-4 py-3 text-center text-gray-500">{c.orders}</td>
-                    <td className="px-4 py-3 text-right text-green-600 dark:text-green-400 font-semibold">{formatUSD(c.revenue)}</td>
-                    <td className="px-4 py-3 text-right text-red-500">{formatUSD(c.refunds)}</td>
-                    <td className="px-4 py-3 text-right font-bold">{formatUSD(c.revenue-c.refunds)}</td>
+                    <td className="px-4 py-3 text-right text-green-600 dark:text-green-400 font-semibold">{fLBP(c.revenue)}</td>
+                    <td className="px-4 py-3 text-right text-red-500">{fLBP(c.refunds)}</td>
+                    <td className="px-4 py-3 text-right font-bold">{fLBP(c.revenue-c.refunds)}</td>
                   </tr>
                 ))}
                 {cashierPerf.length===0&&<tr><td colSpan={5} className="text-center py-10 text-gray-400">{t.noData}</td></tr>}
@@ -709,9 +873,9 @@ export default function Reports() {
           <div className="space-y-5">
             <div className="grid grid-cols-3 gap-4">
               {[
-                {label:t.totalCreditGiven,value:`$${totalCreditGiven.toFixed(2)}`,color:"text-orange-600 dark:text-orange-400",bg:"bg-orange-50 dark:bg-orange-900/20"},
-                {label:t.totalPaidBack,   value:`$${totalCreditPaid.toFixed(2)}`, color:"text-green-600  dark:text-green-400", bg:"bg-green-50  dark:bg-green-900/20" },
-                {label:t.outstandingBal,  value:`$${outstandingCredit.toFixed(2)}`,color:"text-red-600   dark:text-red-400",   bg:"bg-red-50    dark:bg-red-900/20"  },
+                {label:t.totalCreditGiven,value:fLBP(totalCreditGiven),color:"text-orange-600 dark:text-orange-400",bg:"bg-orange-50 dark:bg-orange-900/20"},
+                {label:t.totalPaidBack,   value:fLBP(totalCreditPaid), color:"text-green-600  dark:text-green-400", bg:"bg-green-50  dark:bg-green-900/20" },
+                {label:t.outstandingBal,  value:fLBP(outstandingCredit),color:"text-red-600   dark:text-red-400",   bg:"bg-red-50    dark:bg-red-900/20"  },
               ].map(({label,value,color,bg})=>(
                 <div key={label} className={`${CARD} ${bg} p-5`}>
                   <p className="text-xs text-gray-500 dark:text-gray-400">{label}</p>
@@ -734,13 +898,13 @@ export default function Reports() {
                         <td className="py-2.5 text-gray-500 text-xs">{fmtDate(s.createdAt)}</td>
                         <td className="py-2.5">{s.customerName||"—"}</td>
                         <td className="py-2.5 text-center">{s.items.reduce((a,i)=>a+i.quantity,0)}</td>
-                        <td className="py-2.5 text-right font-semibold text-red-500">${s.total.toFixed(2)}</td>
+                        <td className="py-2.5 text-right font-semibold text-red-500">{fLBP(s.total)}</td>
                       </tr>
                     ))}
                   </tbody>
                   <tfoot><tr className="border-t-2 border-gray-200 dark:border-white/10">
                     <td className="pt-3 font-semibold text-xs text-gray-500" colSpan={3}>{t.periodTotal}</td>
-                    <td className="pt-3 text-right font-bold text-red-600">${payLaterTotal.toFixed(2)}</td>
+                    <td className="pt-3 text-right font-bold text-red-600">{fLBP(payLaterTotal)}</td>
                   </tr></tfoot>
                 </table>
               )}

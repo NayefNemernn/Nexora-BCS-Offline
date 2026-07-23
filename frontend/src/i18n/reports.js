@@ -61,7 +61,7 @@ export const reportsTranslations = {
     lowStockDesc:      "Products with 5 or fewer units remaining",
     noLowStock:        "No low stock products",
     expiryAlerts:      "Expiring Soon",
-    expiryDesc:        "Products expiring within 30 days",
+    expiryDesc:        "Products expiring within 180 days",
     noExpiry:          "No products expiring soon",
     expired:           "Expired",
     expiresIn:         "Expires in",
@@ -78,6 +78,11 @@ export const reportsTranslations = {
     category:          "Category",
     price:             "Price",
     restock:           "Restock needed",
+    allExpiryTitle:    "All Product Expiry Dates",
+    allExpiryDesc:     "Every product with an expiry date set — items within their alert window are flagged",
+    noExpiryProducts:  "No products have an expiry date set",
+    expiryStatusOK:    "OK",
+    daysLeft:          "Days Left",
   },
 
   ar: {
@@ -141,7 +146,7 @@ export const reportsTranslations = {
     lowStockDesc:      "منتجات بها 5 وحدات أو أقل",
     noLowStock:        "لا توجد منتجات بمخزون منخفض",
     expiryAlerts:      "تنتهي صلاحيتها قريباً",
-    expiryDesc:        "منتجات تنتهي صلاحيتها خلال 30 يوماً",
+    expiryDesc:        "منتجات تنتهي صلاحيتها خلال 180 يوماً",
     noExpiry:          "لا توجد منتجات قاربت على الانتهاء",
     expired:           "منتهي الصلاحية",
     expiresIn:         "ينتهي خلال",
@@ -158,6 +163,11 @@ export const reportsTranslations = {
     category:          "الفئة",
     price:             "السعر",
     restock:           "يحتاج إعادة تخزين",
+    allExpiryTitle:    "جميع تواريخ انتهاء المنتجات",
+    allExpiryDesc:     "كل منتج له تاريخ انتهاء — يتم تمييز العناصر ضمن فترة التنبيه",
+    noExpiryProducts:  "لا توجد منتجات لها تاريخ انتهاء",
+    expiryStatusOK:    "جيد",
+    daysLeft:          "الأيام المتبقية",
   }
 
 };

@@ -10,7 +10,7 @@ import toast                       from "react-hot-toast";
 import { motion }                  from "framer-motion";
 import {
   ResponsiveContainer, LineChart, Line, BarChart, Bar,
-  CartesianGrid, XAxis, YAxis, Tooltip, PieChart, Pie, Cell,
+  CartesianGrid, XAxis, YAxis, Tooltip, PieChart, Pie, Cell, Sector,
 } from "recharts";
 import {
   TrendingUp, ShoppingCart, CreditCard, Clock, DollarSign,
@@ -51,7 +51,7 @@ export default function Reports() {
 
   const [sales,     setSales]     = useState([]);
   const [holdSales, setHoldSales] = useState([]);
-  const [alerts,    setAlerts]    = useState({ lowStock: [], expiring: [] });
+  const [alerts,    setAlerts]    = useState({ lowStock: [], expiring: [], allExpiring: [] });
   const [auditLogs, setAuditLogs] = useState([]);
   const [plData,    setPlData]    = useState(null);
   const [plSubTab,  setPlSubTab]  = useState("pl"); // "pl" | "earned"
@@ -78,6 +78,9 @@ export default function Reports() {
   const [voidPin,     setVoidPin]     = useState("");
   const [voidReason,  setVoidReason]  = useState("");
   const [voidLoading, setVoidLoading] = useState(false);
+  const [allProducts,          setAllProducts]          = useState([]);
+  const [warehouseInvValue,    setWarehouseInvValue]    = useState(null);
+  const [activePieIndex,       setActivePieIndex]       = useState(null);
 
   const load = useCallback(async () => {
     try {
@@ -105,7 +108,24 @@ export default function Reports() {
         else from = new Date(now.getFullYear(), 0, 1).toISOString().split("T")[0];
         to = now.toISOString().split("T")[0];
       }
-      setPlData(await getProfitLoss(from, to));
+      const [pl, prodRes, whRes] = await Promise.all([
+        getProfitLoss(from, to),
+        api.get("/products"),
+        api.get("/warehouses"),
+      ]);
+      setPlData(pl);
+      setAllProducts(prodRes.data);
+      // Compute warehouse inventory value from all warehouse stocks
+      if (whRes.data.length > 0) {
+        const whStocks = await Promise.all(whRes.data.map(wh => api.get(`/warehouses/${wh._id}/stock`)));
+        let whVal = 0;
+        whStocks.forEach(({ data: entries }) => {
+          entries.forEach(e => { whVal += (e.quantity || 0) * (e.productId?.cost || 0); });
+        });
+        setWarehouseInvValue(whVal);
+      } else {
+        setWarehouseInvValue(0);
+      }
     } catch { setPlData(null); }
   }, [period, plDateFrom, plDateTo]);
 
@@ -205,6 +225,65 @@ export default function Reports() {
     });
     return Object.values(map).sort((a,b)=>b.revenue-a.revenue);
   }, [filteredSales]);
+
+  // ── Margin per category ─────────────────────────────────────────────────
+  const categoryBreakdown = useMemo(() => {
+    if (!plData?.productBreakdown?.length || !allProducts.length) return [];
+    const prodCatMap = {};
+    allProducts.forEach(p => { prodCatMap[p.name] = p.category?.name || "Uncategorized"; });
+    const catMap = {};
+    plData.productBreakdown.forEach(p => {
+      const cat = prodCatMap[p.name] || "Uncategorized";
+      if (!catMap[cat]) catMap[cat] = { category: cat, revenue: 0, profit: 0, quantity: 0 };
+      catMap[cat].revenue += p.revenue;
+      catMap[cat].profit += p.profit;
+      catMap[cat].quantity += p.quantity;
+    });
+    return Object.values(catMap)
+      .map(c => ({ ...c, margin: c.revenue > 0 ? +((c.profit / c.revenue) * 100).toFixed(1) : 0 }))
+      .sort((a, b) => b.revenue - a.revenue);
+  }, [plData, allProducts]);
+
+  // ── Average profit margin across all products ───────────────────────────
+  const avgProfitMargin = useMemo(() => {
+    if (!plData?.productBreakdown?.length) return 0;
+    const withRev = plData.productBreakdown.filter(p => p.revenue > 0);
+    if (!withRev.length) return 0;
+    return +(withRev.reduce((s, p) => s + parseFloat(p.margin || 0), 0) / withRev.length).toFixed(1);
+  }, [plData]);
+
+  // ── Top 20 products by qty sold for pie chart ───────────────────────────
+  const top20Products = useMemo(() => {
+    const map = {};
+    filteredSales.forEach(s => s.items.forEach(item => {
+      const name = item.name || "Unknown";
+      if (!map[name]) map[name] = { name, qty: 0, revenue: 0 };
+      map[name].qty += item.quantity;
+      map[name].revenue += item.subtotal || item.price * item.quantity;
+    }));
+    return Object.values(map).sort((a, b) => b.qty - a.qty).slice(0, 20);
+  }, [filteredSales]);
+
+  // ── 20-color palette for pie ────────────────────────────────────────────
+  const PIE20 = ["#6366f1","#10b981","#f59e0b","#ef4444","#3b82f6","#8b5cf6","#ec4899","#14b8a6","#f97316","#84cc16","#06b6d4","#a855f7","#eab308","#22c55e","#0ea5e9","#d946ef","#fb923c","#4ade80","#38bdf8","#c084fc"];
+
+  // ── Active shape for 3-D hover effect on pie ───────────────────────────
+  const PieActiveShape = (props) => {
+    const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill, payload, percent } = props;
+    return (
+      <g>
+        {/* drop shadow */}
+        <Sector cx={cx+4} cy={cy+5} innerRadius={innerRadius} outerRadius={outerRadius+14} startAngle={startAngle} endAngle={endAngle} fill="rgba(0,0,0,0.18)"/>
+        {/* raised slice */}
+        <Sector cx={cx} cy={cy} innerRadius={innerRadius} outerRadius={outerRadius+14} startAngle={startAngle} endAngle={endAngle} fill={fill} style={{filter:`drop-shadow(0 0 6px ${fill}88)`}}/>
+        {/* label inside */}
+        <text x={cx} y={cy - 16} textAnchor="middle" fill={fill} fontSize={12} fontWeight={700}>{payload.name.length > 14 ? payload.name.slice(0,14)+"…" : payload.name}</text>
+        <text x={cx} y={cy + 2}  textAnchor="middle" fill="#6b7280" fontSize={11}>{payload.qty} sold</text>
+        <text x={cx} y={cy + 18} textAnchor="middle" fill="#6b7280" fontSize={11}>{fLBP(payload.revenue)}</text>
+        <text x={cx} y={cy + 34} textAnchor="middle" fill={fill} fontSize={11} fontWeight={600}>{(percent * 100).toFixed(1)}%</text>
+      </g>
+    );
+  };
 
   const exportCSV = () => {
     const rows = [
@@ -439,6 +518,63 @@ export default function Reports() {
                 </ResponsiveContainer>
               )}
             </div>
+
+            {/* ── Top 20 Products Pie Chart ── */}
+            <div className={`${CARD} p-5`}>
+              <div className="flex items-center justify-between mb-1">
+                <h3 className="font-semibold text-sm flex items-center gap-2">
+                  <Package size={14} className="text-indigo-500"/> Top 20 Products by Sales Volume
+                </h3>
+                <span className="text-xs text-gray-400">Hover a slice for details</span>
+              </div>
+              <p className="text-xs text-gray-400 mb-4">Slice size = number of units sold</p>
+              {top20Products.length===0 ? <Empty msg={t.noSales}/> : (
+                <>
+                  <ResponsiveContainer width="100%" height={420}>
+                    <PieChart>
+                      <Pie
+                        data={top20Products}
+                        dataKey="qty"
+                        nameKey="name"
+                        cx="50%" cy="50%"
+                        outerRadius={160}
+                        activeIndex={activePieIndex}
+                        activeShape={PieActiveShape}
+                        onMouseEnter={(_, idx) => setActivePieIndex(idx)}
+                        onMouseLeave={() => setActivePieIndex(null)}
+                      >
+                        {top20Products.map((_, i) => (
+                          <Cell key={i} fill={PIE20[i % PIE20.length]}
+                            style={{ cursor: "pointer", transition: "opacity 0.2s", opacity: activePieIndex === null || activePieIndex === i ? 1 : 0.55 }}/>
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(v, n, props) => [
+                        <span>
+                          <strong>{props.payload.name}</strong><br/>
+                          {v} units sold<br/>
+                          {fLBP(props.payload.revenue)}
+                        </span>, ""
+                      ]}/>
+                    </PieChart>
+                  </ResponsiveContainer>
+                  {/* Legend grid */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2">
+                    {top20Products.map((p, i) => (
+                      <div key={p.name}
+                        onMouseEnter={() => setActivePieIndex(i)}
+                        onMouseLeave={() => setActivePieIndex(null)}
+                        className={`flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer transition-colors ${activePieIndex===i?"bg-gray-100 dark:bg-white/10":""}`}>
+                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: PIE20[i % PIE20.length] }}/>
+                        <div className="min-w-0">
+                          <p className="text-xs font-medium truncate text-gray-700 dark:text-gray-300" title={p.name}>{p.name}</p>
+                          <p className="text-[10px] text-gray-400">{p.qty} sold</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         )}
 
@@ -499,12 +635,31 @@ export default function Reports() {
                       ))}
                     </div>
                     {plData.inventoryValue != null && (
-                      <div className={`${CARD} p-4 flex items-center justify-between bg-amber-50 dark:bg-amber-900/20`}>
-                        <div>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">Total Inventory Cost</p>
-                          <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Current stock valued at purchase (batch) cost</p>
+                      <div className={`${CARD} p-5 bg-amber-50 dark:bg-amber-900/20`}>
+                        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-3 uppercase tracking-wide">Total Inventory Cost</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          <div className="rounded-xl bg-white dark:bg-[#141414] border border-amber-200 dark:border-amber-500/30 p-4">
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">🏪 Showroom</p>
+                            <p className="text-xl font-bold text-amber-600 dark:text-amber-400">{fLBP(plData.inventoryValue)}</p>
+                            <p className="text-[10px] text-gray-400 mt-1">Batch cost × showroom stock</p>
+                          </div>
+                          <div className="rounded-xl bg-white dark:bg-[#141414] border border-blue-200 dark:border-blue-500/30 p-4">
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">🏭 Warehouse</p>
+                            {warehouseInvValue === null
+                              ? <p className="text-xl font-bold text-blue-400">…</p>
+                              : <p className="text-xl font-bold text-blue-600 dark:text-blue-400">{fLBP(warehouseInvValue)}</p>
+                            }
+                            <p className="text-[10px] text-gray-400 mt-1">Cost price × warehouse stock</p>
+                          </div>
+                          <div className="rounded-xl bg-white dark:bg-[#141414] border border-purple-200 dark:border-purple-500/30 p-4">
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">📦 Both (Total)</p>
+                            {warehouseInvValue === null
+                              ? <p className="text-xl font-bold text-purple-400">…</p>
+                              : <p className="text-xl font-bold text-purple-600 dark:text-purple-400">{fLBP(plData.inventoryValue + warehouseInvValue)}</p>
+                            }
+                            <p className="text-[10px] text-gray-400 mt-1">Showroom + Warehouse</p>
+                          </div>
                         </div>
-                        <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{fLBP(plData.inventoryValue)}</p>
                       </div>
                     )}
                     <div className={`${CARD} p-5 space-y-2`}>
@@ -524,8 +679,67 @@ export default function Reports() {
                         <span className={`text-xl font-black ${plData.grossProfit>=0?"text-green-600 dark:text-green-400":"text-red-600"}`}>{fLBP(plData.grossProfit)}</span>
                       </div>
                     </div>
+                    {/* ── Average profit margin across inventory ── */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div className={`${CARD} p-4 bg-purple-50 dark:bg-purple-900/20`}>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Avg Profit Margin (per item)</p>
+                        <p className={`text-2xl font-bold ${avgProfitMargin>=0?"text-purple-600 dark:text-purple-400":"text-red-500"}`}>{avgProfitMargin}%</p>
+                        <p className="text-[10px] text-gray-400 mt-1">Average across all products sold</p>
+                      </div>
+                      <div className={`${CARD} p-4 bg-green-50 dark:bg-green-900/20`}>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Profitable Products</p>
+                        <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                          {plData.productBreakdown.filter(p=>p.profit>0).length}
+                          <span className="text-sm font-normal text-gray-400 ml-1">/ {plData.productBreakdown.length}</span>
+                        </p>
+                        <p className="text-[10px] text-gray-400 mt-1">Products where price &gt; cost</p>
+                      </div>
+                      <div className={`${CARD} p-4 bg-red-50 dark:bg-red-900/20`}>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Loss-making Products</p>
+                        <p className="text-2xl font-bold text-red-600 dark:text-red-400">
+                          {plData.productBreakdown.filter(p=>p.profit<0).length}
+                          <span className="text-sm font-normal text-gray-400 ml-1">/ {plData.productBreakdown.length}</span>
+                        </p>
+                        <p className="text-[10px] text-gray-400 mt-1">Products where cost &gt; price</p>
+                      </div>
+                    </div>
+
+                    {/* ── Margin per category ── */}
+                    {categoryBreakdown.length > 0 && (
+                      <div className={`${CARD} overflow-hidden`}>
+                        <div className="px-5 py-4 border-b border-gray-100 dark:border-white/5 font-semibold text-sm">Profit margin per category</div>
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-sm">
+                            <thead className="bg-gray-50 dark:bg-[#1c1c1c] text-xs text-gray-400"><tr>
+                              <th className="px-5 py-3 text-left">Category</th>
+                              <th className="px-3 py-3 text-center">Items Sold</th>
+                              <th className="px-3 py-3 text-right">Revenue</th>
+                              <th className="px-3 py-3 text-right">Profit</th>
+                              <th className="px-3 py-3 text-right">Margin</th>
+                            </tr></thead>
+                            <tbody className="divide-y divide-gray-50 dark:divide-white/5">
+                              {categoryBreakdown.map(c=>(
+                                <tr key={c.category} className="hover:bg-gray-50 dark:hover:bg-white/5">
+                                  <td className="px-5 py-3 font-semibold">{c.category}</td>
+                                  <td className="px-3 py-3 text-center text-gray-500">{c.quantity}</td>
+                                  <td className="px-3 py-3 text-right text-blue-600 dark:text-blue-400">{fLBP(c.revenue)}</td>
+                                  <td className={`px-3 py-3 text-right font-semibold ${c.profit>=0?"text-green-600 dark:text-green-400":"text-red-500"}`}>{fLBP(c.profit)}</td>
+                                  <td className="px-3 py-3 text-right">
+                                    <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${c.margin>=20?"bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400":c.margin>=10?"bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400":c.margin>=0?"bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300":"bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400"}`}>
+                                      {c.margin}%
+                                    </span>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* ── Product profitability (per item) ── */}
                     <div className={`${CARD} overflow-hidden`}>
-                      <div className="px-5 py-4 border-b border-gray-100 dark:border-white/5 font-semibold text-sm">Product profitability</div>
+                      <div className="px-5 py-4 border-b border-gray-100 dark:border-white/5 font-semibold text-sm">Profit margin per product</div>
                       <div className="overflow-x-auto">
                         <table className="w-full text-sm">
                           <thead className="bg-gray-50 dark:bg-[#1c1c1c] text-xs text-gray-400"><tr>
@@ -536,13 +750,17 @@ export default function Reports() {
                             <th className="px-3 py-3 text-right">Margin</th>
                           </tr></thead>
                           <tbody className="divide-y divide-gray-50 dark:divide-white/5">
-                            {plData.productBreakdown.slice(0,15).map(p=>(
+                            {plData.productBreakdown.map(p=>(
                               <tr key={p.name} className="hover:bg-gray-50 dark:hover:bg-white/5">
                                 <td className="px-5 py-3 font-medium truncate max-w-[160px]">{p.name}</td>
                                 <td className="px-3 py-3 text-center text-gray-500">{p.quantity}</td>
                                 <td className="px-3 py-3 text-right text-blue-600 dark:text-blue-400">{fLBP(p.revenue)}</td>
                                 <td className={`px-3 py-3 text-right font-semibold ${p.profit>=0?"text-green-600 dark:text-green-400":"text-red-500"}`}>{fLBP(p.profit)}</td>
-                                <td className="px-3 py-3 text-right text-purple-600 dark:text-purple-400">{p.margin}%</td>
+                                <td className="px-3 py-3 text-right">
+                                  <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${parseFloat(p.margin)>=20?"bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400":parseFloat(p.margin)>=10?"bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400":parseFloat(p.margin)>=0?"bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300":"bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400"}`}>
+                                    {p.margin}%
+                                  </span>
+                                </td>
                               </tr>
                             ))}
                           </tbody>
@@ -951,6 +1169,11 @@ export default function Reports() {
             if(s<=2) return{label:t.alertBadgeCritical,cls:"bg-red-500 text-white"};
             return       {label:t.alertBadgeWarning,  cls:"bg-amber-500 text-white"};
           };
+          const fullExpiryBadge=p=>{
+            if(p.expired) return{label:t.alertBadgeExpired,cls:"bg-red-600 text-white"};
+            if(!p.withinAlert) return{label:t.expiryStatusOK,cls:"bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400"};
+            return expiryBadge(p.daysLeft);
+          };
           const totalAlerts=alerts.lowStock.length+alerts.expiring.length;
           return(
             <div className="space-y-5">
@@ -1042,6 +1265,44 @@ export default function Reports() {
                   </table>
                 </div>
               )}
+              <div className={`${CARD} overflow-hidden`}>
+                <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-white/5">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle size={16} className="text-gray-400"/>
+                    <h3 className="font-semibold text-sm">{t.allExpiryTitle}</h3>
+                    <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300">{alerts.allExpiring.length}</span>
+                  </div>
+                </div>
+                <p className="px-5 pt-3 text-xs text-gray-400">{t.allExpiryDesc}</p>
+                {alerts.allExpiring.length===0?(
+                  <div className="p-8 text-center text-sm text-gray-400">{t.noExpiryProducts}</div>
+                ):(
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50 dark:bg-[#1c1c1c] text-xs text-gray-400"><tr>
+                      <th className="px-5 py-3 text-left">Product</th><th className="px-4 py-3 text-left">{t.category}</th>
+                      <th className="px-4 py-3 text-center">{t.stockLevel}</th><th className="px-4 py-3 text-center">{t.expiryDate}</th>
+                      <th className="px-4 py-3 text-center">{t.daysLeft}</th><th className="px-4 py-3 text-center">Status</th>
+                    </tr></thead>
+                    <tbody className="divide-y divide-gray-50 dark:divide-white/5">
+                      {alerts.allExpiring.map(p=>{
+                        const{label,cls}=fullExpiryBadge(p);
+                        return(
+                          <tr key={p._id} className={p.expired?"bg-red-50/60 dark:bg-red-900/15":p.withinAlert&&p.daysLeft<=7?"bg-orange-50/40 dark:bg-orange-900/10":""}>
+                            <td className="px-5 py-3 font-medium">{p.name}</td>
+                            <td className="px-4 py-3 text-gray-500">{p.category||"—"}</td>
+                            <td className="px-4 py-3 text-center"><span className="font-semibold">{p.stock}</span><span className="text-xs text-gray-400 block">{t.unitsLeft}</span></td>
+                            <td className="px-4 py-3 text-center">
+                              <span className={`font-semibold text-sm block ${p.expired?"text-red-600":p.withinAlert&&p.daysLeft<=7?"text-orange-500":"text-gray-700 dark:text-gray-300"}`}>{fmtD(p.expiryDate)}</span>
+                            </td>
+                            <td className="px-4 py-3 text-center text-gray-500">{p.expired?`-${Math.abs(p.daysLeft)}`:p.daysLeft}</td>
+                            <td className="px-4 py-3 text-center"><span className={`px-2 py-1 rounded-full text-[10px] font-bold ${cls}`}>{label}</span></td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
+              </div>
             </div>
           );
         })()}

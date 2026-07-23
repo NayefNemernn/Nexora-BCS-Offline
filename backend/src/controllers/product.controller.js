@@ -65,19 +65,19 @@ export const getAlerts = async (req, res) => {
       .map(p => ({ _id: p._id, name: p.name, image: p.image, stock: p.stock, category: p.category?.name || "", price: p.price, expiryDate: p.expiryDate || null }))
       .sort((a, b) => a.stock - b.stock);
 
-    const expiring = products
+    const allExpiring = products
       .filter(p => p.expiryDate)
       .map(p => {
         const exp = new Date(p.expiryDate);
         const daysLeft = Math.ceil((exp - today) / (1000 * 60 * 60 * 24));
         const alertDays = p.expiryAlertDays ?? 180;
-        return { ...p, daysLeft, alertDays };
+        return { _id: p._id, name: p.name, image: p.image, stock: p.stock, category: p.category?.name || "", price: p.price, expiryDate: p.expiryDate, daysLeft, expired: daysLeft < 0, expiryAlertDays: alertDays, withinAlert: daysLeft <= alertDays };
       })
-      .filter(p => p.daysLeft <= p.alertDays)
-      .map(p => ({ _id: p._id, name: p.name, image: p.image, stock: p.stock, category: p.category?.name || "", price: p.price, expiryDate: p.expiryDate, daysLeft: p.daysLeft, expired: p.daysLeft < 0, expiryAlertDays: p.expiryAlertDays ?? 180 }))
       .sort((a, b) => a.daysLeft - b.daysLeft);
 
-    res.json({ lowStock, expiring });
+    const expiring = allExpiring.filter(p => p.withinAlert);
+
+    res.json({ lowStock, expiring, allExpiring });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

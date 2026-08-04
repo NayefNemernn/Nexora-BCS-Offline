@@ -57,6 +57,10 @@ export default function ProductsList() {
     return list;
   }, [products, nameFilter, catFilter, minCost, maxCost, minPrice, maxPrice, minStock, maxStock, sortCol, sortDir, toLBPNice]);
 
+  // Total cost of stock on hand for the currently filtered list — cost × stock
+  // per product, summed. Matches "all products" when no filters are active.
+  const totalCost = useMemo(() => filtered.reduce((s, p) => s + (p.cost || 0) * (p.stock || 0), 0), [filtered]);
+
   const clearAll = () => {
     setNameFilter(""); setCatFilter("all");
     setMinCost(""); setMaxCost("");
@@ -115,6 +119,13 @@ export default function ProductsList() {
             {filtered.length} / {products.length} products
             {selected.size > 0 && <span className="ml-2 text-blue-500 font-semibold">· {selected.size} selected</span>}
           </p>
+        </div>
+        <div className="rounded-2xl border border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-900/20 px-4 py-2.5">
+          <p className="text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+            Total Cost {hasFilter ? "(filtered)" : "(all items)"}
+          </p>
+          <p className="text-lg font-bold text-amber-600 dark:text-amber-400 leading-tight">{formatLBP(toLBPNice(totalCost))}</p>
+          <p className="text-xs text-blue-400">{formatUSD(totalCost)}</p>
         </div>
         <div className="flex items-center gap-2">
           {selected.size > 0 && (
@@ -237,6 +248,20 @@ export default function ProductsList() {
                 );
               })}
             </tbody>
+            {filtered.length > 0 && (
+              <tfoot>
+                <tr className="bg-gray-50 dark:bg-[#1c1c1c] border-t-2 border-gray-200 dark:border-white/10">
+                  <td colSpan={4} className="px-4 py-3 text-right font-semibold text-gray-500 dark:text-gray-400">
+                    Total Cost ({filtered.length} product{filtered.length===1?"":"s"}, cost × stock)
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <p className="font-bold text-amber-600 dark:text-amber-400">{formatLBP(toLBPNice(totalCost))}</p>
+                    <p className="text-xs text-blue-400">{formatUSD(totalCost)}</p>
+                  </td>
+                  <td/>
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
       </div>

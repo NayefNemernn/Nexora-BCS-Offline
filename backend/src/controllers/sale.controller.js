@@ -6,6 +6,7 @@ import StockLog from "../models/StockLog.js";
 import HoldSale from "../models/HoldSale.js";
 import Payment  from "../models/Payment.js";
 import Batch    from "../models/Batch.js";
+import { computeInventoryValue } from "../utils/inventoryValue.js";
 
 async function audit(req, action, description, meta = {}) {
   try { await AuditLog.create({ storeId: req.storeId, userId: req.user._id, username: req.user.username, action, description, meta }); } catch {}
@@ -19,6 +20,15 @@ async function logStock(req, product, change, type, reason = "", reference = "")
       reason, reference,
     });
   } catch {}
+}
+// Returns/voids restock product.stock — this restores the matching batch quantity
+// (at the cost the item actually sold for) so batch totals stay in sync with product.stock.
+async function restockBatch(req, productId, quantity, costPrice, notes) {
+  if (!quantity || quantity <= 0) return;
+  await Batch.create({
+    storeId: req.storeId, productId, initialQty: quantity, remainingQty: quantity,
+    costPrice: costPrice || 0, notes,
+  });
 }
 
 /* ── CREATE SALE ─────────────────────────────────────────────── */
@@ -45,7 +55,7 @@ export const createSale = async (req, res) => {
       if (!product) return res.status(404).json({ message: `Product not found` });
       if (product.stock < item.quantity) return res.status(400).json({ message: `${product.name} — only ${product.stock} left` });
 
-      const itemSubtotal = +(product.price * item.quantity).toFixed(2);
+      const itemSubtotal = +(product.price * item.quantity).toFixed(6);
       subtotal += itemSubtotal;
       if (!product.vatExempt) vatableAmount += itemSubtotal;
 
@@ -78,9 +88,9 @@ export const createSale = async (req, res) => {
       await logStock(req, { ...product.toObject(), stock: stockBefore }, -item.quantity, "sale");
     }
 
-    const taxAmount = +(vatableAmount * (taxRate / 100)).toFixed(2);
-    const discount  = +Math.min(discountAmount, subtotal).toFixed(2);
-    const total     = +(subtotal + taxAmount - discount).toFixed(2);
+    const taxAmount = +(vatableAmount * (taxRate / 100)).toFixed(6);
+    const discount  = +Math.min(discountAmount, subtotal).toFixed(6);
+    const total     = +(subtotal + taxAmount - discount).toFixed(6);
 
     let isPaid = paymentMethod !== "paylater" && paymentMethod !== "cash_on_delivery";
     if (paymentMethod === "split") {
@@ -91,7 +101,7 @@ export const createSale = async (req, res) => {
     const saleStatus = isDelivery ? "pending_payment" : "completed";
 
     const sale = await Sale.create({
-      storeId, userId: req.user._id, items: saleItems, subtotal, vatableAmount: +vatableAmount.toFixed(2), total, taxAmount,
+      storeId, userId: req.user._id, items: saleItems, subtotal, vatableAmount: +vatableAmount.toFixed(6), total, taxAmount,
       discountAmount: discount, paymentMethod,
       splitPayments: paymentMethod === "split" ? splitPayments : [],
       paid: isPaid, customerName: customerName || "", customerId: customerId || null,
@@ -175,6 +185,10 @@ export const returnSaleItems = async (req, res) => {
     if (!sale) return res.status(404).json({ message: "Sale not found" });
     if (sale.status === "fully_returned") return res.status(400).json({ message: "Already fully returned" });
 
+    // Prorate the sale's cart-level discount across returned items so a
+    // return refunds what the customer actually paid, not the pre-discount price.
+    const discountRatio = sale.subtotal > 0 ? Math.min((sale.discountAmount || 0) / sale.subtotal, 1) : 0;
+
     let totalRefundThisReturn = 0;
     const newReturnedItems = [];
 
@@ -189,7 +203,7 @@ export const returnSaleItems = async (req, res) => {
       const maxReturnable = saleItem.quantity - alreadyReturned;
       if (ri.quantity > maxReturnable) return res.status(400).json({ message: `${saleItem.name}: max ${maxReturnable} returnable` });
 
-      const refundAmount = +(saleItem.price * ri.quantity).toFixed(2);
+      const refundAmount = +(saleItem.price * ri.quantity * (1 - discountRatio)).toFixed(6);
       totalRefundThisReturn += refundAmount;
       newReturnedItems.push({ productId: saleItem.productId, name: saleItem.name, quantity: ri.quantity, refundAmount, reason, returnedAt: new Date(), returnedBy: req.user._id });
 
@@ -198,15 +212,16 @@ export const returnSaleItems = async (req, res) => {
         const stockBefore = product.stock;
         await Product.findByIdAndUpdate(saleItem.productId, { $inc: { stock: ri.quantity } });
         await logStock(req, { ...product.toObject(), stock: stockBefore }, +ri.quantity, "return", reason, sale._id.toString());
+        await restockBatch(req, product._id, ri.quantity, saleItem.cost, `Return from sale #${sale._id}${reason ? ` — ${reason}` : ""}`);
       }
     }
 
     const newTotalReturned = sale.totalRefunded + totalRefundThisReturn;
-    const totalReturnableValue = sale.items.reduce((s, i) => s + i.subtotal, 0);
-    const newStatus = newTotalReturned >= totalReturnableValue ? "fully_returned" : "partially_returned";
+    const totalReturnableValue = sale.items.reduce((s, i) => s + i.subtotal, 0) * (1 - discountRatio);
+    const newStatus = newTotalReturned >= totalReturnableValue - 0.000001 ? "fully_returned" : "partially_returned";
 
     sale.returnedItems.push(...newReturnedItems);
-    sale.totalRefunded = +newTotalReturned.toFixed(2);
+    sale.totalRefunded = +newTotalReturned.toFixed(6);
     sale.status = newStatus;
     await sale.save();
 
@@ -237,23 +252,46 @@ export const voidSale = async (req, res) => {
       return res.status(403).json({ message: "Incorrect PIN" });
     }
 
-    // Restock all items
+    // Restock only what hasn't already been returned — a sale may have had
+    // partial returns processed before being voided, so item.quantity alone
+    // would double-count stock/batches for anything already returned.
+    // Per-item refundAmount is prorated by the sale's cart-level discount so the
+    // itemized breakdown matches what the customer actually paid (sale.totalRefunded
+    // below is set to sale.total directly, which is already discount-accurate).
+    const discountRatio = sale.subtotal > 0 ? Math.min((sale.discountAmount || 0) / sale.subtotal, 1) : 0;
+    const newReturnedItems = [];
     for (const item of sale.items) {
+      const alreadyReturned = sale.returnedItems
+        .filter(r => r.productId.toString() === item.productId.toString())
+        .reduce((s, r) => s + r.quantity, 0);
+      const remaining = item.quantity - alreadyReturned;
+      if (remaining <= 0) continue;
+
       const product = await Product.findById(item.productId);
       if (product) {
         const stockBefore = product.stock;
-        await Product.findByIdAndUpdate(item.productId, { $inc: { stock: item.quantity } });
-        await logStock(req, { ...product.toObject(), stock: stockBefore }, +item.quantity, "return", `Void: ${reason}`, sale._id.toString());
+        await Product.findByIdAndUpdate(item.productId, { $inc: { stock: remaining } });
+        await logStock(req, { ...product.toObject(), stock: stockBefore }, +remaining, "return", `Void: ${reason}`, sale._id.toString());
+        await restockBatch(req, product._id, remaining, item.cost, `Void of sale #${sale._id}${reason ? ` — ${reason}` : ""}`);
       }
+      newReturnedItems.push({
+        productId: item.productId, name: item.name, quantity: remaining,
+        refundAmount: +(item.price * remaining * (1 - discountRatio)).toFixed(6), reason: `VOID: ${reason}`, returnedAt: new Date(), returnedBy: req.user._id,
+      });
     }
 
     sale.status = "fully_returned";
     sale.totalRefunded = sale.total;
-    sale.returnedItems = sale.items.map(i => ({
-      productId: i.productId, name: i.name, quantity: i.quantity,
-      refundAmount: i.subtotal, reason: `VOID: ${reason}`, returnedAt: new Date(), returnedBy: req.user._id,
-    }));
+    sale.returnedItems.push(...newReturnedItems);
     await sale.save();
+
+    if (sale.customerId) {
+      const hasPayLater = sale.paymentMethod === "paylater" || (sale.splitPayments || []).some(p => p.method === "paylater");
+      if (hasPayLater) {
+        const totalRefundThisVoid = newReturnedItems.reduce((s, i) => s + i.refundAmount, 0);
+        await Customer.findByIdAndUpdate(sale.customerId, { $inc: { outstandingBalance: -totalRefundThisVoid } });
+      }
+    }
 
     await audit(req, "sale_voided", `Sale VOIDED #${sale._id} — $${sale.total} — ${reason}`,
       { saleId: sale._id, total: sale.total, reason });
@@ -309,25 +347,17 @@ export const getProfitLoss = async (req, res) => {
       .sort((a, b) => b.profit - a.profit);
 
     // Inventory value: batch costs take priority over product.cost
-    const Product = (await import("../models/Product.js")).default;
-    const Batch   = (await import("../models/Batch.js")).default;
-    const allProducts    = await Product.find({ storeId }).select("cost stock").lean();
-    const activeBatches  = await Batch.find({ storeId, remainingQty: { $gt: 0 } }).lean();
-    const batchedIds     = new Set(activeBatches.map(b => String(b.productId)));
-    const inventoryValue =
-      activeBatches.reduce((s, b) => s + (b.costPrice || 0) * b.remainingQty, 0) +
-      allProducts.filter(p => !batchedIds.has(String(p._id)) && (p.stock || 0) > 0)
-                 .reduce((s, p) => s + (p.cost || 0) * p.stock, 0);
+    const inventoryValue = await computeInventoryValue(storeId);
 
     res.json({
-      revenue:        +revenue.toFixed(2),
-      cogs:           +cogs.toFixed(2),
-      discounts:      +discounts.toFixed(2),
-      refunds:        +refunds.toFixed(2),
-      grossProfit:    +grossProfit.toFixed(2),
+      revenue:        +revenue.toFixed(6),
+      cogs:           +cogs.toFixed(6),
+      discounts:      +discounts.toFixed(6),
+      refunds:        +refunds.toFixed(6),
+      grossProfit:    +grossProfit.toFixed(6),
       grossMargin:    +grossMargin,
       totalOrders:    sales.length,
-      inventoryValue: +inventoryValue.toFixed(2),
+      inventoryValue: +inventoryValue.toFixed(6),
       productBreakdown,
     });
   } catch (error) { res.status(500).json({ message: error.message }); }

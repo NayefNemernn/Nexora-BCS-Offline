@@ -2,6 +2,8 @@ import mongoose from "mongoose";
 import Product from "../models/Product.js";
 import Sale from "../models/Sale.js";
 import Batch from "../models/Batch.js";
+import WarehouseStock from "../models/WarehouseStock.js";
+import { computeInventoryValue } from "../utils/inventoryValue.js";
 import Category from "../models/Category.js";
 import supabase from "../config/supabase.js";
 import { v4 as uuid } from "uuid";
@@ -117,14 +119,7 @@ export const getProfitabilityReport = async (req, res) => {
     const totals = rows.reduce((acc, r) => ({ revenue: acc.revenue + r.revenue, cogs: acc.cogs + r.cogs, profit: acc.profit + r.profit, units: acc.units + r.unitsSold }), { revenue: 0, cogs: 0, profit: 0, units: 0 });
 
     // Inventory value: use actual batch costs (remaining stock valued at purchase price)
-    const activeBatches = await Batch.find({ storeId, remainingQty: { $gt: 0 } }).lean();
-    const batchedIds    = new Set(activeBatches.map(b => String(b.productId)));
-    const batchInvValue = activeBatches.reduce((s, b) => s + (b.costPrice || 0) * b.remainingQty, 0);
-    // Products with stock but no batches — fall back to product.cost
-    const noBatchInvValue = products
-      .filter(p => !batchedIds.has(String(p._id)) && (p.stock || 0) > 0)
-      .reduce((s, p) => s + (p.cost || 0) * p.stock, 0);
-    const inventoryValue = batchInvValue + noBatchInvValue;
+    const inventoryValue = await computeInventoryValue(storeId);
 
     res.json({ rows, totals: { revenue: +totals.revenue.toFixed(2), cogs: +totals.cogs.toFixed(2), profit: +totals.profit.toFixed(2), margin: totals.revenue > 0 ? +((totals.profit / totals.revenue) * 100).toFixed(1) : 0, units: totals.units, inventoryValue: +inventoryValue.toFixed(2) } });
   } catch (err) {
@@ -259,7 +254,13 @@ export const updateProduct = async (req, res) => {
 
 export const deleteProduct = async (req, res) => {
   try {
-    await Product.findOneAndDelete({ _id: req.params.id, storeId: req.storeId });
+    const product = await Product.findOneAndDelete({ _id: req.params.id, storeId: req.storeId });
+    if (product) {
+      await Promise.all([
+        Batch.deleteMany({ productId: product._id, storeId: req.storeId }),
+        WarehouseStock.deleteMany({ productId: product._id, storeId: req.storeId }),
+      ]);
+    }
     res.json({ message: "Product deleted" });
   } catch (err) {
     res.status(500).json({ message: err.message });

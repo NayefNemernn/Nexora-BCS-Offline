@@ -203,8 +203,10 @@ export default function PayLater() {
     }
   };
 
+  // Paid-off accounts are kept in the database (for period reporting) instead
+  // of being deleted, so exclude them here — this page only manages open tabs.
   const filtered = sales.filter(s =>
-    s.customerName.toLowerCase().includes(search.toLowerCase())
+    s.status !== "paid" && s.customerName.toLowerCase().includes(search.toLowerCase())
   );
 
   const totalOutstanding = filtered.reduce((s, x) => s + x.balance, 0);

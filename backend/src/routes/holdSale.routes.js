@@ -2,7 +2,7 @@ import express from "express";
 import {
   createHoldSale, getHoldSales, getHoldSaleNames,
   payHoldSale, updateHoldCustomer, deleteHoldSale,
-  getRecentPayments, paymentsThisMonth,
+  getRecentPayments, paymentsThisMonth, getAllPayments,
   getCustomerPayments, getCustomerInvoices, updateCreditLimit,
 } from "../controllers/holdSale.controller.js";
 import { protect } from "../middleware/auth.middleware.js";
@@ -13,6 +13,7 @@ router.use(protect);
 router.get("/names",                   getHoldSaleNames);
 router.get("/payments/recent",         getRecentPayments);
 router.get("/payments/month",          paymentsThisMonth);
+router.get("/payments/all",            getAllPayments);
 router.get("/payments/customer/:name", getCustomerPayments);
 router.get("/invoices/:name",          getCustomerInvoices);
 

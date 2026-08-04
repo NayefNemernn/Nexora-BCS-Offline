@@ -17,7 +17,10 @@ export const createHoldSale = async (req, res) => {
       await Product.findByIdAndUpdate(item.productId, { $inc: { stock: -item.quantity } });
     }
 
-    let sale = await HoldSale.findOne({ customerName, storeId });
+    // Only reuse an account that's still open — a fully-paid account stays
+    // archived as its own closed record, so new credit starts a fresh one
+    // (keeps its own createdAt for accurate period reporting).
+    let sale = await HoldSale.findOne({ customerName, storeId, status: { $ne: "paid" } });
     if (sale) {
       sale.items.push(...items);
       sale.total   += total;
@@ -69,12 +72,12 @@ export const payHoldSale = async (req, res) => {
     });
 
     if (sale.balance <= 0) {
-      await HoldSale.findByIdAndDelete(req.params.id);
-      return res.json({ message: "Receipt fully paid" });
+      sale.balance = 0;
+      sale.status  = "paid";
     }
 
     await sale.save();
-    res.json(sale);
+    res.json(sale.status === "paid" ? { ...sale.toObject(), message: "Receipt fully paid" } : sale);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -102,6 +105,17 @@ export const deleteHoldSale = async (req, res) => {
     }
     await HoldSale.findByIdAndDelete(req.params.id);
     res.json({ message: "Deleted" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// All pay-later payments ever received — Reports filters this client-side by period,
+// same pattern as the "/sales" list.
+export const getAllPayments = async (req, res) => {
+  try {
+    const payments = await Payment.find(storeQ(req)).sort({ createdAt: -1 });
+    res.json(payments);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

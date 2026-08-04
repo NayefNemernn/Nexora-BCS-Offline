@@ -106,13 +106,15 @@ export const createBatch = async (req, res) => {
       reference:      batch.batchNumber,
     });
 
-    await AuditLog.create({
-      storeId:  req.storeId,
-      userId:   req.user._id,
-      username: req.user.username,
-      action:   "batch_received",
-      description: `Received batch ${batch.batchNumber} for ${product.name}: +${qty} units`,
-    });
+    try {
+      await AuditLog.create({
+        storeId:  req.storeId,
+        userId:   req.user._id,
+        username: req.user.username,
+        action:   "batch_received",
+        description: `Received batch ${batch.batchNumber} for ${product.name}: +${qty} units`,
+      });
+    } catch {}
 
     res.status(201).json(batch);
   } catch (err) {
@@ -195,13 +197,15 @@ export const deleteBatch = async (req, res) => {
 
     await Batch.findByIdAndDelete(batch._id);
 
-    await AuditLog.create({
-      storeId:  req.storeId,
-      userId:   req.user._id,
-      username: req.user.username,
-      action:   "batch_deleted",
-      description: `Deleted batch ${batch.batchNumber}`,
-    });
+    try {
+      await AuditLog.create({
+        storeId:  req.storeId,
+        userId:   req.user._id,
+        username: req.user.username,
+        action:   "batch_deleted",
+        description: `Deleted batch ${batch.batchNumber}`,
+      });
+    } catch {}
 
     res.json({ message: "Batch deleted" });
   } catch (err) {

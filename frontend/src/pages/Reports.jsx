@@ -15,7 +15,7 @@ import {
 import {
   TrendingUp, ShoppingCart, CreditCard, Clock, DollarSign,
   AlertCircle, AlertTriangle, Package, Bell, RotateCcw,
-  Download, Users, Shield, Send,
+  Download, Users, Shield, Send, X, Search,
 } from "lucide-react";
 
 const CARD = "rounded-2xl bg-white dark:bg-[#141414] shadow-[6px_6px_16px_#d1d5db,-6px_-6px_16px_#ffffff] dark:shadow-[6px_6px_16px_#050505,-6px_-6px_16px_#1a1a1a]";
@@ -51,6 +51,8 @@ export default function Reports() {
 
   const [sales,     setSales]     = useState([]);
   const [holdSales, setHoldSales] = useState([]);
+  const [payLaterPayments, setPayLaterPayments] = useState([]);
+  const [showPayLaterReceived, setShowPayLaterReceived] = useState(true);
   const [alerts,    setAlerts]    = useState({ lowStock: [], expiring: [], allExpiring: [] });
   const [auditLogs, setAuditLogs] = useState([]);
   const [plData,    setPlData]    = useState(null);
@@ -82,12 +84,31 @@ export default function Reports() {
   const [warehouseInvValue,    setWarehouseInvValue]    = useState(null);
   const [activePieIndex,       setActivePieIndex]       = useState(null);
 
+  // ── Margin tables: view mode / filters / drill-down popup ──────────────
+  const [catViewMode,    setCatViewMode]    = useState("sold");   // "sold" | "all"
+  const [catSearch,      setCatSearch]      = useState("");
+  const [catMarginFilter,setCatMarginFilter]= useState("all");    // all | high | mid | low | neg
+  const [catPopup,       setCatPopup]       = useState(null);     // category name
+  const [prodViewMode,   setProdViewMode]   = useState("sold");   // "sold" | "all"
+  const [prodSearch,     setProdSearch]     = useState("");
+  const [prodMarginFilter,setProdMarginFilter]=useState("all");   // all | high | mid | low | neg
+
+  // ── Alerts tab: view toggle + filters ───────────────────────────────────
+  const [alertsView,           setAlertsView]           = useState("lowstock"); // "lowstock" | "expiry"
+  const [alertSearch,          setAlertSearch]          = useState("");
+  const [alertCategoryFilter,  setAlertCategoryFilter]  = useState("all");
+  const [lowStockStatusFilter, setLowStockStatusFilter] = useState("all"); // all | out | critical | warning
+  const [expiryStatusFilter,   setExpiryStatusFilter]   = useState("all"); // all | expired | critical | warning | soon | ok
+
   const load = useCallback(async () => {
     try {
-      const [sRes, hRes, aRes] = await Promise.all([
-        api.get("/sales", { params: { limit: 0 } }), api.get("/hold-sales"), api.get("/products/alerts"),
+      const [sRes, hRes, aRes, pRes] = await Promise.all([
+        api.get("/sales", { params: { limit: 0 } }),
+        api.get("/hold-sales", { params: { status: "all" } }),
+        api.get("/products/alerts"),
+        api.get("/hold-sales/payments/all"),
       ]);
-      setSales(sRes.data); setHoldSales(hRes.data); setAlerts(aRes.data);
+      setSales(sRes.data); setHoldSales(hRes.data); setAlerts(aRes.data); setPayLaterPayments(pRes.data);
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
   }, []);
@@ -139,15 +160,39 @@ export default function Reports() {
   }, [tab, loadPL, loadAudit, plDateFrom, plDateTo]);
 
   /* ── filter ── */
-  const filteredSales = useMemo(() => {
+  const periodCutoff = (period) => {
     const now = new Date();
     let cutoff = new Date();
     if (period === "day") { cutoff.setHours(0,0,0,0); }
     else if (period === "week") { cutoff.setDate(cutoff.getDate() - 7); }
     else if (period === "month") { cutoff = new Date(now.getFullYear(), now.getMonth(), 1); }
     else { cutoff = new Date(now.getFullYear(), 0, 1); } // year
+    return cutoff;
+  };
+  const filteredSales = useMemo(() => {
+    const cutoff = periodCutoff(period);
     return sales.filter(s => new Date(s.createdAt) >= cutoff);
   }, [sales, period]);
+
+  // Hold Sale ("Pay Later" tab) accounts that are still open — mirrors pre-history
+  // behavior where paid-off tabs used to be deleted outright.
+  const openHoldSales = useMemo(() => holdSales.filter(h => h.status !== "paid"), [holdSales]);
+
+  // Pay Later payments received in the selected period — shown separately from
+  // Total Revenue, never folded into it.
+  const filteredPayLaterPayments = useMemo(() => {
+    const cutoff = periodCutoff(period);
+    return payLaterPayments.filter(p => new Date(p.createdAt) >= cutoff);
+  }, [payLaterPayments, period]);
+  const payLaterReceived = useMemo(() => filteredPayLaterPayments.reduce((s,p)=>s+(p.amount||0), 0), [filteredPayLaterPayments]);
+
+  // Pay Later accounts newly opened in the selected period (new debt created,
+  // separate from payments received against existing/older debt).
+  const filteredHoldSales = useMemo(() => {
+    const cutoff = periodCutoff(period);
+    return holdSales.filter(h => new Date(h.createdAt) >= cutoff);
+  }, [holdSales, period]);
+  const payLaterIssued = useMemo(() => filteredHoldSales.reduce((s,h)=>s+(h.total||0), 0), [filteredHoldSales]);
 
   /* ── KPIs ── */
   const totalRevenue       = useMemo(() => filteredSales.reduce((s,x) => s+x.total, 0), [filteredSales]);
@@ -160,9 +205,9 @@ export default function Reports() {
   const inStoreTotal       = useMemo(() => filteredSales.filter(s=>!s.saleType||s.saleType==="in_store").reduce((s,x)=>s+x.total,0), [filteredSales]);
   const deliveryTotal      = useMemo(() => filteredSales.filter(s=>s.saleType==="delivery").reduce((s,x)=>s+x.total,0), [filteredSales]);
   const avgSale       = filteredSales.length ? totalRevenue/filteredSales.length : 0;
-  const outstandingCredit = useMemo(() => holdSales.reduce((s,h)=>s+(h.balance||0),0), [holdSales]);
-  const totalCreditGiven  = useMemo(() => holdSales.reduce((s,h)=>s+(h.total||0),0),   [holdSales]);
-  const totalCreditPaid   = useMemo(() => holdSales.reduce((s,h)=>s+(h.paid||0),0),    [holdSales]);
+  const outstandingCredit = useMemo(() => openHoldSales.reduce((s,h)=>s+(h.balance||0),0), [openHoldSales]);
+  const totalCreditGiven  = useMemo(() => openHoldSales.reduce((s,h)=>s+(h.total||0),0),   [openHoldSales]);
+  const totalCreditPaid   = useMemo(() => openHoldSales.reduce((s,h)=>s+(h.paid||0),0),    [openHoldSales]);
 
   /* ── charts ── */
   const revenueChart = useMemo(() => {
@@ -226,11 +271,16 @@ export default function Reports() {
     return Object.values(map).sort((a,b)=>b.revenue-a.revenue);
   }, [filteredSales]);
 
-  // ── Margin per category ─────────────────────────────────────────────────
+  // ── Product → category lookup ───────────────────────────────────────────
+  const prodCatMap = useMemo(() => {
+    const map = {};
+    allProducts.forEach(p => { map[p.name] = p.category?.name || "Uncategorized"; });
+    return map;
+  }, [allProducts]);
+
+  // ── Margin per category (sold items only) ───────────────────────────────
   const categoryBreakdown = useMemo(() => {
     if (!plData?.productBreakdown?.length || !allProducts.length) return [];
-    const prodCatMap = {};
-    allProducts.forEach(p => { prodCatMap[p.name] = p.category?.name || "Uncategorized"; });
     const catMap = {};
     plData.productBreakdown.forEach(p => {
       const cat = prodCatMap[p.name] || "Uncategorized";
@@ -242,7 +292,116 @@ export default function Reports() {
     return Object.values(catMap)
       .map(c => ({ ...c, margin: c.revenue > 0 ? +((c.profit / c.revenue) * 100).toFixed(1) : 0 }))
       .sort((a, b) => b.revenue - a.revenue);
-  }, [plData, allProducts]);
+  }, [plData, allProducts, prodCatMap]);
+
+  // ── Margin per product — sold vs. potential (all catalog items) ────────
+  const productMarginAll = useMemo(() => {
+    if (!allProducts.length) return [];
+    const soldMap = {};
+    (plData?.productBreakdown || []).forEach(p => { soldMap[p.name] = p; });
+    return allProducts.map(p => {
+      const sold = soldMap[p.name];
+      const potentialMargin = p.price > 0 ? +(((p.price - (p.cost || 0)) / p.price) * 100).toFixed(1) : 0;
+      return {
+        name:     p.name,
+        category: p.category?.name || "Uncategorized",
+        quantity: sold ? sold.quantity : 0,
+        revenue:  sold ? sold.revenue  : 0,
+        profit:   sold ? sold.profit   : 0,
+        margin:   sold ? parseFloat(sold.margin) : potentialMargin,
+        sold:     !!sold,
+        stock:    p.stock,
+      };
+    }).sort((a, b) => (b.sold - a.sold) || b.revenue - a.revenue || b.margin - a.margin);
+  }, [allProducts, plData]);
+
+  // ── Margin per category — all catalog items (sold + never-sold) ────────
+  const categoryBreakdownAll = useMemo(() => {
+    if (!productMarginAll.length) return [];
+    const catMap = {};
+    productMarginAll.forEach(p => {
+      if (!catMap[p.category]) catMap[p.category] = { category: p.category, quantity: 0, revenue: 0, profit: 0, marginSum: 0, count: 0, soldCount: 0 };
+      const c = catMap[p.category];
+      c.quantity += p.quantity;
+      c.revenue  += p.revenue;
+      c.profit   += p.profit;
+      c.marginSum+= p.margin;
+      c.count++;
+      if (p.sold) c.soldCount++;
+    });
+    return Object.values(catMap)
+      .map(c => ({
+        category: c.category, quantity: c.quantity, revenue: c.revenue, profit: c.profit,
+        margin: +(c.count ? c.marginSum / c.count : 0).toFixed(1),
+        itemCount: c.count, soldCount: c.soldCount,
+      }))
+      .sort((a, b) => b.itemCount - a.itemCount);
+  }, [productMarginAll]);
+
+  // ── Margin bucket helper (shared by table filters) ─────────────────────
+  const marginBucket = (m) => (m >= 20 ? "high" : m >= 10 ? "mid" : m >= 0 ? "low" : "neg");
+  const MARGIN_FILTERS = [
+    ["all",  "All Margins"],
+    ["high", "≥ 20%"],
+    ["mid",  "10–19.9%"],
+    ["low",  "0–9.9%"],
+    ["neg",  "Negative"],
+  ];
+
+  // ── Filtered category / product tables (search + margin bucket) ────────
+  const filteredCategoryRows = useMemo(() => {
+    const rows = catViewMode === "sold" ? categoryBreakdown : categoryBreakdownAll;
+    return rows.filter(c =>
+      (!catSearch.trim() || c.category.toLowerCase().includes(catSearch.toLowerCase())) &&
+      (catMarginFilter === "all" || marginBucket(c.margin) === catMarginFilter)
+    );
+  }, [catViewMode, categoryBreakdown, categoryBreakdownAll, catSearch, catMarginFilter]);
+
+  const filteredProductRows = useMemo(() => {
+    const rows = prodViewMode === "sold" ? (plData?.productBreakdown || []) : productMarginAll;
+    return rows.filter(p =>
+      (!prodSearch.trim() || p.name.toLowerCase().includes(prodSearch.toLowerCase())) &&
+      (prodMarginFilter === "all" || marginBucket(parseFloat(p.margin)) === prodMarginFilter)
+    );
+  }, [prodViewMode, plData, productMarginAll, prodSearch, prodMarginFilter]);
+
+  // ── Items inside the category currently open in the drill-down popup ───
+  const popupItems = useMemo(() => {
+    if (!catPopup) return [];
+    if (catViewMode === "sold") {
+      return (plData?.productBreakdown || []).filter(p => (prodCatMap[p.name] || "Uncategorized") === catPopup);
+    }
+    return productMarginAll.filter(p => p.category === catPopup);
+  }, [catPopup, catViewMode, plData, prodCatMap, productMarginAll]);
+
+  // ── Alerts tab: category options + filtered low-stock / expiry rows ────
+  const alertCategories = useMemo(() => {
+    const list = alertsView === "lowstock" ? alerts.lowStock : alerts.allExpiring;
+    return [...new Set(list.map(p => p.category || "Uncategorized"))].sort();
+  }, [alerts, alertsView]);
+
+  const lowStockBucket = (stock) => (stock === 0 ? "out" : stock <= 2 ? "critical" : "warning");
+  const expiryBucket = (p) => (p.expired ? "expired" : !p.withinAlert ? "ok" : p.daysLeft <= 7 ? "critical" : p.daysLeft <= 14 ? "warning" : "soon");
+
+  const filteredLowStock = useMemo(() => {
+    return alerts.lowStock.filter(p => {
+      const cat = p.category || "Uncategorized";
+      if (alertSearch.trim() && !p.name.toLowerCase().includes(alertSearch.toLowerCase())) return false;
+      if (alertCategoryFilter !== "all" && cat !== alertCategoryFilter) return false;
+      if (lowStockStatusFilter !== "all" && lowStockBucket(p.stock) !== lowStockStatusFilter) return false;
+      return true;
+    });
+  }, [alerts.lowStock, alertSearch, alertCategoryFilter, lowStockStatusFilter]);
+
+  const filteredExpiry = useMemo(() => {
+    return alerts.allExpiring.filter(p => {
+      const cat = p.category || "Uncategorized";
+      if (alertSearch.trim() && !p.name.toLowerCase().includes(alertSearch.toLowerCase())) return false;
+      if (alertCategoryFilter !== "all" && cat !== alertCategoryFilter) return false;
+      if (expiryStatusFilter !== "all" && expiryBucket(p) !== expiryStatusFilter) return false;
+      return true;
+    });
+  }, [alerts.allExpiring, alertSearch, alertCategoryFilter, expiryStatusFilter]);
 
   // ── Average profit margin across all products ───────────────────────────
   const avgProfitMargin = useMemo(() => {
@@ -400,8 +559,19 @@ export default function Reports() {
         {tab==="overview"&&(
           <div className="space-y-5">
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <motion.div whileHover={{scale:1.03}} className={`${CARD} bg-green-50 dark:bg-green-900/20 p-4 relative`}>
+                <button
+                  onClick={()=>setShowPayLaterReceived(v=>!v)}
+                  title={showPayLaterReceived ? "Hide Pay Later breakdown" : "Show Pay Later breakdown (issued / received this period)"}
+                  className={`absolute top-3 right-3 w-9 h-5 rounded-full transition-colors ${showPayLaterReceived?"bg-purple-600":"bg-gray-200 dark:bg-white/10"}`}>
+                  <span className={`block w-4 h-4 bg-white rounded-full shadow transform transition-transform ${showPayLaterReceived?"translate-x-4":"translate-x-0.5"}`}/>
+                </button>
+                <div className="text-green-600 dark:text-green-400 mb-2"><DollarSign size={18}/></div>
+                <p className="text-xs text-gray-500 dark:text-gray-400">{t.totalRevenue}</p>
+                <p className="text-2xl font-bold mt-1 text-green-600 dark:text-green-400">{fLBP(totalRevenue)}</p>
+                <p className="text-[10px] text-gray-400 mt-1">Cash / card / split — excludes Pay Later, see toggle →</p>
+              </motion.div>
               {[
-                {label:t.totalRevenue,value:fLBP(totalRevenue),              icon:<DollarSign size={18}/>,  color:"text-green-600 dark:text-green-400",   bg:"bg-green-50 dark:bg-green-900/20"  },
                 {label:t.totalSales,  value:filteredSales.length,          icon:<ShoppingCart size={18}/>,color:"text-blue-600 dark:text-blue-400",     bg:"bg-blue-50 dark:bg-blue-900/20"   },
                 {label:t.averageSale, value:fLBP(avgSale),                 icon:<TrendingUp size={18}/>,  color:"text-purple-600 dark:text-purple-400", bg:"bg-purple-50 dark:bg-purple-900/20"},
                 {label:t.outstanding, value:fLBP(outstandingCredit),       icon:<AlertCircle size={18}/>,color:"text-red-600 dark:text-red-400",   bg:"bg-red-50 dark:bg-red-900/20"     },
@@ -412,6 +582,24 @@ export default function Reports() {
                   <p className={`text-2xl font-bold mt-1 ${color}`}>{value}</p>
                 </motion.div>
               ))}
+              {showPayLaterReceived && (
+                <>
+                  <motion.div initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} whileHover={{scale:1.03}}
+                    className={`${CARD} bg-orange-50 dark:bg-orange-900/20 p-4`}>
+                    <div className="text-orange-600 dark:text-orange-400 mb-2"><Clock size={18}/></div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Pay Later Issued</p>
+                    <p className="text-2xl font-bold mt-1 text-orange-600 dark:text-orange-400">{fLBP(payLaterIssued)}</p>
+                    <p className="text-[10px] text-gray-400 mt-1">New credit given out this period</p>
+                  </motion.div>
+                  <motion.div initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} whileHover={{scale:1.03}}
+                    className={`${CARD} bg-fuchsia-50 dark:bg-fuchsia-900/20 p-4`}>
+                    <div className="text-fuchsia-600 dark:text-fuchsia-400 mb-2"><CreditCard size={18}/></div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Pay Later Received</p>
+                    <p className="text-2xl font-bold mt-1 text-fuchsia-600 dark:text-fuchsia-400">{fLBP(payLaterReceived)}</p>
+                    <p className="text-[10px] text-gray-400 mt-1">Collected against old balances this period</p>
+                  </motion.div>
+                </>
+              )}
             </div>
             {deliveryTotal > 0 && (
               <div className="grid grid-cols-2 gap-4">
@@ -705,23 +893,51 @@ export default function Reports() {
                     </div>
 
                     {/* ── Margin per category ── */}
-                    {categoryBreakdown.length > 0 && (
+                    {(categoryBreakdown.length > 0 || categoryBreakdownAll.length > 0) && (
                       <div className={`${CARD} overflow-hidden`}>
-                        <div className="px-5 py-4 border-b border-gray-100 dark:border-white/5 font-semibold text-sm">Profit margin per category</div>
+                        <div className="px-5 py-4 border-b border-gray-100 dark:border-white/5 flex flex-wrap items-center justify-between gap-3">
+                          <span className="font-semibold text-sm">
+                            Profit margin per category {catViewMode==="sold" ? "of sold items" : "of all items"}
+                          </span>
+                          <div className="flex gap-1.5 bg-gray-100 dark:bg-[#1c1c1c] rounded-xl p-1">
+                            {[["sold","Sold Items"],["all","All Items"]].map(([id,label])=>(
+                              <button key={id} onClick={()=>setCatViewMode(id)}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${catViewMode===id?"bg-purple-600 text-white":"text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"}`}>
+                                {label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="px-5 py-3 flex flex-wrap items-center gap-2 border-b border-gray-100 dark:border-white/5">
+                          <div className="relative">
+                            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400"/>
+                            <input value={catSearch} onChange={e=>setCatSearch(e.target.value)} placeholder="Search category…"
+                              className="pl-7 pr-2.5 py-1.5 rounded-xl text-xs border bg-white dark:bg-[#141414] border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 focus:outline-none focus:border-purple-500 w-40"/>
+                          </div>
+                          <select value={catMarginFilter} onChange={e=>setCatMarginFilter(e.target.value)}
+                            className="px-2 py-1.5 rounded-xl text-xs font-semibold border bg-white dark:bg-[#141414] border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-300 focus:outline-none focus:border-purple-500">
+                            {MARGIN_FILTERS.map(([id,label])=><option key={id} value={id}>{label}</option>)}
+                          </select>
+                          <span className="text-xs text-gray-400 ml-auto">Click a row to see items in that category</span>
+                        </div>
                         <div className="overflow-x-auto">
                           <table className="w-full text-sm">
                             <thead className="bg-gray-50 dark:bg-[#1c1c1c] text-xs text-gray-400"><tr>
                               <th className="px-5 py-3 text-left">Category</th>
-                              <th className="px-3 py-3 text-center">Items Sold</th>
+                              <th className="px-3 py-3 text-center">{catViewMode==="sold"?"Items Sold":"Products (sold)"}</th>
                               <th className="px-3 py-3 text-right">Revenue</th>
                               <th className="px-3 py-3 text-right">Profit</th>
                               <th className="px-3 py-3 text-right">Margin</th>
                             </tr></thead>
                             <tbody className="divide-y divide-gray-50 dark:divide-white/5">
-                              {categoryBreakdown.map(c=>(
-                                <tr key={c.category} className="hover:bg-gray-50 dark:hover:bg-white/5">
-                                  <td className="px-5 py-3 font-semibold">{c.category}</td>
-                                  <td className="px-3 py-3 text-center text-gray-500">{c.quantity}</td>
+                              {filteredCategoryRows.length===0 ? (
+                                <tr><td colSpan={5} className="px-5 py-6 text-center text-gray-400 text-xs">No categories match these filters</td></tr>
+                              ) : filteredCategoryRows.map(c=>(
+                                <tr key={c.category} onClick={()=>setCatPopup(c.category)} className="hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer">
+                                  <td className="px-5 py-3 font-semibold text-purple-600 dark:text-purple-400 hover:underline">{c.category}</td>
+                                  <td className="px-3 py-3 text-center text-gray-500">
+                                    {catViewMode==="sold" ? c.quantity : <>{c.itemCount}<span className="text-gray-400"> ({c.soldCount} sold)</span></>}
+                                  </td>
                                   <td className="px-3 py-3 text-right text-blue-600 dark:text-blue-400">{fLBP(c.revenue)}</td>
                                   <td className={`px-3 py-3 text-right font-semibold ${c.profit>=0?"text-green-600 dark:text-green-400":"text-red-500"}`}>{fLBP(c.profit)}</td>
                                   <td className="px-3 py-3 text-right">
@@ -739,7 +955,31 @@ export default function Reports() {
 
                     {/* ── Product profitability (per item) ── */}
                     <div className={`${CARD} overflow-hidden`}>
-                      <div className="px-5 py-4 border-b border-gray-100 dark:border-white/5 font-semibold text-sm">Profit margin per product</div>
+                      <div className="px-5 py-4 border-b border-gray-100 dark:border-white/5 flex flex-wrap items-center justify-between gap-3">
+                        <span className="font-semibold text-sm">
+                          Profit margin per product {prodViewMode==="sold" ? "— sold" : "— sold & not sold"}
+                        </span>
+                        <div className="flex gap-1.5 bg-gray-100 dark:bg-[#1c1c1c] rounded-xl p-1">
+                          {[["sold","Sold Products"],["all","All Products"]].map(([id,label])=>(
+                            <button key={id} onClick={()=>setProdViewMode(id)}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${prodViewMode===id?"bg-purple-600 text-white":"text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"}`}>
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="px-5 py-3 flex flex-wrap items-center gap-2 border-b border-gray-100 dark:border-white/5">
+                        <div className="relative">
+                          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400"/>
+                          <input value={prodSearch} onChange={e=>setProdSearch(e.target.value)} placeholder="Search product…"
+                            className="pl-7 pr-2.5 py-1.5 rounded-xl text-xs border bg-white dark:bg-[#141414] border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 focus:outline-none focus:border-purple-500 w-40"/>
+                        </div>
+                        <select value={prodMarginFilter} onChange={e=>setProdMarginFilter(e.target.value)}
+                          className="px-2 py-1.5 rounded-xl text-xs font-semibold border bg-white dark:bg-[#141414] border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-300 focus:outline-none focus:border-purple-500">
+                          {MARGIN_FILTERS.map(([id,label])=><option key={id} value={id}>{label}</option>)}
+                        </select>
+                        {prodViewMode==="all" && <span className="text-xs text-gray-400 ml-auto">Margin shown as potential (price − cost) for items never sold</span>}
+                      </div>
                       <div className="overflow-x-auto">
                         <table className="w-full text-sm">
                           <thead className="bg-gray-50 dark:bg-[#1c1c1c] text-xs text-gray-400"><tr>
@@ -750,9 +990,14 @@ export default function Reports() {
                             <th className="px-3 py-3 text-right">Margin</th>
                           </tr></thead>
                           <tbody className="divide-y divide-gray-50 dark:divide-white/5">
-                            {plData.productBreakdown.map(p=>(
+                            {filteredProductRows.length===0 ? (
+                              <tr><td colSpan={5} className="px-5 py-6 text-center text-gray-400 text-xs">No products match these filters</td></tr>
+                            ) : filteredProductRows.map(p=>(
                               <tr key={p.name} className="hover:bg-gray-50 dark:hover:bg-white/5">
-                                <td className="px-5 py-3 font-medium truncate max-w-[160px]">{p.name}</td>
+                                <td className="px-5 py-3 font-medium truncate max-w-[160px]">
+                                  {p.name}
+                                  {prodViewMode==="all" && !p.sold && <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-gray-100 dark:bg-gray-800 text-gray-400">not sold</span>}
+                                </td>
                                 <td className="px-3 py-3 text-center text-gray-500">{p.quantity}</td>
                                 <td className="px-3 py-3 text-right text-blue-600 dark:text-blue-400">{fLBP(p.revenue)}</td>
                                 <td className={`px-3 py-3 text-right font-semibold ${p.profit>=0?"text-green-600 dark:text-green-400":"text-red-500"}`}>{fLBP(p.profit)}</td>
@@ -863,16 +1108,36 @@ export default function Reports() {
           if (txDateTo)   txSales = txSales.filter(s=>new Date(s.createdAt) <= new Date(txDateTo + "T23:59:59"));
           if (txMinAmount) txSales = txSales.filter(s=>parseFloat(toLBPNice(rawTotal(s))) >= parseFloat(txMinAmount));
           if (txMaxAmount) txSales = txSales.filter(s=>parseFloat(toLBPNice(rawTotal(s))) <= parseFloat(txMaxAmount));
+
+          // Pay Later sales (Hold Sale tabs) shown for visibility only — never
+          // included in txTotal, since they aren't confirmed/settled Sale revenue.
+          let payLaterRows = [];
+          if (saleTypeFilter==="all" && txStatusFilter==="all" && (txMethodFilter==="all"||txMethodFilter==="paylater")) {
+            payLaterRows = holdSales.map(h => ({
+              _id: `hold_${h._id}`, __payLater: true, holdStatus: h.status||"open",
+              createdAt: h.createdAt, customerName: h.customerName, items: h.items||[],
+              paymentMethod: "paylater", saleType: "in_store", totalRefunded: 0, __rawTotal: h.total||0,
+            }));
+            if (txSearch.trim()) payLaterRows = payLaterRows.filter(s=>
+              (s.customerName||"").toLowerCase().includes(txSearch.toLowerCase()) ||
+              (s.items||[]).some(i=>i.name.toLowerCase().includes(txSearch.toLowerCase()))
+            );
+            if (txDateFrom) payLaterRows = payLaterRows.filter(s=>new Date(s.createdAt) >= new Date(txDateFrom));
+            if (txDateTo)   payLaterRows = payLaterRows.filter(s=>new Date(s.createdAt) <= new Date(txDateTo + "T23:59:59"));
+            if (txMinAmount) payLaterRows = payLaterRows.filter(s=>parseFloat(toLBPNice(s.__rawTotal)) >= parseFloat(txMinAmount));
+            if (txMaxAmount) payLaterRows = payLaterRows.filter(s=>parseFloat(toLBPNice(s.__rawTotal)) <= parseFloat(txMaxAmount));
+          }
+          const txTotal = txSales.reduce((s,x)=>s+rawTotal(x),0);
+          txSales = [...txSales, ...payLaterRows];
           // Sort
           txSales = [...txSales].sort((a,b)=>{
             let va, vb;
-            if (txSortBy==="amount")   { va=rawTotal(a);              vb=rawTotal(b); }
+            if (txSortBy==="amount")   { va=a.__payLater?a.__rawTotal:rawTotal(a); vb=b.__payLater?b.__rawTotal:rawTotal(b); }
             else if (txSortBy==="customer") { va=(a.customerName||"").toLowerCase(); vb=(b.customerName||"").toLowerCase(); }
             else                       { va=new Date(a.createdAt);    vb=new Date(b.createdAt); }
             const cmp = typeof va==="string" ? va.localeCompare(vb) : va-vb;
             return txSortDir==="asc" ? cmp : -cmp;
           });
-          const txTotal   = txSales.reduce((s,x)=>s+rawTotal(x),0);
           const totalPages = Math.max(1, Math.ceil(txSales.length / TX_PAGE_SIZE));
           const safePage   = Math.min(txPage, totalPages);
           const txPageSales = txSales.slice((safePage-1)*TX_PAGE_SIZE, safePage*TX_PAGE_SIZE);
@@ -969,18 +1234,28 @@ export default function Reports() {
                       </tr></thead>
                       <tbody className="divide-y divide-gray-50 dark:divide-white/5">
                         {txPageSales.map(sale=>(
-                          <tr key={sale._id} className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+                          <tr key={sale._id} className={`hover:bg-gray-50 dark:hover:bg-white/5 transition-colors ${sale.__payLater?"bg-fuchsia-50/40 dark:bg-fuchsia-900/10":""}`}>
                             <td className="px-5 py-3 text-gray-500 dark:text-gray-400 whitespace-nowrap text-xs">{fmtDate(sale.createdAt)}</td>
                             <td className="px-4 py-3">
                               <div className="flex flex-wrap gap-1">
+                                {sale.__payLater && <span className="text-xs font-semibold text-fuchsia-600 dark:text-fuchsia-400">{sale.customerName||"—"}:</span>}
                                 {(sale.items||[]).map((item,i)=>(
                                   <span key={i} className="text-xs bg-gray-100 dark:bg-[#252525] px-2 py-0.5 rounded-full whitespace-nowrap">{item.name} ×{item.quantity}</span>
                                 ))}
                               </div>
                             </td>
                             <td className="px-4 py-3 text-right font-semibold">
-                              <div className="text-green-600 dark:text-green-400">{fLBP(rawTotal(sale))}</div>
-                              {(sale.totalRefunded||0)>0&&<div className="text-xs text-red-500">−{fLBP(sale.totalRefunded)}</div>}
+                              {sale.__payLater ? (
+                                <>
+                                  <div className="text-fuchsia-600 dark:text-fuchsia-400">{fLBP(sale.__rawTotal)}</div>
+                                  <div className="text-[10px] text-gray-400">not in total</div>
+                                </>
+                              ) : (
+                                <>
+                                  <div className="text-green-600 dark:text-green-400">{fLBP(rawTotal(sale))}</div>
+                                  {(sale.totalRefunded||0)>0&&<div className="text-xs text-red-500">−{fLBP(sale.totalRefunded)}</div>}
+                                </>
+                              )}
                             </td>
                             <td className="px-4 py-3 text-center">
                               <span className={`px-2.5 py-1 rounded-full text-xs font-medium capitalize ${METHOD_COLOR[sale.paymentMethod]||"bg-gray-100 text-gray-600"}`}>
@@ -988,25 +1263,32 @@ export default function Reports() {
                               </span>
                             </td>
                             <td className="px-4 py-3 text-center">
-                              {sale.saleType==="delivery"
+                              {sale.__payLater
+                                ? <span className="text-xs px-2 py-0.5 rounded-full bg-fuchsia-100 dark:bg-fuchsia-900/30 text-fuchsia-700 dark:text-fuchsia-300 font-medium">🧾 Pay Later Tab</span>
+                              : sale.saleType==="delivery"
                                 ? <span className="text-xs px-2 py-0.5 rounded-full bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 font-medium">🚚 Delivery</span>
                                 : <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 font-medium">In-Store</span>
                               }
                             </td>
                             <td className="px-4 py-3 text-center">
-                              <span className={`text-xs px-2 py-1 rounded-full font-medium ${statusBadge(sale.status)}`}>{sale.status?.replace("_"," ")}</span>
+                              {sale.__payLater
+                                ? <span className={`text-xs px-2 py-1 rounded-full font-medium ${sale.holdStatus==="paid"?"bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300":"bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300"}`}>{sale.holdStatus==="paid"?"paid off":"open"}</span>
+                                : <span className={`text-xs px-2 py-1 rounded-full font-medium ${statusBadge(sale.status)}`}>{sale.status?.replace("_"," ")}</span>
+                              }
                             </td>
                             <td className="px-4 py-3 text-center">
-                              <div className="flex items-center justify-center gap-1.5">
-                                {sale.status!=="fully_returned"&&(
-                                  <button onClick={()=>setReturnSale(sale)} title="Return"
-                                    className="p-1.5 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-600 hover:bg-blue-100 transition"><RotateCcw size={12}/></button>
-                                )}
-                                {sale.status==="completed"&&(
-                                  <button onClick={()=>setVoidModal(sale)} title="Void"
-                                    className="p-1.5 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-500 hover:bg-red-100 transition"><AlertCircle size={12}/></button>
-                                )}
-                              </div>
+                              {!sale.__payLater && (
+                                <div className="flex items-center justify-center gap-1.5">
+                                  {sale.status!=="fully_returned"&&(
+                                    <button onClick={()=>setReturnSale(sale)} title="Return"
+                                      className="p-1.5 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-600 hover:bg-blue-100 transition"><RotateCcw size={12}/></button>
+                                  )}
+                                  {sale.status==="completed"&&(
+                                    <button onClick={()=>setVoidModal(sale)} title="Void"
+                                      className="p-1.5 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-500 hover:bg-red-100 transition"><AlertCircle size={12}/></button>
+                                  )}
+                                </div>
+                              )}
                             </td>
                           </tr>
                         ))}
@@ -1130,9 +1412,9 @@ export default function Reports() {
             <div className={`${CARD} p-5`}>
               <h3 className="font-semibold text-sm mb-1 flex items-center gap-2"><AlertCircle size={14} className="text-red-500"/>{t.openAccounts}</h3>
               <p className="text-xs text-gray-400 mb-4">{t.openAccountsDesc}</p>
-              {holdSales.length===0?<Empty msg={t.noOpenAccounts}/>:(
+              {openHoldSales.length===0?<Empty msg={t.noOpenAccounts}/>:(
                 <div className="space-y-3">
-                  {holdSales.map(h=>(
+                  {openHoldSales.map(h=>(
                     <div key={h._id} className="flex items-center justify-between p-3 rounded-xl bg-gray-50 dark:bg-[#1c1c1c] border border-gray-100 dark:border-white/5">
                       <div>
                         <p className="font-semibold text-sm">{h.customerName}</p>
@@ -1185,124 +1467,136 @@ export default function Reports() {
                   <p className="font-semibold text-green-700 dark:text-green-400">{t.noAlerts}</p>
                 </div>
               ):(
-                <div className="grid grid-cols-2 gap-4">
-                  <div className={`${CARD} p-4 bg-amber-50 dark:bg-amber-900/15`}>
-                    <div className="flex items-center gap-2 mb-1"><Package size={16} className="text-amber-600"/><p className="text-xs text-gray-500">{t.lowStockAlerts}</p></div>
-                    <p className="text-3xl font-bold text-amber-600">{alerts.lowStock.length}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">{t.lowStockDesc}</p>
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <button onClick={()=>{setAlertsView("lowstock");setAlertCategoryFilter("all");setAlertSearch("");}}
+                      className={`${CARD} p-4 bg-amber-50 dark:bg-amber-900/15 text-left transition ring-2 ${alertsView==="lowstock"?"ring-amber-500":"ring-transparent"}`}>
+                      <div className="flex items-center gap-2 mb-1"><Package size={16} className="text-amber-600"/><p className="text-xs text-gray-500">{t.lowStockAlerts}</p></div>
+                      <p className="text-3xl font-bold text-amber-600">{alerts.lowStock.length}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">{t.lowStockDesc}</p>
+                    </button>
+                    <button onClick={()=>{setAlertsView("expiry");setAlertCategoryFilter("all");setAlertSearch("");}}
+                      className={`${CARD} p-4 bg-red-50 dark:bg-red-900/15 text-left transition ring-2 ${alertsView==="expiry"?"ring-red-500":"ring-transparent"}`}>
+                      <div className="flex items-center gap-2 mb-1"><AlertTriangle size={16} className="text-red-600"/><p className="text-xs text-gray-500">{t.expiryAlerts}</p></div>
+                      <p className="text-3xl font-bold text-red-600">{alerts.expiring.length}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">{t.expiryDesc}</p>
+                    </button>
                   </div>
-                  <div className={`${CARD} p-4 bg-red-50 dark:bg-red-900/15`}>
-                    <div className="flex items-center gap-2 mb-1"><AlertTriangle size={16} className="text-red-600"/><p className="text-xs text-gray-500">{t.expiryAlerts}</p></div>
-                    <p className="text-3xl font-bold text-red-600">{alerts.expiring.length}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">{t.expiryDesc}</p>
-                  </div>
-                </div>
-              )}
-              {alerts.lowStock.length>0&&(
-                <div className={`${CARD} overflow-hidden`}>
-                  <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-white/5">
-                    <div className="flex items-center gap-2">
-                      <Package size={16} className="text-amber-500"/>
-                      <h3 className="font-semibold text-sm">{t.lowStockAlerts}</h3>
-                      <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300">{alerts.lowStock.length}</span>
+
+                  {alertsView==="lowstock" ? (
+                    <div className={`${CARD} overflow-hidden`}>
+                      <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-white/5">
+                        <div className="flex items-center gap-2">
+                          <Package size={16} className="text-amber-500"/>
+                          <h3 className="font-semibold text-sm">{t.lowStockAlerts}</h3>
+                          <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300">{filteredLowStock.length}</span>
+                        </div>
+                      </div>
+                      <div className="px-5 py-3 flex flex-wrap items-center gap-2 border-b border-gray-100 dark:border-white/5">
+                        <div className="relative">
+                          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400"/>
+                          <input value={alertSearch} onChange={e=>setAlertSearch(e.target.value)} placeholder="Search product…"
+                            className="pl-7 pr-2.5 py-1.5 rounded-xl text-xs border bg-white dark:bg-[#141414] border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 focus:outline-none focus:border-purple-500 w-40"/>
+                        </div>
+                        <select value={alertCategoryFilter} onChange={e=>setAlertCategoryFilter(e.target.value)}
+                          className="px-2 py-1.5 rounded-xl text-xs font-semibold border bg-white dark:bg-[#141414] border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-300 focus:outline-none focus:border-purple-500">
+                          <option value="all">All Categories</option>
+                          {alertCategories.map(c=><option key={c} value={c}>{c}</option>)}
+                        </select>
+                        <select value={lowStockStatusFilter} onChange={e=>setLowStockStatusFilter(e.target.value)}
+                          className="px-2 py-1.5 rounded-xl text-xs font-semibold border bg-white dark:bg-[#141414] border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-300 focus:outline-none focus:border-purple-500">
+                          <option value="all">All Statuses</option>
+                          <option value="out">Out of Stock</option>
+                          <option value="critical">Critical</option>
+                          <option value="warning">Warning</option>
+                        </select>
+                      </div>
+                      <table className="w-full text-sm">
+                        <thead className="bg-gray-50 dark:bg-[#1c1c1c] text-xs text-gray-400"><tr>
+                          <th className="px-5 py-3 text-left">Product</th><th className="px-4 py-3 text-left">{t.category}</th>
+                          <th className="px-4 py-3 text-center">{t.stockLevel}</th><th className="px-4 py-3 text-right">{t.price||"Price"}</th><th className="px-4 py-3 text-center">Status</th>
+                        </tr></thead>
+                        <tbody className="divide-y divide-gray-50 dark:divide-white/5">
+                          {filteredLowStock.length===0 ? (
+                            <tr><td colSpan={5} className="px-5 py-6 text-center text-gray-400 text-xs">No products match these filters</td></tr>
+                          ) : filteredLowStock.map(p=>{
+                            const{label,cls}=stockBadge(p.stock);
+                            return(
+                              <tr key={p._id} className={p.stock===0?"bg-red-50/50 dark:bg-red-900/10":"hover:bg-gray-50 dark:hover:bg-white/5"}>
+                                <td className="px-5 py-3 font-medium">{p.name}</td>
+                                <td className="px-4 py-3 text-gray-500">{p.category||"—"}</td>
+                                <td className="px-4 py-3 text-center"><span className={`text-lg font-bold ${p.stock===0?"text-red-600":"text-amber-600"}`}>{p.stock}</span><span className="text-xs text-gray-400 block">{t.unitsLeft}</span></td>
+                                <td className="px-4 py-3 text-right font-semibold text-green-600 dark:text-green-400">${p.price?.toFixed(2)}</td>
+                                <td className="px-4 py-3 text-center"><span className={`px-2 py-1 rounded-full text-[10px] font-bold ${cls}`}>{label}</span></td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
                     </div>
-                  </div>
-                  <table className="w-full text-sm">
-                    <thead className="bg-gray-50 dark:bg-[#1c1c1c] text-xs text-gray-400"><tr>
-                      <th className="px-5 py-3 text-left">Product</th><th className="px-4 py-3 text-left">{t.category}</th>
-                      <th className="px-4 py-3 text-center">{t.stockLevel}</th><th className="px-4 py-3 text-right">{t.price||"Price"}</th><th className="px-4 py-3 text-center">Status</th>
-                    </tr></thead>
-                    <tbody className="divide-y divide-gray-50 dark:divide-white/5">
-                      {alerts.lowStock.map(p=>{
-                        const{label,cls}=stockBadge(p.stock);
-                        return(
-                          <tr key={p._id} className={p.stock===0?"bg-red-50/50 dark:bg-red-900/10":"hover:bg-gray-50 dark:hover:bg-white/5"}>
-                            <td className="px-5 py-3 font-medium">{p.name}</td>
-                            <td className="px-4 py-3 text-gray-500">{p.category||"—"}</td>
-                            <td className="px-4 py-3 text-center"><span className={`text-lg font-bold ${p.stock===0?"text-red-600":"text-amber-600"}`}>{p.stock}</span><span className="text-xs text-gray-400 block">{t.unitsLeft}</span></td>
-                            <td className="px-4 py-3 text-right font-semibold text-green-600 dark:text-green-400">${p.price?.toFixed(2)}</td>
-                            <td className="px-4 py-3 text-center"><span className={`px-2 py-1 rounded-full text-[10px] font-bold ${cls}`}>{label}</span></td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-              {alerts.expiring.length>0&&(
-                <div className={`${CARD} overflow-hidden`}>
-                  <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-white/5">
-                    <div className="flex items-center gap-2">
-                      <AlertTriangle size={16} className="text-red-500"/>
-                      <h3 className="font-semibold text-sm">{t.expiryAlerts}</h3>
-                      <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300">{alerts.expiring.length}</span>
+                  ) : (
+                    <div className={`${CARD} overflow-hidden`}>
+                      <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-white/5">
+                        <div className="flex items-center gap-2">
+                          <AlertTriangle size={16} className="text-red-500"/>
+                          <h3 className="font-semibold text-sm">{t.allExpiryTitle}</h3>
+                          <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300">{filteredExpiry.length}</span>
+                        </div>
+                      </div>
+                      <p className="px-5 pt-3 text-xs text-gray-400">{t.allExpiryDesc}</p>
+                      <div className="px-5 py-3 flex flex-wrap items-center gap-2">
+                        <div className="relative">
+                          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400"/>
+                          <input value={alertSearch} onChange={e=>setAlertSearch(e.target.value)} placeholder="Search product…"
+                            className="pl-7 pr-2.5 py-1.5 rounded-xl text-xs border bg-white dark:bg-[#141414] border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 focus:outline-none focus:border-purple-500 w-40"/>
+                        </div>
+                        <select value={alertCategoryFilter} onChange={e=>setAlertCategoryFilter(e.target.value)}
+                          className="px-2 py-1.5 rounded-xl text-xs font-semibold border bg-white dark:bg-[#141414] border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-300 focus:outline-none focus:border-purple-500">
+                          <option value="all">All Categories</option>
+                          {alertCategories.map(c=><option key={c} value={c}>{c}</option>)}
+                        </select>
+                        <select value={expiryStatusFilter} onChange={e=>setExpiryStatusFilter(e.target.value)}
+                          className="px-2 py-1.5 rounded-xl text-xs font-semibold border bg-white dark:bg-[#141414] border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-300 focus:outline-none focus:border-purple-500">
+                          <option value="all">All Statuses</option>
+                          <option value="expired">Expired</option>
+                          <option value="critical">Critical</option>
+                          <option value="warning">Warning</option>
+                          <option value="soon">Expiring Soon</option>
+                          <option value="ok">OK</option>
+                        </select>
+                      </div>
+                      {filteredExpiry.length===0?(
+                        <div className="p-8 text-center text-sm text-gray-400">{t.noExpiryProducts}</div>
+                      ):(
+                        <table className="w-full text-sm">
+                          <thead className="bg-gray-50 dark:bg-[#1c1c1c] text-xs text-gray-400"><tr>
+                            <th className="px-5 py-3 text-left">Product</th><th className="px-4 py-3 text-left">{t.category}</th>
+                            <th className="px-4 py-3 text-center">{t.stockLevel}</th><th className="px-4 py-3 text-center">{t.expiryDate}</th>
+                            <th className="px-4 py-3 text-center">{t.daysLeft}</th><th className="px-4 py-3 text-center">Status</th>
+                          </tr></thead>
+                          <tbody className="divide-y divide-gray-50 dark:divide-white/5">
+                            {filteredExpiry.map(p=>{
+                              const{label,cls}=fullExpiryBadge(p);
+                              return(
+                                <tr key={p._id} className={p.expired?"bg-red-50/60 dark:bg-red-900/15":p.withinAlert&&p.daysLeft<=7?"bg-orange-50/40 dark:bg-orange-900/10":""}>
+                                  <td className="px-5 py-3 font-medium">{p.name}</td>
+                                  <td className="px-4 py-3 text-gray-500">{p.category||"—"}</td>
+                                  <td className="px-4 py-3 text-center"><span className="font-semibold">{p.stock}</span><span className="text-xs text-gray-400 block">{t.unitsLeft}</span></td>
+                                  <td className="px-4 py-3 text-center">
+                                    <span className={`font-semibold text-sm block ${p.expired?"text-red-600":p.withinAlert&&p.daysLeft<=7?"text-orange-500":"text-gray-700 dark:text-gray-300"}`}>{fmtD(p.expiryDate)}</span>
+                                  </td>
+                                  <td className="px-4 py-3 text-center text-gray-500">{p.expired?`-${Math.abs(p.daysLeft)}`:p.daysLeft}</td>
+                                  <td className="px-4 py-3 text-center"><span className={`px-2 py-1 rounded-full text-[10px] font-bold ${cls}`}>{label}</span></td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      )}
                     </div>
-                  </div>
-                  <table className="w-full text-sm">
-                    <thead className="bg-gray-50 dark:bg-[#1c1c1c] text-xs text-gray-400"><tr>
-                      <th className="px-5 py-3 text-left">Product</th><th className="px-4 py-3 text-left">{t.category}</th>
-                      <th className="px-4 py-3 text-center">{t.stockLevel}</th><th className="px-4 py-3 text-center">{t.expiryDate}</th><th className="px-4 py-3 text-center">Status</th>
-                    </tr></thead>
-                    <tbody className="divide-y divide-gray-50 dark:divide-white/5">
-                      {alerts.expiring.map(p=>{
-                        const{label,cls}=expiryBadge(p.daysLeft);
-                        return(
-                          <tr key={p._id} className={p.expired?"bg-red-50/60 dark:bg-red-900/15":p.daysLeft<=7?"bg-orange-50/40 dark:bg-orange-900/10":""}>
-                            <td className="px-5 py-3 font-medium">{p.name}</td>
-                            <td className="px-4 py-3 text-gray-500">{p.category||"—"}</td>
-                            <td className="px-4 py-3 text-center"><span className="font-semibold">{p.stock}</span><span className="text-xs text-gray-400 block">{t.unitsLeft}</span></td>
-                            <td className="px-4 py-3 text-center">
-                              <span className={`font-semibold text-sm block ${p.expired?"text-red-600":p.daysLeft<=7?"text-orange-500":"text-gray-700 dark:text-gray-300"}`}>{fmtD(p.expiryDate)}</span>
-                              <span className={`text-xs ${p.expired?"text-red-500 font-semibold":"text-gray-400"}`}>
-                                {p.expired?`${Math.abs(p.daysLeft)} ${t.days} ago`:p.daysLeft===0?t.today_exp:p.daysLeft===1?t.tomorrow:`${t.expiresIn} ${p.daysLeft} ${t.days}`}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-center"><span className={`px-2 py-1 rounded-full text-[10px] font-bold ${cls}`}>{label}</span></td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                  )}
+                </>
               )}
-              <div className={`${CARD} overflow-hidden`}>
-                <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-white/5">
-                  <div className="flex items-center gap-2">
-                    <AlertTriangle size={16} className="text-gray-400"/>
-                    <h3 className="font-semibold text-sm">{t.allExpiryTitle}</h3>
-                    <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300">{alerts.allExpiring.length}</span>
-                  </div>
-                </div>
-                <p className="px-5 pt-3 text-xs text-gray-400">{t.allExpiryDesc}</p>
-                {alerts.allExpiring.length===0?(
-                  <div className="p-8 text-center text-sm text-gray-400">{t.noExpiryProducts}</div>
-                ):(
-                  <table className="w-full text-sm">
-                    <thead className="bg-gray-50 dark:bg-[#1c1c1c] text-xs text-gray-400"><tr>
-                      <th className="px-5 py-3 text-left">Product</th><th className="px-4 py-3 text-left">{t.category}</th>
-                      <th className="px-4 py-3 text-center">{t.stockLevel}</th><th className="px-4 py-3 text-center">{t.expiryDate}</th>
-                      <th className="px-4 py-3 text-center">{t.daysLeft}</th><th className="px-4 py-3 text-center">Status</th>
-                    </tr></thead>
-                    <tbody className="divide-y divide-gray-50 dark:divide-white/5">
-                      {alerts.allExpiring.map(p=>{
-                        const{label,cls}=fullExpiryBadge(p);
-                        return(
-                          <tr key={p._id} className={p.expired?"bg-red-50/60 dark:bg-red-900/15":p.withinAlert&&p.daysLeft<=7?"bg-orange-50/40 dark:bg-orange-900/10":""}>
-                            <td className="px-5 py-3 font-medium">{p.name}</td>
-                            <td className="px-4 py-3 text-gray-500">{p.category||"—"}</td>
-                            <td className="px-4 py-3 text-center"><span className="font-semibold">{p.stock}</span><span className="text-xs text-gray-400 block">{t.unitsLeft}</span></td>
-                            <td className="px-4 py-3 text-center">
-                              <span className={`font-semibold text-sm block ${p.expired?"text-red-600":p.withinAlert&&p.daysLeft<=7?"text-orange-500":"text-gray-700 dark:text-gray-300"}`}>{fmtD(p.expiryDate)}</span>
-                            </td>
-                            <td className="px-4 py-3 text-center text-gray-500">{p.expired?`-${Math.abs(p.daysLeft)}`:p.daysLeft}</td>
-                            <td className="px-4 py-3 text-center"><span className={`px-2 py-1 rounded-full text-[10px] font-bold ${cls}`}>{label}</span></td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                )}
-              </div>
             </div>
           );
         })()}
@@ -1370,6 +1664,51 @@ export default function Reports() {
                   {voidLoading?<><span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin"/>Voiding...</>:"Void Sale"}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {catPopup&&(
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={()=>setCatPopup(null)}>
+          <div className="w-full max-w-lg max-h-[80vh] bg-white dark:bg-[#141414] rounded-3xl shadow-2xl overflow-hidden flex flex-col" onClick={e=>e.stopPropagation()}>
+            <div className="px-6 py-4 border-b border-gray-100 dark:border-white/5 flex items-center justify-between gap-2 shrink-0">
+              <div>
+                <h2 className="font-bold flex items-center gap-2"><Package size={16} className="text-purple-500"/>{catPopup}</h2>
+                <p className="text-xs text-gray-400 mt-0.5">{catViewMode==="sold" ? "Sold items in this category" : "All items in this category"}</p>
+              </div>
+              <button onClick={()=>setCatPopup(null)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400">
+                <X size={18}/>
+              </button>
+            </div>
+            <div className="overflow-y-auto">
+              {popupItems.length===0 ? (
+                <div className="px-6 py-8 text-center text-gray-400 text-sm">No items found</div>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 dark:bg-[#1c1c1c] text-xs text-gray-400 sticky top-0"><tr>
+                    <th className="px-5 py-2.5 text-left">Product</th>
+                    <th className="px-3 py-2.5 text-center">{catViewMode==="sold"?"Sold":"Qty"}</th>
+                    <th className="px-3 py-2.5 text-right">Margin</th>
+                  </tr></thead>
+                  <tbody className="divide-y divide-gray-50 dark:divide-white/5">
+                    {popupItems.map(p=>(
+                      <tr key={p.name} className="hover:bg-gray-50 dark:hover:bg-white/5">
+                        <td className="px-5 py-2.5 font-medium truncate max-w-[200px]">
+                          {p.name}
+                          {catViewMode==="all" && !p.sold && <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-gray-100 dark:bg-gray-800 text-gray-400">not sold</span>}
+                        </td>
+                        <td className="px-3 py-2.5 text-center text-gray-500">{p.quantity}</td>
+                        <td className="px-3 py-2.5 text-right">
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${parseFloat(p.margin)>=20?"bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400":parseFloat(p.margin)>=10?"bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400":parseFloat(p.margin)>=0?"bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300":"bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400"}`}>
+                            {p.margin}%
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </div>
           </div>
         </div>

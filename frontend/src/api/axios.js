@@ -2,7 +2,12 @@ import { isOnline } from "../lib/connectivity";
 import axios from "axios";
 import { getCachedProducts, getCachedCategories, getCachedCustomers } from "../lib/offlineDB";
 
-const BASE_URL = import.meta.env.VITE_API_URL;
+// Falls back to same-origin /api if VITE_API_URL wasn't baked in at build time
+// (e.g. a build run without cross-env VITE_API_URL=... set) — without this,
+// axios silently uses a relative baseURL that strips the /api prefix, requests
+// 404 into the SPA's index.html fallback, and callers get an HTML string
+// instead of JSON where they expected an array.
+const BASE_URL = import.meta.env.VITE_API_URL || "/api";
 
 // 🔓 Public client (NO token) — used for login, get users
 export const authApi = axios.create({

@@ -2,6 +2,8 @@ import Store     from "../models/Store.js";
 import User      from "../models/User.js";
 import Sale      from "../models/Sale.js";
 import Product   from "../models/Product.js";
+import Batch     from "../models/Batch.js";
+import WarehouseStock from "../models/WarehouseStock.js";
 import AuditLog  from "../models/AuditLog.js";
 import Category  from "../models/Category.js";
 import CafeStaff from "../models/CafeStaff.js";
@@ -234,6 +236,10 @@ export const clearStoreUserSales = async (req, res) => {
 export const clearStoreUserProducts = async (req, res) => {
   try {
     const result = await Product.deleteMany({ storeId: req.params.id });
+    await Promise.all([
+      Batch.deleteMany({ storeId: req.params.id }),
+      WarehouseStock.deleteMany({ storeId: req.params.id }),
+    ]);
     res.json({ message: `Deleted ${result.deletedCount} products` });
   } catch (err) { res.status(500).json({ message: err.message }); }
 };
@@ -308,7 +314,7 @@ export const deleteStore = async (req, res) => {
   try {
     const store = await Store.findById(req.params.id);
     if (!store) return res.status(404).json({ message: "Store not found" });
-    await Promise.all([User.deleteMany({ storeId: store._id }), Sale.deleteMany({ storeId: store._id }), Product.deleteMany({ storeId: store._id }), Category.deleteMany({ storeId: store._id }), AuditLog.deleteMany({ storeId: store._id }), Store.findByIdAndDelete(store._id)]);
+    await Promise.all([User.deleteMany({ storeId: store._id }), Sale.deleteMany({ storeId: store._id }), Product.deleteMany({ storeId: store._id }), Batch.deleteMany({ storeId: store._id }), WarehouseStock.deleteMany({ storeId: store._id }), Category.deleteMany({ storeId: store._id }), AuditLog.deleteMany({ storeId: store._id }), Store.findByIdAndDelete(store._id)]);
     res.json({ message: "Store deleted" });
   } catch (err) { res.status(500).json({ message: err.message }); }
 };

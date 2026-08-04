@@ -29,6 +29,9 @@ const holdSaleSchema = new mongoose.Schema(
     total:   Number,
     paid:    { type: Number, default: 0 },
     balance: Number,
+    // "paid" accounts are kept (not deleted) so period reports can still
+    // count the credit that was issued, even after it's fully settled.
+    status:  { type: String, enum: ["open", "paid"], default: "open" },
 
     payments: [
       {

@@ -7,6 +7,18 @@ const fs   = require("fs");
 
 const IS_DEV = !app.isPackaged;
 
+// Mongo's stdout occasionally interleaves two log lines into one JSON.parse
+// call inside mongodb-memory-server, which throws outside any promise chain
+// we control — left unhandled, that crashes the whole app with no recovery.
+// Log it and keep running instead.
+process.on("uncaughtException", (err) => {
+  console.error("[main] uncaughtException:", err);
+  dialog.showErrorBox(
+    "Unexpected error",
+    `${err.message}\n\nThe app hit an internal error but is staying open. If something looks broken, restart the app.`
+  );
+});
+
 // ── Auto-updater (packaged builds only) ─────────────────────────────────────
 let autoUpdater = null;
 if (!IS_DEV) {

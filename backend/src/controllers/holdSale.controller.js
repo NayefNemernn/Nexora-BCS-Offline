@@ -1,8 +1,25 @@
 import HoldSale from "../models/HoldSale.js";
-import Product from "../models/Product.js";
-import Payment from "../models/Payment.js";
+import Product  from "../models/Product.js";
+import Payment  from "../models/Payment.js";
+import Batch    from "../models/Batch.js";
+import StockLog from "../models/StockLog.js";
+import AuditLog from "../models/AuditLog.js";
 
 const storeQ = (req) => ({ storeId: req.storeId });
+
+async function audit(req, action, description, meta = {}) {
+  try { await AuditLog.create({ storeId: req.storeId, userId: req.user._id, username: req.user.username, action, description, meta }); } catch {}
+}
+async function logStock(req, product, change, type, reason = "", reference = "") {
+  try {
+    await StockLog.create({
+      storeId: req.storeId, productId: product._id, userId: req.user._id,
+      productName: product.name, type,
+      quantityBefore: product.stock, change, quantityAfter: product.stock + change,
+      reason, reference,
+    });
+  } catch {}
+}
 
 export const createHoldSale = async (req, res) => {
   try {
@@ -10,11 +27,39 @@ export const createHoldSale = async (req, res) => {
     const storeId = req.storeId;
     const userId  = req.user._id;
 
+    // Same FIFO batch deduction + weighted-average cost capture as a normal
+    // sale, so a pay-later item carries a real cost basis (needed to restock
+    // and account for it correctly if it's ever returned).
+    const saleItems = [];
     for (const item of items) {
       const product = await Product.findOne({ _id: item.productId, storeId });
       if (!product) return res.status(404).json({ message: "Product not found" });
       if (product.stock < item.quantity) return res.status(400).json({ message: `${product.name} insufficient stock` });
+
+      const stockBefore = product.stock;
+
+      const batchesWithExpiry = await Batch.find({ productId: product._id, storeId, remainingQty: { $gt: 0 }, expiryDate: { $ne: null } }).sort({ expiryDate: 1 });
+      const batchesNoExpiry   = await Batch.find({ productId: product._id, storeId, remainingQty: { $gt: 0 }, expiryDate: null }).sort({ createdAt: 1 });
+      const activeBatches = [...batchesWithExpiry, ...batchesNoExpiry];
+
+      let itemCost = product.cost || 0;
+      if (activeBatches.length > 0) {
+        let costNumerator = 0, costDenominator = 0, remaining = item.quantity;
+        for (const batch of activeBatches) {
+          if (remaining <= 0) break;
+          const deduct = Math.min(batch.remainingQty, remaining);
+          await Batch.findByIdAndUpdate(batch._id, { $inc: { remainingQty: -deduct } });
+          costNumerator   += deduct * (batch.costPrice || 0);
+          costDenominator += deduct;
+          remaining -= deduct;
+        }
+        if (costDenominator > 0) itemCost = +(costNumerator / costDenominator).toFixed(4);
+      }
+
+      saleItems.push({ productId: item.productId, name: item.name, price: item.price, cost: itemCost, quantity: item.quantity });
+
       await Product.findByIdAndUpdate(item.productId, { $inc: { stock: -item.quantity } });
+      await logStock(req, { ...product.toObject(), stock: stockBefore }, -item.quantity, "sale", "", "");
     }
 
     // Only reuse an account that's still open — a fully-paid account stays
@@ -22,14 +67,14 @@ export const createHoldSale = async (req, res) => {
     // (keeps its own createdAt for accurate period reporting).
     let sale = await HoldSale.findOne({ customerName, storeId, status: { $ne: "paid" } });
     if (sale) {
-      sale.items.push(...items);
+      sale.items.push(...saleItems);
       sale.total   += total;
       sale.balance += total;
       await sale.save();
       return res.json(sale);
     }
 
-    sale = await HoldSale.create({ storeId, userId, customerName, phone, items, total, paid: 0, balance: total });
+    sale = await HoldSale.create({ storeId, userId, customerName, phone, items: saleItems, total, paid: 0, balance: total });
     res.status(201).json(sale);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -38,8 +83,91 @@ export const createHoldSale = async (req, res) => {
 
 export const getHoldSales = async (req, res) => {
   try {
-    const sales = await HoldSale.find(storeQ(req)).sort({ createdAt: -1 });
+    const { productId, search, limit } = req.query;
+    const filter = storeQ(req);
+    if (productId) filter["items.productId"] = productId;
+    // productId/search power the Pay Later return-search (QuickReturn) —
+    // exclude split-sale shadow records there, since those items are
+    // already returned through the Sale itself (returnSaleItems/voidSale);
+    // surfacing them here too would let the same stock be restocked twice.
+    if (productId || search) filter.source = { $ne: "split" };
+
+    let query = HoldSale.find(filter).sort({ createdAt: -1 });
+    if (limit) query = query.limit(Number(limit));
+    let sales = await query;
+
+    if (search) {
+      const q = search.toLowerCase().trim();
+      sales = sales.filter(s =>
+        (s.customerName || "").toLowerCase().includes(q) ||
+        s._id.toString().slice(-6).toLowerCase() === q ||
+        s._id.toString().toLowerCase().includes(q) ||
+        (s.items || []).some(i => i.name?.toLowerCase().includes(q))
+      );
+    }
+
     res.json(sales);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/* ── RETURN ITEMS FROM A PAY-LATER ACCOUNT ──────────────────────
+   Mirrors returnSaleItems in sale.controller.js: restock, log stock,
+   track returnedItems/totalRefunded — but reduces the account's owed
+   total/balance instead of refunding a completed payment. */
+export const returnHoldSaleItems = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { returnItems, reason = "" } = req.body;
+
+    const sale = await HoldSale.findOne({ _id: id, storeId: req.storeId });
+    if (!sale) return res.status(404).json({ message: "Pay Later account not found" });
+    if (sale.returnStatus === "full") return res.status(400).json({ message: "Already fully returned" });
+
+    let totalRefundThisReturn = 0;
+    const newReturnedItems = [];
+
+    for (const ri of returnItems) {
+      const saleItem = sale.items.find(i => i.productId.toString() === ri.productId);
+      if (!saleItem) return res.status(400).json({ message: "Item not in this account" });
+
+      const alreadyReturned = (sale.returnedItems || [])
+        .filter(r => r.productId.toString() === ri.productId)
+        .reduce((s, r) => s + r.quantity, 0);
+
+      const maxReturnable = saleItem.quantity - alreadyReturned;
+      if (ri.quantity > maxReturnable) return res.status(400).json({ message: `${saleItem.name}: max ${maxReturnable} returnable` });
+
+      const refundAmount = +(saleItem.price * ri.quantity).toFixed(6);
+      totalRefundThisReturn += refundAmount;
+      newReturnedItems.push({ productId: saleItem.productId, name: saleItem.name, quantity: ri.quantity, refundAmount, reason, returnedAt: new Date(), returnedBy: req.user._id });
+
+      const product = await Product.findById(saleItem.productId);
+      if (product) {
+        const stockBefore = product.stock;
+        await Product.findByIdAndUpdate(saleItem.productId, { $inc: { stock: ri.quantity } });
+        await logStock(req, { ...product.toObject(), stock: stockBefore }, +ri.quantity, "return", reason, sale._id.toString());
+      }
+    }
+
+    const newTotalReturned     = +((sale.totalRefunded || 0) + totalRefundThisReturn).toFixed(6);
+    const totalReturnableValue = sale.items.reduce((s, i) => s + i.price * i.quantity, 0);
+    const newReturnStatus      = newTotalReturned >= totalReturnableValue - 0.000001 ? "full" : "partial";
+
+    sale.returnedItems.push(...newReturnedItems);
+    sale.totalRefunded = newTotalReturned;
+    sale.returnStatus  = newReturnStatus;
+    // Returned goods reduce what the customer actually owes.
+    sale.total   = +Math.max(sale.total - totalRefundThisReturn, 0).toFixed(6);
+    sale.balance = +Math.max(sale.total - sale.paid, 0).toFixed(6);
+    if (sale.balance <= 0) sale.status = "paid";
+    await sale.save();
+
+    await audit(req, "paylater_returned", `Pay Later return $${totalRefundThisReturn.toFixed(2)} from #${sale._id} — ${reason || "no reason"}`,
+      { holdSaleId: sale._id, totalRefundThisReturn, reason });
+
+    res.json({ message: "Return processed", sale, refundAmount: totalRefundThisReturn });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

@@ -3,6 +3,7 @@ import { printHtml } from "../lib/printHtml";
 import React, { useState, useRef, useEffect } from "react";
 import api from "../api/axios";
 import { returnSale } from "../api/sale.api";
+import { returnHoldSale } from "../api/holdSale.api";
 import { useCurrency } from "../context/CurrencyContext";
 import toast from "react-hot-toast";
 import {
@@ -70,6 +71,11 @@ export default function QuickReturn({ onClose, storeName }) {
     setTimeout(() => inputRef.current?.focus(), 100);
   }, []);
 
+  // Pay Later accounts are a separate collection (HoldSale) from regular
+  // sales — tag each one so we know which return endpoint/status field to
+  // use once selected, and so it shows a "Pay Later" badge in the results.
+  const tagPayLater = (holds) => holds.map(h => ({ ...h, __isPayLater: true, paymentMethod: "paylater" }));
+
   /* ── Search sales ── */
   const handleSearch = async () => {
     if (!query.trim()) return;
@@ -77,8 +83,13 @@ export default function QuickReturn({ onClose, storeName }) {
     setLoading(true);
     try {
       // Try to find by sale ID suffix, customer name, or barcode/product name
-      const res = await api.get(`/sales?search=${encodeURIComponent(query.trim())}&limit=10`);
-      setResults(res.data?.sales || res.data || []);
+      const [salesRes, holdsRes] = await Promise.all([
+        api.get(`/sales?search=${encodeURIComponent(query.trim())}&limit=10`),
+        api.get(`/hold-sales?search=${encodeURIComponent(query.trim())}&limit=10`).catch(() => ({ data: [] })),
+      ]);
+      const sales = salesRes.data?.sales || salesRes.data || [];
+      const holds = tagPayLater(holdsRes.data || []);
+      setResults([...sales, ...holds]);
     } catch {
       toast.error("Search failed");
     } finally {
@@ -96,11 +107,16 @@ export default function QuickReturn({ onClose, storeName }) {
       const product = prodRes.data;
       if (!product) { toast.error("Product not found"); setLoading(false); return; }
 
-      // Find most recent sale containing this product
-      const res = await api.get(`/sales?productId=${product._id}&limit=10`);
-      const sales = res.data?.sales || res.data || [];
-      if (!sales.length) { toast.error("No recent sales found for this product"); setLoading(false); return; }
-      setResults(sales);
+      // Find most recent sale AND pay-later account containing this product
+      const [salesRes, holdsRes] = await Promise.all([
+        api.get(`/sales?productId=${product._id}&limit=10`),
+        api.get(`/hold-sales?productId=${product._id}&limit=10`).catch(() => ({ data: [] })),
+      ]);
+      const sales = salesRes.data?.sales || salesRes.data || [];
+      const holds = tagPayLater(holdsRes.data || []);
+      const combined = [...sales, ...holds];
+      if (!combined.length) { toast.error("No recent sales found for this product"); setLoading(false); return; }
+      setResults(combined);
     } catch {
       // Fallback to text search
       handleSearch();
@@ -153,7 +169,9 @@ export default function QuickReturn({ onClose, storeName }) {
     setLoading(true);
     try {
       const returnItems = items.filter(i => i.returnQty > 0).map(i => ({ productId: i.productId, quantity: i.returnQty }));
-      const res = await returnSale(sale._id, { returnItems, reason });
+      const res = sale.__isPayLater
+        ? await returnHoldSale(sale._id, { returnItems, reason })
+        : await returnSale(sale._id, { returnItems, reason });
       const refundItems = items.filter(i => i.returnQty > 0);
       setDone({ refundAmount: res.refundAmount, refundItems });
     } catch (err) {
@@ -224,7 +242,10 @@ export default function QuickReturn({ onClose, storeName }) {
                 <div className="space-y-2">
                   <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{results.length} sale(s) found</p>
                   {results.map(s => {
-                    const fullyReturned = s.status === "fully_returned";
+                    // Pay Later accounts track returns via returnStatus (their
+                    // `status` field means payment status — open/paid — instead).
+                    const fullyReturned = s.__isPayLater ? s.returnStatus === "full"    : s.status === "fully_returned";
+                    const partialReturn = s.__isPayLater ? s.returnStatus === "partial" : s.status === "partially_returned";
                     return (
                       <button key={s._id} onClick={() => !fullyReturned && selectSale(s)} disabled={fullyReturned}
                         className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border text-left transition ${
@@ -235,6 +256,7 @@ export default function QuickReturn({ onClose, storeName }) {
                         <div>
                           <p className="text-sm font-semibold text-gray-800 dark:text-white">
                             {s.customerName || "Walk-in"} · #{s._id?.toString().slice(-6)}
+                            {s.__isPayLater && <span className="ml-1.5 text-[10px] font-bold text-purple-500 align-middle">PAY LATER</span>}
                           </p>
                           <p className="text-xs text-gray-400 mt-0.5">
                             {new Date(s.createdAt).toLocaleString()} · {s.items?.length} items · {s.paymentMethod}
@@ -244,7 +266,7 @@ export default function QuickReturn({ onClose, storeName }) {
                           <p className="text-sm font-bold text-gray-800 dark:text-white">{formatUSD(s.total)}</p>
                           {fullyReturned
                             ? <span className="text-xs text-gray-400">Fully returned</span>
-                            : s.status === "partially_returned"
+                            : partialReturn
                             ? <span className="text-xs text-amber-500">Partial return</span>
                             : <span className="text-xs text-green-500">Returnable</span>}
                         </div>

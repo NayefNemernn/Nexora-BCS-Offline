@@ -6,6 +6,7 @@ export const getHoldSaleNames    = ()           => api.get("/hold-sales/names").
 export const deleteHoldSale      = (id)         => api.delete(`/hold-sales/${id}`).then(r => r.data);
 
 export const payHoldSale         = (id, data)   => api.post(`/hold-sales/${id}/pay`, data).then(r => r.data);
+export const returnHoldSale      = (id, data)   => api.post(`/hold-sales/${id}/return`, data).then(r => r.data);
 export const updateHoldCustomer  = (id, data)   => api.put(`/hold-sales/${id}/customer`, data).then(r => r.data);
 export const updateCreditLimit   = (id, data)   => api.patch(`/hold-sales/${id}/limit`, data).then(r => r.data);
 

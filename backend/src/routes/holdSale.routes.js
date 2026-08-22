@@ -4,6 +4,7 @@ import {
   payHoldSale, updateHoldCustomer, deleteHoldSale,
   getRecentPayments, paymentsThisMonth, getAllPayments,
   getCustomerPayments, getCustomerInvoices, updateCreditLimit,
+  returnHoldSaleItems,
 } from "../controllers/holdSale.controller.js";
 import { protect } from "../middleware/auth.middleware.js";
 
@@ -21,6 +22,7 @@ router.get("/",    getHoldSales);
 router.post("/",   createHoldSale);
 
 router.post("/:id/pay",     payHoldSale);
+router.post("/:id/return",  returnHoldSaleItems);
 router.put("/:id/customer", updateHoldCustomer);
 router.patch("/:id/limit",  updateCreditLimit);
 router.delete("/:id",       deleteHoldSale);

@@ -131,7 +131,7 @@ export const createSale = async (req, res) => {
       const payLaterEntry = (splitPayments || []).find(p => p.method === "paylater");
       if (payLaterEntry && payLaterEntry.amount > 0 && customerName) {
         const cashPaid  = +(total - payLaterEntry.amount).toFixed(2);
-        const holdItems = saleItems.map(i => ({ productId: i.productId, name: i.name, price: i.price, quantity: i.quantity }));
+        const holdItems = saleItems.map(i => ({ productId: i.productId, name: i.name, price: i.price, cost: i.cost, quantity: i.quantity }));
         const existing  = await HoldSale.findOne({ customerName, storeId });
         let holdSaleId;
         if (existing) {
@@ -142,10 +142,14 @@ export const createSale = async (req, res) => {
           await existing.save();
           holdSaleId = existing._id;
         } else {
+          // Marked "split" — this shadow record's items already belong to
+          // `sale` above and are returned through returnSaleItems/voidSale,
+          // so it's excluded from the Pay Later return-search (see
+          // getHoldSales) to avoid restocking the same items twice.
           const created = await HoldSale.create({
             storeId, userId: req.user._id,
             customerName, phone: phone || "",
-            items: holdItems,
+            items: holdItems, source: "split",
             total, paid: cashPaid, balance: payLaterEntry.amount,
           });
           holdSaleId = created._id;

@@ -1121,9 +1121,9 @@ export default function Reports() {
           let payLaterRows = [];
           if (saleTypeFilter==="all" && txStatusFilter==="all" && (txMethodFilter==="all"||txMethodFilter==="paylater")) {
             payLaterRows = holdSales.map(h => ({
-              _id: `hold_${h._id}`, __payLater: true, holdStatus: h.status||"open",
+              _id: `hold_${h._id}`, __payLater: true, holdStatus: h.status||"open", returnStatus: h.returnStatus||"none",
               createdAt: h.createdAt, customerName: h.customerName, items: h.items||[],
-              paymentMethod: "paylater", saleType: "in_store", totalRefunded: 0, __rawTotal: h.total||0,
+              paymentMethod: "paylater", saleType: "in_store", totalRefunded: h.totalRefunded||0, __rawTotal: h.total||0,
             }));
             if (txSearch.trim()) payLaterRows = payLaterRows.filter(s=>
               (s.customerName||"").toLowerCase().includes(txSearch.toLowerCase()) ||
@@ -1256,6 +1256,7 @@ export default function Reports() {
                                 <>
                                   <div className="text-fuchsia-600 dark:text-fuchsia-400">{fLBP(sale.__rawTotal)}</div>
                                   <div className="text-[10px] text-gray-400">not in total</div>
+                                  {(sale.totalRefunded||0)>0&&<div className="text-xs text-red-500">−{fLBP(sale.totalRefunded)}</div>}
                                 </>
                               ) : (
                                 <>
@@ -1279,7 +1280,11 @@ export default function Reports() {
                             </td>
                             <td className="px-4 py-3 text-center">
                               {sale.__payLater
-                                ? <span className={`text-xs px-2 py-1 rounded-full font-medium ${sale.holdStatus==="paid"?"bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300":"bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300"}`}>{sale.holdStatus==="paid"?"paid off":"open"}</span>
+                                ? sale.returnStatus === "full"
+                                  ? <span className={`text-xs px-2 py-1 rounded-full font-medium ${statusBadge("fully_returned")}`}>returned</span>
+                                  : sale.returnStatus === "partial"
+                                    ? <span className={`text-xs px-2 py-1 rounded-full font-medium ${statusBadge("partially_returned")}`}>partially returned</span>
+                                    : <span className={`text-xs px-2 py-1 rounded-full font-medium ${sale.holdStatus==="paid"?"bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300":"bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300"}`}>{sale.holdStatus==="paid"?"paid off":"open"}</span>
                                 : <span className={`text-xs px-2 py-1 rounded-full font-medium ${statusBadge(sale.status)}`}>{sale.status?.replace("_"," ")}</span>
                               }
                             </td>

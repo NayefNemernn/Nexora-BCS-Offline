@@ -2,7 +2,7 @@ import { isOnline } from "../lib/connectivity";
 import { printHtml } from "../lib/printHtml";
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { createSale } from "../api/sale.api";
-import { createHoldSale } from "../api/holdSale.api";
+import { createHoldSale, getHoldSaleNames } from "../api/holdSale.api";
 import { getCustomers, createCustomer } from "../api/customer.api";
 import { useTranslation } from "../hooks/useTranslation";
 import { useCurrency } from "../context/CurrencyContext";
@@ -183,6 +183,7 @@ export default function CheckoutModal({ cart, total, close, clearCart, deliveryO
   const [showCustomer, setShowCustomer]   = useState(false);
   const [customerSearch, setCustomerSearch] = useState("");
   const [customers, setCustomers]         = useState([]);
+  const [payLaterNames, setPayLaterNames] = useState([]); // existing Pay Later account names — suggested so a name isn't retyped slightly differently and fragmented into a second tab
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [showSuggestions, setShowSuggestions]   = useState(false);
   const [newPhone, setNewPhone]           = useState("");
@@ -230,15 +231,25 @@ export default function CheckoutModal({ cart, total, close, clearCart, deliveryO
     setSplitPayLater(remaining > 0 ? remaining.toString() : "");
   }, [splitCash, finalTotal, method]);
 
-  /* ── load customers ── */
+  /* ── load customers + existing Pay Later account names ── */
   useEffect(() => {
-    if (!showCustomer) return;
+    if (!showCustomer && method !== "paylater" && method !== "split") return;
     getCustomers().then(setCustomers).catch(() => {});
-  }, [showCustomer]);
+    getHoldSaleNames().then(setPayLaterNames).catch(() => {});
+  }, [showCustomer, method]);
 
   const filteredCustomers = customers.filter(c =>
     c.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
     c.phone?.includes(customerSearch)
+  );
+
+  // Open Pay Later accounts that aren't already backed by a Customer record —
+  // suggested separately so picking one reuses the exact existing name instead
+  // of accidentally starting a second, differently-spelled/cased tab for the
+  // same person.
+  const filteredPayLaterNames = payLaterNames.filter(name =>
+    name && name.toLowerCase().includes(customerSearch.toLowerCase()) &&
+    !customers.some(c => c.name.toLowerCase() === name.toLowerCase())
   );
 
   /* focus cash input */
@@ -278,7 +289,10 @@ export default function CheckoutModal({ cart, total, close, clearCart, deliveryO
           customerName: selectedCustomer?.name || customerSearch.trim() || "",
           phone:        selectedCustomer?.phone || newPhone || "",
           items: cart.map(i => ({ productId: i.productId, name: i.name, price: i.price, quantity: i.quantity })),
-          total: finalTotal,
+          // Full precision, not the 2-decimal-rounded finalTotal — at a large
+          // LBP exchange rate, rounding USD to cents before saving can throw
+          // the LBP total off by a visible amount (e.g. 170,000 → 170,100).
+          total: +finalTotalRaw.toFixed(6),
         };
         const { queueMutation } = await import("../lib/offlineDB");
         await queueMutation("create_hold_sale", "/api/hold-sales", "POST", offlinePayload);
@@ -300,7 +314,8 @@ export default function CheckoutModal({ cart, total, close, clearCart, deliveryO
           customerName: selectedCustomer?.name || customerSearch.trim(),
           phone: selectedCustomer?.phone || newPhone,
           items: cart.map(i => ({ productId: i.productId, name: i.name, price: i.price, quantity: i.quantity })),
-          total: finalTotal,
+          // Full precision — see comment on the offline payload above.
+          total: +finalTotalRaw.toFixed(6),
         });
         toast.success(t.payLaterSaved);
         clearCart(); close();
@@ -745,7 +760,18 @@ export default function CheckoutModal({ cart, total, close, clearCart, deliveryO
                         )}
                       </button>
                     ))}
-                    {filteredCustomers.length === 0 && customerSearch.length >= 2 && (
+                    {/* Existing Pay Later tabs with no separate Customer record —
+                        pick one to reuse the exact name instead of starting a
+                        second tab for the same person. */}
+                    {filteredPayLaterNames.map(name => (
+                      <button key={`pl_${name}`}
+                        onClick={() => { setSelectedCustomer(null); setCustomerSearch(name); setShowSuggestions(false); }}
+                        className="w-full text-left px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-[#2a2a2a] text-sm flex items-center justify-between gap-2">
+                        <span className="font-medium">{name}</span>
+                        <span className="text-[10px] font-bold text-purple-500 shrink-0">PAY LATER TAB</span>
+                      </button>
+                    ))}
+                    {filteredCustomers.length === 0 && filteredPayLaterNames.length === 0 && customerSearch.length >= 2 && (
                       <button
                         onClick={() => { setShowSuggestions(false); }}
                         className="w-full text-left px-4 py-2.5 text-sm text-blue-600 dark:text-blue-400 flex items-center gap-2 hover:bg-gray-50 dark:hover:bg-[#2a2a2a]">

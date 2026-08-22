@@ -26,22 +26,27 @@ export const getDashboardStats = async (req, res) => {
         ? { $month: "$createdAt" }
         : { $dayOfMonth: "$createdAt" };
 
+    // A fully returned/voided sale contributes nothing — mirrors P&L
+    // (getProfitLoss), which excludes status "fully_returned" from revenue,
+    // so Dashboard and Reports agree with it after a refund/void.
+    const notFullyReturned = { status: { $ne: "fully_returned" } };
+
     const [today, week, month, year, payLater, totalProducts, totalCustomers,
            lowStockProducts, recentSales, salesChart, topProducts] = await Promise.all([
       Sale.aggregate([
-        { $match: { storeId, createdAt: { $gte: todayStart } } },
+        { $match: { storeId, createdAt: { $gte: todayStart }, ...notFullyReturned } },
         { $group: { _id: null, sales: { $sum: "$total" }, count: { $sum: 1 } } },
       ]),
       Sale.aggregate([
-        { $match: { storeId, createdAt: { $gte: weekAgo } } },
+        { $match: { storeId, createdAt: { $gte: weekAgo }, ...notFullyReturned } },
         { $group: { _id: null, sales: { $sum: "$total" }, count: { $sum: 1 } } },
       ]),
       Sale.aggregate([
-        { $match: { storeId, createdAt: { $gte: monthStart } } },
+        { $match: { storeId, createdAt: { $gte: monthStart }, ...notFullyReturned } },
         { $group: { _id: null, sales: { $sum: "$total" }, count: { $sum: 1 } } },
       ]),
       Sale.aggregate([
-        { $match: { storeId, createdAt: { $gte: yearStart } } },
+        { $match: { storeId, createdAt: { $gte: yearStart }, ...notFullyReturned } },
         { $group: { _id: null, sales: { $sum: "$total" }, count: { $sum: 1 } } },
       ]),
       HoldSale.aggregate([
@@ -53,12 +58,12 @@ export const getDashboardStats = async (req, res) => {
       Product.find({ storeId, stock: { $lte: 5 } }).select("name stock").limit(5),
       Sale.find({ storeId }).sort({ createdAt: -1 }).limit(5).select("total customerName createdAt"),
       Sale.aggregate([
-        { $match: { storeId, createdAt: { $gte: periodStart } } },
+        { $match: { storeId, createdAt: { $gte: periodStart }, ...notFullyReturned } },
         { $group: { _id: chartGroup, sales: { $sum: "$total" } } },
         { $sort: { _id: 1 } },
       ]),
       Sale.aggregate([
-        { $match: { storeId, createdAt: { $gte: periodStart } } },
+        { $match: { storeId, createdAt: { $gte: periodStart }, ...notFullyReturned } },
         { $unwind: "$items" },
         { $group: { _id: "$items.productId", sold: { $sum: "$items.quantity" }, name: { $first: "$items.name" } } },
         { $sort: { sold: -1 } },

@@ -59,7 +59,8 @@ export default function CashierSalesHistory({ userId, onClose }) {
 
   useEffect(() => { load(); }, [load]);
 
-  const totalRevenue = sales.reduce((s, x) => s + (x.total || 0), 0);
+  // Mirrors P&L (getProfitLoss): a fully returned/voided sale contributes 0 revenue.
+  const totalRevenue = sales.filter(x => x.status !== "fully_returned").reduce((s, x) => s + (x.total || 0), 0);
   const totalItems   = sales.reduce((s, x) => s + (x.items?.reduce((a, i) => a + i.quantity, 0) || 0), 0);
 
   return (

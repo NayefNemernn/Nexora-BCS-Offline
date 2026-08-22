@@ -73,7 +73,7 @@ export default function MobileReports() {
       year:  new Date(new Date().getFullYear(), 0, 1),
     }[period];
 
-    sales.filter(s => new Date(s.createdAt) >= since && s.status !== "voided").forEach(s => {
+    sales.filter(s => new Date(s.createdAt) >= since && s.status !== "fully_returned").forEach(s => {
       const m = s.paymentMethod || "unknown";
       map[m] = map[m] || { total: 0, count: 0 };
       map[m].total += s.total;

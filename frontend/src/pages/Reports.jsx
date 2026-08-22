@@ -174,6 +174,13 @@ export default function Reports() {
     return sales.filter(s => new Date(s.createdAt) >= cutoff);
   }, [sales, period]);
 
+  // Revenue-bearing sales only — a fully returned/voided sale is excluded here
+  // exactly like P&L (getProfitLoss) excludes status "fully_returned", so every
+  // revenue figure on this page agrees with the P&L tab after a refund/void.
+  // `filteredSales` itself is kept unfiltered for transaction lists/exports,
+  // where a voided sale should still show up (with its status).
+  const revenueSales = useMemo(() => filteredSales.filter(s => s.status !== "fully_returned"), [filteredSales]);
+
   // Hold Sale ("Pay Later" tab) accounts that are still open — mirrors pre-history
   // behavior where paid-off tabs used to be deleted outright.
   const openHoldSales = useMemo(() => holdSales.filter(h => h.status !== "paid"), [holdSales]);
@@ -195,16 +202,16 @@ export default function Reports() {
   const payLaterIssued = useMemo(() => filteredHoldSales.reduce((s,h)=>s+(h.total||0), 0), [filteredHoldSales]);
 
   /* ── KPIs ── */
-  const totalRevenue       = useMemo(() => filteredSales.reduce((s,x) => s+x.total, 0), [filteredSales]);
-  const cashRevenue        = useMemo(() => filteredSales.filter(s=>s.paymentMethod==="cash").reduce((s,x)=>s+x.total,0), [filteredSales]);
-  const cardRevenue        = useMemo(() => filteredSales.filter(s=>s.paymentMethod==="card").reduce((s,x)=>s+x.total,0), [filteredSales]);
-  const payLaterTotal      = useMemo(() => filteredSales.filter(s=>s.paymentMethod==="paylater").reduce((s,x)=>s+x.total,0), [filteredSales]);
-  const splitTotal         = useMemo(() => filteredSales.filter(s=>s.paymentMethod==="split").reduce((s,x)=>s+x.total,0), [filteredSales]);
-  const bankTransferTotal  = useMemo(() => filteredSales.filter(s=>s.paymentMethod==="bank_transfer").reduce((s,x)=>s+x.total,0), [filteredSales]);
-  const codTotal           = useMemo(() => filteredSales.filter(s=>s.paymentMethod==="cash_on_delivery").reduce((s,x)=>s+x.total,0), [filteredSales]);
-  const inStoreTotal       = useMemo(() => filteredSales.filter(s=>!s.saleType||s.saleType==="in_store").reduce((s,x)=>s+x.total,0), [filteredSales]);
-  const deliveryTotal      = useMemo(() => filteredSales.filter(s=>s.saleType==="delivery").reduce((s,x)=>s+x.total,0), [filteredSales]);
-  const avgSale       = filteredSales.length ? totalRevenue/filteredSales.length : 0;
+  const totalRevenue       = useMemo(() => revenueSales.reduce((s,x) => s+x.total, 0), [revenueSales]);
+  const cashRevenue        = useMemo(() => revenueSales.filter(s=>s.paymentMethod==="cash").reduce((s,x)=>s+x.total,0), [revenueSales]);
+  const cardRevenue        = useMemo(() => revenueSales.filter(s=>s.paymentMethod==="card").reduce((s,x)=>s+x.total,0), [revenueSales]);
+  const payLaterTotal      = useMemo(() => revenueSales.filter(s=>s.paymentMethod==="paylater").reduce((s,x)=>s+x.total,0), [revenueSales]);
+  const splitTotal         = useMemo(() => revenueSales.filter(s=>s.paymentMethod==="split").reduce((s,x)=>s+x.total,0), [revenueSales]);
+  const bankTransferTotal  = useMemo(() => revenueSales.filter(s=>s.paymentMethod==="bank_transfer").reduce((s,x)=>s+x.total,0), [revenueSales]);
+  const codTotal           = useMemo(() => revenueSales.filter(s=>s.paymentMethod==="cash_on_delivery").reduce((s,x)=>s+x.total,0), [revenueSales]);
+  const inStoreTotal       = useMemo(() => revenueSales.filter(s=>!s.saleType||s.saleType==="in_store").reduce((s,x)=>s+x.total,0), [revenueSales]);
+  const deliveryTotal      = useMemo(() => revenueSales.filter(s=>s.saleType==="delivery").reduce((s,x)=>s+x.total,0), [revenueSales]);
+  const avgSale       = revenueSales.length ? totalRevenue/revenueSales.length : 0;
   const outstandingCredit = useMemo(() => openHoldSales.reduce((s,h)=>s+(h.balance||0),0), [openHoldSales]);
   const totalCreditGiven  = useMemo(() => openHoldSales.reduce((s,h)=>s+(h.total||0),0),   [openHoldSales]);
   const totalCreditPaid   = useMemo(() => openHoldSales.reduce((s,h)=>s+(h.paid||0),0),    [openHoldSales]);
@@ -212,7 +219,7 @@ export default function Reports() {
   /* ── charts ── */
   const revenueChart = useMemo(() => {
     const map = {};
-    filteredSales.forEach(s => {
+    revenueSales.forEach(s => {
       const d = new Date(s.createdAt);
       let key;
       if (period === "day") key = `${d.getHours()}:00`;
@@ -222,11 +229,11 @@ export default function Reports() {
       map[key].revenue += s.total; map[key].count += 1;
     });
     return Object.values(map);
-  }, [filteredSales, period, isAr]);
+  }, [revenueSales, period, isAr]);
 
   const paymentBreakdown = useMemo(() => {
     const map = {cash:0,card:0,paylater:0,split:0,bank_transfer:0,cash_on_delivery:0};
-    filteredSales.forEach(s => { map[s.paymentMethod]=(map[s.paymentMethod]||0)+s.total; });
+    revenueSales.forEach(s => { map[s.paymentMethod]=(map[s.paymentMethod]||0)+s.total; });
     return [
       {key:"cash",             name:t.cash||"Cash",              value:+map.cash.toFixed(2)             },
       {key:"card",             name:t.card||"Card",              value:+map.card.toFixed(2)             },
@@ -235,29 +242,29 @@ export default function Reports() {
       {key:"paylater",         name:t.credit||"Pay Later",       value:+map.paylater.toFixed(2)         },
       {key:"split",            name:t.split||"Split",            value:+map.split.toFixed(2)            },
     ];
-  }, [filteredSales, t]);
+  }, [revenueSales, t]);
 
   const topProducts = useMemo(() => {
     const map = {};
-    filteredSales.forEach(s => s.items.forEach(item => {
+    revenueSales.forEach(s => s.items.forEach(item => {
       const name = item.name||"Unknown";
       if (!map[name]) map[name]={name,qty:0,revenue:0};
       map[name].qty += item.quantity;
       map[name].revenue += item.subtotal||item.price*item.quantity;
     }));
     return Object.values(map).sort((a,b)=>b.qty-a.qty).slice(0,8);
-  }, [filteredSales]);
+  }, [revenueSales]);
 
   const hourlyData = useMemo(() => {
     const map = {};
-    filteredSales.forEach(s => {
+    revenueSales.forEach(s => {
       const h = new Date(s.createdAt).getHours();
       const key = `${String(h).padStart(2,"0")}:00`;
       if (!map[key]) map[key]={hour:key,sales:0,count:0};
       map[key].sales += s.total; map[key].count += 1;
     });
     return Object.values(map).sort((a,b)=>a.hour.localeCompare(b.hour));
-  }, [filteredSales]);
+  }, [revenueSales]);
 
   const cashierPerf = useMemo(() => {
     const map = {};
@@ -414,14 +421,14 @@ export default function Reports() {
   // ── Top 20 products by qty sold for pie chart ───────────────────────────
   const top20Products = useMemo(() => {
     const map = {};
-    filteredSales.forEach(s => s.items.forEach(item => {
+    revenueSales.forEach(s => s.items.forEach(item => {
       const name = item.name || "Unknown";
       if (!map[name]) map[name] = { name, qty: 0, revenue: 0 };
       map[name].qty += item.quantity;
       map[name].revenue += item.subtotal || item.price * item.quantity;
     }));
     return Object.values(map).sort((a, b) => b.qty - a.qty).slice(0, 20);
-  }, [filteredSales]);
+  }, [revenueSales]);
 
   // ── 20-color palette for pie ────────────────────────────────────────────
   const PIE20 = ["#6366f1","#10b981","#f59e0b","#ef4444","#3b82f6","#8b5cf6","#ec4899","#14b8a6","#f97316","#84cc16","#06b6d4","#a855f7","#eab308","#22c55e","#0ea5e9","#d946ef","#fb923c","#4ade80","#38bdf8","#c084fc"];
@@ -572,7 +579,7 @@ export default function Reports() {
                 <p className="text-[10px] text-gray-400 mt-1">Cash / card / split — excludes Pay Later, see toggle →</p>
               </motion.div>
               {[
-                {label:t.totalSales,  value:filteredSales.length,          icon:<ShoppingCart size={18}/>,color:"text-blue-600 dark:text-blue-400",     bg:"bg-blue-50 dark:bg-blue-900/20"   },
+                {label:t.totalSales,  value:revenueSales.length,           icon:<ShoppingCart size={18}/>,color:"text-blue-600 dark:text-blue-400",     bg:"bg-blue-50 dark:bg-blue-900/20"   },
                 {label:t.averageSale, value:fLBP(avgSale),                 icon:<TrendingUp size={18}/>,  color:"text-purple-600 dark:text-purple-400", bg:"bg-purple-50 dark:bg-purple-900/20"},
                 {label:t.outstanding, value:fLBP(outstandingCredit),       icon:<AlertCircle size={18}/>,color:"text-red-600 dark:text-red-400",   bg:"bg-red-50 dark:bg-red-900/20"     },
               ].map(({label,value,icon,color,bg})=>(
@@ -1104,7 +1111,7 @@ export default function Reports() {
             (s.customerName||"").toLowerCase().includes(txSearch.toLowerCase()) ||
             (s.items||[]).some(i=>i.name.toLowerCase().includes(txSearch.toLowerCase()))
           );
-          if (txDateFrom) txSales = txSales.filter(s=>new Date(s.createdAt) >= new Date(txDateFrom));
+          if (txDateFrom) txSales = txSales.filter(s=>new Date(s.createdAt) >= new Date(txDateFrom + "T00:00:00"));
           if (txDateTo)   txSales = txSales.filter(s=>new Date(s.createdAt) <= new Date(txDateTo + "T23:59:59"));
           if (txMinAmount) txSales = txSales.filter(s=>parseFloat(toLBPNice(rawTotal(s))) >= parseFloat(txMinAmount));
           if (txMaxAmount) txSales = txSales.filter(s=>parseFloat(toLBPNice(rawTotal(s))) <= parseFloat(txMaxAmount));
@@ -1122,7 +1129,7 @@ export default function Reports() {
               (s.customerName||"").toLowerCase().includes(txSearch.toLowerCase()) ||
               (s.items||[]).some(i=>i.name.toLowerCase().includes(txSearch.toLowerCase()))
             );
-            if (txDateFrom) payLaterRows = payLaterRows.filter(s=>new Date(s.createdAt) >= new Date(txDateFrom));
+            if (txDateFrom) payLaterRows = payLaterRows.filter(s=>new Date(s.createdAt) >= new Date(txDateFrom + "T00:00:00"));
             if (txDateTo)   payLaterRows = payLaterRows.filter(s=>new Date(s.createdAt) <= new Date(txDateTo + "T23:59:59"));
             if (txMinAmount) payLaterRows = payLaterRows.filter(s=>parseFloat(toLBPNice(s.__rawTotal)) >= parseFloat(txMinAmount));
             if (txMaxAmount) payLaterRows = payLaterRows.filter(s=>parseFloat(toLBPNice(s.__rawTotal)) <= parseFloat(txMaxAmount));

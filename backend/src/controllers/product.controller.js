@@ -355,20 +355,9 @@ export const importProducts = async (req, res) => {
       let expiryDate = null;
       if (expiryRaw.match(/\d{4}-\d{2}-\d{2}/)) expiryDate = new Date(expiryRaw);
 
-      const product = await Product.create({ name, barcode, price, cost, stock, category: categoryId, expiryDate, image: imageUrl || "", storeId: req.storeId });
-
-      // Create an opening batch so FIFO cost tracking starts from import
-      if (stock > 0) {
-        await Batch.create({
-          storeId:      req.storeId,
-          productId:    product._id,
-          initialQty:   stock,
-          remainingQty: stock,
-          costPrice:    cost || 0,
-          expiryDate:   expiryDate || null,
-          receivedDate: new Date(),
-        });
-      }
+      // Imported cost/stock go straight onto the product — like every other
+      // non-batch path, this becomes *the* cost everywhere (no batch created).
+      await Product.create({ name, barcode, price, cost, stock, category: categoryId, expiryDate, image: imageUrl || "", storeId: req.storeId });
 
       inserted++;
     }

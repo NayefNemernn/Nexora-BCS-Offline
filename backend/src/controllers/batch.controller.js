@@ -88,10 +88,9 @@ export const createBatch = async (req, res) => {
       notes:        notes || "",
     });
 
-    // Update product stock and cost
-    const update = { $inc: { stock: qty } };
-    if (costPrice !== undefined) update.$set = { cost: costPrice };
-    await Product.findByIdAndUpdate(productId, update);
+    // Update product stock only — cost stays batch-scoped (product.cost is
+    // reserved for direct edits / purchase orders / import, not mirrored here).
+    await Product.findByIdAndUpdate(productId, { $inc: { stock: qty } });
 
     await StockLog.create({
       storeId:        req.storeId,

@@ -21,15 +21,6 @@ async function logStock(req, product, change, type, reason = "", reference = "")
     });
   } catch {}
 }
-// Returns/voids restock product.stock — this restores the matching batch quantity
-// (at the cost the item actually sold for) so batch totals stay in sync with product.stock.
-async function restockBatch(req, productId, quantity, costPrice, notes) {
-  if (!quantity || quantity <= 0) return;
-  await Batch.create({
-    storeId: req.storeId, productId, initialQty: quantity, remainingQty: quantity,
-    costPrice: costPrice || 0, notes,
-  });
-}
 
 /* ── CREATE SALE ─────────────────────────────────────────────── */
 export const createSale = async (req, res) => {
@@ -212,7 +203,6 @@ export const returnSaleItems = async (req, res) => {
         const stockBefore = product.stock;
         await Product.findByIdAndUpdate(saleItem.productId, { $inc: { stock: ri.quantity } });
         await logStock(req, { ...product.toObject(), stock: stockBefore }, +ri.quantity, "return", reason, sale._id.toString());
-        await restockBatch(req, product._id, ri.quantity, saleItem.cost, `Return from sale #${sale._id}${reason ? ` — ${reason}` : ""}`);
       }
     }
 
@@ -272,7 +262,6 @@ export const voidSale = async (req, res) => {
         const stockBefore = product.stock;
         await Product.findByIdAndUpdate(item.productId, { $inc: { stock: remaining } });
         await logStock(req, { ...product.toObject(), stock: stockBefore }, +remaining, "return", `Void: ${reason}`, sale._id.toString());
-        await restockBatch(req, product._id, remaining, item.cost, `Void of sale #${sale._id}${reason ? ` — ${reason}` : ""}`);
       }
       newReturnedItems.push({
         productId: item.productId, name: item.name, quantity: remaining,

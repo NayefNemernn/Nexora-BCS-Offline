@@ -39,12 +39,21 @@ export const CurrencyProvider = ({ children }) => {
 
   // Format LBP with thousands separator
   const formatLBP = (amount) => {
-    return Math.round(parseFloat(amount)).toLocaleString("en-US") + " ل.ل";
+    // A tiny floating-point residual (e.g. a fully-discounted sale landing on
+    // -0.0000004 instead of exactly 0) rounds to -0, and -0 !== 0 as far as
+    // Number#toLocaleString is concerned — it prints "-0" instead of "0".
+    // `v === 0` is true for both +0 and -0, so this normalizes it away
+    // without masking a genuinely non-zero (or NaN) value.
+    const v = Math.round(parseFloat(amount));
+    return (v === 0 ? 0 : v).toLocaleString("en-US") + " ل.ل";
   };
 
   // Format USD
   const formatUSD = (amount) => {
-    return "$" + parseFloat(amount).toFixed(2);
+    // Same -0 rounding artifact as formatLBP, but at the 2-decimal level —
+    // e.g. -0.003 rounds to the string "-0.00". Normalize that specific case.
+    const fixed = parseFloat(amount).toFixed(2);
+    return "$" + (fixed === "-0.00" ? "0.00" : fixed);
   };
 
   return (

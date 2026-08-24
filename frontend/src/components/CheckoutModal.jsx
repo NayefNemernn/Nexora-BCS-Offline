@@ -32,10 +32,10 @@ async function printReceipt(sale, { toLBP, toLBPNice, formatLBP, formatUSD, exch
     <tr>
       <td>${i.name}</td>
       <td style="text-align:center">${i.quantity}</td>
-      <td style="text-align:right">$${(i.price * i.quantity).toFixed(2)}</td>
+      <td style="text-align:right">${formatUSD(i.price * i.quantity)}</td>
     </tr>
     <tr class="sub-row">
-      <td colspan="3">$${i.price.toFixed(2)} each &nbsp;·&nbsp; ${parseInt(toLBPNice(i.price)).toLocaleString()} ل.ل</td>
+      <td colspan="3">${formatUSD(i.price)} each &nbsp;·&nbsp; ${formatLBP(toLBPNice(i.price))}</td>
     </tr>
   `).join("");
 
@@ -54,7 +54,7 @@ async function printReceipt(sale, { toLBP, toLBPNice, formatLBP, formatUSD, exch
   const discountRow = sale.discountAmount > 0 ? `
     <tr class="disc-row">
       <td>Discount</td><td></td>
-      <td style="text-align:right">−$${sale.discountAmount.toFixed(2)}</td>
+      <td style="text-align:right">−${formatUSD(sale.discountAmount)}</td>
     </tr>` : "";
 
   const subtotalBeforeVat = sale.subtotal ?? sale.items.reduce((s, i) => s + i.price * i.quantity, 0);
@@ -62,19 +62,19 @@ async function printReceipt(sale, { toLBP, toLBPNice, formatLBP, formatUSD, exch
   const vatRow = (taxRate > 0 && vatAmt > 0) ? `
     <tr class="vat-row">
       <td>Subtotal</td><td></td>
-      <td style="text-align:right">$${(+subtotalBeforeVat).toFixed(2)}</td>
+      <td style="text-align:right">${formatUSD(subtotalBeforeVat)}</td>
     </tr>
     <tr class="vat-row">
       <td>VAT (${taxRate}%)</td><td></td>
-      <td style="text-align:right">$${vatAmt.toFixed(2)}</td>
+      <td style="text-align:right">${formatUSD(vatAmt)}</td>
     </tr>` : "";
 
   const changeRow = change > 0 ? `
     <tr class="change-row">
       <td>Change</td><td></td>
-      <td style="text-align:right">$${change.toFixed(2)}</td>
+      <td style="text-align:right">${formatUSD(change)}</td>
     </tr>
-    <tr class="sub-row"><td colspan="3">${parseInt(toLBPNice(change)).toLocaleString()} ل.ل</td></tr>` : "";
+    <tr class="sub-row"><td colspan="3">${formatLBP(toLBPNice(change))}</td></tr>` : "";
 
   const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Receipt</title>
 <style>
@@ -123,8 +123,8 @@ async function printReceipt(sale, { toLBP, toLBPNice, formatLBP, formatUSD, exch
   <table><tbody>
     ${discountRow}
     ${vatRow}
-    <tr class="total-row"><td>TOTAL</td><td></td><td style="text-align:right">$${sale.total.toFixed(2)}</td></tr>
-    <tr class="lbp-row"><td colspan="3">${parseInt(toLBPNice((sale.items||[]).reduce((s,i)=>s+i.price*i.quantity,0)-(sale.discountAmount||0)+(sale.taxAmount||0))).toLocaleString()} ل.ل &nbsp;·&nbsp; @ ${parseInt(exchangeRate).toLocaleString()} ل.ل/$1</td></tr>
+    <tr class="total-row"><td>TOTAL</td><td></td><td style="text-align:right">${formatUSD(sale.total)}</td></tr>
+    <tr class="lbp-row"><td colspan="3">${formatLBP(toLBPNice(sale.total))} &nbsp;·&nbsp; @ ${parseInt(exchangeRate).toLocaleString()} ل.ل/$1</td></tr>
     ${changeRow}
     <tr><td colspan="3" class="method">Payment: <span class="badge">${methodLabel}</span></td></tr>
   </tbody></table>
@@ -438,7 +438,7 @@ export default function CheckoutModal({ cart, total, close, clearCart, deliveryO
                 <span>Total</span>
                 <div className="text-right">
                   <div>{formatUSD(receipt.total)}</div>
-                  <div className="text-amber-500">{formatLBP(toLBPNice((receipt.items||[]).reduce((s,i)=>s+i.price*i.quantity,0)-(receipt.discountAmount||0)+(receipt.taxAmount||0)))}</div>
+                  <div className="text-amber-500">{formatLBP(toLBPNice(receipt.total))}</div>
                 </div>
               </div>
               {change > 0 && (

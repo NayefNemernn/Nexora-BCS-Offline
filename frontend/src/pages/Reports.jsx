@@ -1100,7 +1100,11 @@ export default function Reports() {
         {/* ═══ TRANSACTIONS ═══ */}
         {tab==="transactions"&&(()=>{
           const TX_PAGE_SIZE = 200;
-          const rawTotal = (s) => (s.items||[]).reduce((a,i)=>a+i.price*i.quantity,0)-(s.discountAmount||0)+(s.taxAmount||0);
+          // Trust the backend-computed total instead of re-deriving it from
+          // items/discount/tax here — recomputing the same formula a second
+          // time on stored (already-rounded) fields reintroduced its own
+          // razor-thin +/- floating point epsilon on fully-discounted sales.
+          const rawTotal = (s) => s.total ?? ((s.items||[]).reduce((a,i)=>a+i.price*i.quantity,0)-(s.discountAmount||0)+(s.taxAmount||0));
           // Use ALL sales (unlimited — not filtered by period)
           let txSales = saleTypeFilter==="delivery" ? sales.filter(s=>s.saleType==="delivery")
             : saleTypeFilter==="in_store" ? sales.filter(s=>!s.saleType||s.saleType==="in_store")

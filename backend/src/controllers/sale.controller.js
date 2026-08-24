@@ -80,8 +80,18 @@ export const createSale = async (req, res) => {
     }
 
     const taxAmount = +(vatableAmount * (taxRate / 100)).toFixed(6);
-    const discount  = +Math.min(discountAmount, subtotal).toFixed(6);
-    const total     = +(subtotal + taxAmount - discount).toFixed(6);
+    // Cap discount at the unrounded subtotal and use that same unrounded value
+    // in the total below. Rounding it to 6dp first (e.g. discount = round6(subtotal)
+    // when capped) can land on a different float than subtotal itself — subtotal
+    // built by summing per-item 6dp figures isn't guaranteed to be an exact 6dp
+    // value — so `subtotal - discount` came out as a razor-thin +/- epsilon
+    // instead of exactly 0 on a full discount, showing as a stray "-0 ل.ل" once
+    // multiplied by the exchange rate. Math.min returns one of its operands
+    // untouched, so subtotal - discountCapped is a true self-subtraction (= 0
+    // exactly) whenever the discount is capped.
+    const discountCapped = Math.min(discountAmount, subtotal);
+    const discount = +discountCapped.toFixed(6); // rounded, for storage/display only
+    const total     = +(subtotal + taxAmount - discountCapped).toFixed(6);
 
     let isPaid = paymentMethod !== "paylater" && paymentMethod !== "cash_on_delivery";
     if (paymentMethod === "split") {

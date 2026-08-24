@@ -203,6 +203,12 @@ export default function CheckoutModal({ cart, total, close, clearCart, deliveryO
     if (discountType === "percent") return Math.min((v / 100) * total, total);
     return Math.min(v, total);
   })();
+  // Full precision (6dp), not the 2-decimal-rounded discountAmount — sending the
+  // cents-rounded value to the server let a "100%" discount leave a tiny USD
+  // residual (subtotal minus a discount rounded down by up to $0.005), which at
+  // a large LBP exchange rate showed up as a stray few-hundred-LBP charge on an
+  // otherwise fully-discounted sale. Same fix already applied to totals above.
+  const discountAmountSend = +discountAmountRaw.toFixed(6);
 
   /* ── VAT calculation (only on non-exempt items) ── */
   const vatableSubtotal = cart.reduce((sum, i) => i.vatExempt ? sum : sum + i.price * i.quantity, 0);
@@ -301,7 +307,7 @@ export default function CheckoutModal({ cart, total, close, clearCart, deliveryO
           _id: "offline-" + Date.now(),
           items: cart.map(i => ({ name: i.name, price: i.price, quantity: i.quantity })),
           subtotal: total, taxAmount: vatAmount,
-          total: finalTotal, discountAmount, paymentMethod: "paylater",
+          total: finalTotal, discountAmount: discountAmountSend, paymentMethod: "paylater",
           customerName: offlinePayload.customerName,
           createdAt: new Date().toISOString(), offline: true,
         });
@@ -331,7 +337,7 @@ export default function CheckoutModal({ cart, total, close, clearCart, deliveryO
       const payload = {
         items: cart.map(i => ({ productId: i.productId, quantity: i.quantity })),
         paymentMethod: method,
-        discountAmount,
+        discountAmount: discountAmountSend,
         customerName:  isDelivery ? (deliveryOrder.customer?.name || "") : (selectedCustomer?.name || customerSearch.trim() || ""),
         customerId:    selectedCustomer?._id  || null,
         phone:         isDelivery ? (deliveryOrder.customer?.phone || "") : (selectedCustomer?.phone || newPhone || ""),
@@ -364,7 +370,7 @@ export default function CheckoutModal({ cart, total, close, clearCart, deliveryO
           _id: "offline-" + Date.now(),
           items: cart.map(i => ({ name: i.name, price: i.price, quantity: i.quantity })),
           subtotal: total, taxAmount: vatAmount,
-          total: finalTotal, discountAmount, paymentMethod: method,
+          total: finalTotal, discountAmount: discountAmountSend, paymentMethod: method,
           splitPayments: payload.splitPayments || [],
           customerName: payload.customerName,
           createdAt: new Date().toISOString(), offline: true,

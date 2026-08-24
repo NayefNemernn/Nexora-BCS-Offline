@@ -82,10 +82,14 @@ export default function POS({ setPage }) {
       setCartWidth(Math.max(260, Math.min(640, dragStartWidth.current + delta)));
     };
     const onUp = () => {
-      if (isDragging.current) {
-        isDragging.current = false;
-        localStorage.setItem("pos_cart_width", dragStartWidth.current + (dragStartX.current - dragStartX.current));
-      }
+      // The actual save-on-change happens in the effect below, on every
+      // cartWidth update — this handler used to also write to localStorage
+      // itself, but with dragStartWidth.current (the width where the drag
+      // *started*, since dragStartX.current - dragStartX.current is always
+      // 0), silently reverting the resize back to its pre-drag width the
+      // moment the user let go of the mouse. The panel looked resized for
+      // the rest of the session but never actually stuck across a reload.
+      isDragging.current = false;
     };
     document.addEventListener("mousemove", onMove);
     document.addEventListener("mouseup",   onUp);

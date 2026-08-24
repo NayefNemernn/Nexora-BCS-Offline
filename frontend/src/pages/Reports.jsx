@@ -1265,6 +1265,7 @@ export default function Reports() {
                               ) : (
                                 <>
                                   <div className="text-green-600 dark:text-green-400">{fLBP(rawTotal(sale))}</div>
+                                  {(sale.discountAmount||0)>0&&<div className="text-xs text-amber-600 dark:text-amber-400">−{fLBP(sale.discountAmount)} disc.</div>}
                                   {(sale.totalRefunded||0)>0&&<div className="text-xs text-red-500">−{fLBP(sale.totalRefunded)}</div>}
                                 </>
                               )}

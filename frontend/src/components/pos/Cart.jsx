@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { ShoppingBag, Trash2, PauseCircle } from "lucide-react";
 import CartItem from "./CartItem";
 
@@ -18,6 +19,16 @@ export default function Cart({
   displayCurrency,
 }) {
   const cartCount = cart.reduce((s, i) => s + i.quantity, 0);
+
+  // Auto-scroll the items list to the bottom whenever a new line is added —
+  // fires on cart.length (a new distinct product), not every quantity bump,
+  // so scanning several items in a row always keeps the latest one in view
+  // instead of leaving the cashier scrolled up on a tall order.
+  const itemsRef = useRef(null);
+  useEffect(() => {
+    const el = itemsRef.current;
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+  }, [cart.length]);
 
   const renderTotal = () => {
     if (displayCurrency === "lbp")
@@ -102,7 +113,7 @@ export default function Cart({
       </div>
 
       {/* ── Items ── */}
-      <div className="flex-1 overflow-y-auto px-3 py-2.5 space-y-2">
+      <div ref={itemsRef} className="flex-1 overflow-y-auto px-3 py-2.5 space-y-2">
         {cart.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-gray-400 py-10 gap-3">
             <div className="relative">

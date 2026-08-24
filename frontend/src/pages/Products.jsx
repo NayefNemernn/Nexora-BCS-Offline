@@ -491,7 +491,11 @@ export default function Products() {
     if (!batchForm.initialQty) { toast.error("Quantity is required"); return; }
     setSavingBatch(true);
     try {
-      await createBatch({ productId: batchProduct._id, ...batchForm, initialQty: Number(batchForm.initialQty), costPrice: batchForm.costPrice ? Number(batchForm.costPrice) : undefined });
+      // Backend expects `qty`, not `initialQty` (that name is only the batch
+      // record's own field once it comes back from the API) — sending the
+      // wrong key meant every batch added from this page 400'd on "Quantity
+      // must be at least 1", silently.
+      await createBatch({ productId: batchProduct._id, expiryDate: batchForm.expiryDate, notes: batchForm.notes, qty: Number(batchForm.initialQty), costPrice: batchForm.costPrice ? Number(batchForm.costPrice) : undefined });
       toast.success("Batch added");
       setShowAddBatch(false);
       setBatchForm({ expiryDate: "", initialQty: "", costPrice: "", notes: "" });

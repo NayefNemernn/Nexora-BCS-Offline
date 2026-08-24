@@ -75,6 +75,8 @@ export const createBatch = async (req, res) => {
     const product = await Product.findOne({ _id: productId, storeId: req.storeId });
     if (!product)          return res.status(404).json({ message: "Product not found" });
 
+    const effectiveCostPrice = costPrice !== undefined ? costPrice : (product.cost || 0);
+
     const batch = await Batch.create({
       storeId:      req.storeId,
       productId,
@@ -84,13 +86,20 @@ export const createBatch = async (req, res) => {
       receivedDate: receivedDate || new Date(),
       initialQty:   qty,
       remainingQty: qty,
-      costPrice:    costPrice !== undefined ? costPrice : (product.cost || 0),
+      costPrice:    effectiveCostPrice,
       notes:        notes || "",
     });
 
-    // Update product stock only — cost stays batch-scoped (product.cost is
-    // reserved for direct edits / purchase orders / import, not mirrored here).
-    await Product.findByIdAndUpdate(productId, { $inc: { stock: qty } });
+    // Mirror the batch cost onto the product as a stock-weighted average.
+    // product.cost is the single number Products List and Reports both use
+    // for inventory value, so this is the only place batch cost data ever
+    // feeds into it — explicitly adding a batch here, never sales, returns,
+    // or voids — keeping that one figure accurate without a second,
+    // batch-blended valuation drifting away from it elsewhere.
+    const oldStock = product.stock || 0;
+    const newStock = oldStock + qty;
+    const newCost  = +((((product.cost || 0) * oldStock) + effectiveCostPrice * qty) / newStock).toFixed(6);
+    await Product.findByIdAndUpdate(productId, { stock: newStock, cost: newCost });
 
     await StockLog.create({
       storeId:        req.storeId,

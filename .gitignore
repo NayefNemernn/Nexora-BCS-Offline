@@ -16,6 +16,10 @@ nexora-website/dist/
 # MongoDB binaries (too large for git — download/copy manually)
 build-resources/mongodb-binary/
 
+# Offline voice model + ONNX runtime (fetched by scripts/setup-voice-model.mjs)
+frontend/public/models/
+frontend/public/ort/
+
 # Uploads
 backend/uploads/*
 !backend/uploads/.gitkeep

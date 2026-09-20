@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from "react";
+import { useWhisperInput } from "./useWhisperInput";
 
 const hasArabicChars = (text) => /[\u0600-\u06FF]/.test(text);
 
@@ -9,7 +10,7 @@ const hasArabicChars = (text) => /[\u0600-\u06FF]/.test(text);
  *  - language auto-detection when lang="auto"
  *    (starts with ar-LB, switches to en-US if no Arabic detected)
  */
-export function useVoiceInput(onResult, lang = "ar-LB", continuous = false) {
+function useWebSpeechInput(onResult, lang = "ar-LB", continuous = false) {
   const [listening, setListening] = useState(false);
 
   const recognitionRef  = useRef(null);
@@ -123,5 +124,12 @@ export function useVoiceInput(onResult, lang = "ar-LB", continuous = false) {
     else startListening();
   }, [listening, startListening, stopListening]);
 
-  return { listening, startListening, stopListening, toggle, supported };
+  return { listening, busy: false, startListening, stopListening, toggle, supported };
 }
+
+// The desktop app (Electron) has no access to Google's speech service, so the
+// browser API always fails there with a "network" error — use on-device Whisper
+// instead. The choice is fixed for the whole session, so this is safe as a hook.
+const IS_ELECTRON = typeof navigator !== "undefined" && /Electron\//.test(navigator.userAgent);
+
+export const useVoiceInput = IS_ELECTRON ? useWhisperInput : useWebSpeechInput;

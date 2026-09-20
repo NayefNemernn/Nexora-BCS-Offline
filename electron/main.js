@@ -52,6 +52,12 @@ function checkForUpdates() {
   });
 }
 
+// Offline voice input runs Whisper as multi-threaded WASM in a web worker, which needs
+// SharedArrayBuffer. Chromium only allows that on cross-origin-isolated pages unless this
+// feature is on; enabling it here avoids adding COOP/COEP headers that could break the
+// rest of the app's cross-origin resources. (Without it voice still works, ~2x slower.)
+app.commandLine.appendSwitch("enable-features", "SharedArrayBuffer");
+
 // Lock the userData path to a fixed name so it never changes when productName
 // or version changes — this keeps the database across all future updates.
 app.setPath("userData", path.join(app.getPath("appData"), "nexora-pos"));

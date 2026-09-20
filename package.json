@@ -10,7 +10,7 @@
   "main": "electron/main.js",
   "productName": "Nexora-POS",
   "scripts": {
-    "build:frontend": "cd frontend && npm install && cross-env VITE_API_URL=http://localhost:5000/api npm run build",
+    "build:frontend": "cd frontend && npm install && node ../scripts/setup-voice-model.mjs && cross-env VITE_API_URL=http://localhost:5000/api npm run build",
     "install:backend": "cd backend && npm install",
     "install:all": "npm run install:backend && npm run build:frontend",
     "electron:dev": "npm run build:frontend && electron .",

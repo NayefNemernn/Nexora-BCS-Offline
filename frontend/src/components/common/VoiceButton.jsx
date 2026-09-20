@@ -1,5 +1,5 @@
 import React from "react";
-import { Mic, MicOff } from "lucide-react";
+import { Mic, MicOff, Loader2 } from "lucide-react";
 import { useVoiceInput } from "../../hooks/useVoiceInput";
 
 /**
@@ -11,7 +11,7 @@ import { useVoiceInput } from "../../hooks/useVoiceInput";
  *   className       — extra classes for the button
  */
 export default function VoiceButton({ onResult, lang = "auto", className = "", continuous = false }) {
-  const { listening, toggle, supported } = useVoiceInput(onResult, lang, continuous);
+  const { listening, busy, toggle, supported } = useVoiceInput(onResult, lang, continuous);
 
   if (!supported) return null;
 
@@ -20,19 +20,22 @@ export default function VoiceButton({ onResult, lang = "auto", className = "", c
       type="button"
       onMouseDown={(e) => e.preventDefault()} // don't blur the input
       onClick={toggle}
-      title={listening ? "Stop listening" : "Speak to fill"}
+      disabled={busy}
+      title={busy ? "Processing voice…" : listening ? "Stop listening" : "Speak to fill"}
       className={`
         flex items-center justify-center
         w-9 h-9 rounded-xl
         transition-all duration-200
-        ${listening
+        ${busy
+          ? "bg-blue-500 text-white cursor-wait"
+          : listening
           ? "bg-red-500 text-white animate-pulse shadow-[0_0_12px_rgba(239,68,68,0.6)]"
           : "bg-gray-200 dark:bg-[#1c1c1c] text-gray-500 dark:text-gray-400 hover:text-blue-500"
         }
         ${className}
       `}
     >
-      {listening ? <MicOff size={15} /> : <Mic size={15} />}
+      {busy ? <Loader2 size={15} className="animate-spin" /> : listening ? <MicOff size={15} /> : <Mic size={15} />}
     </button>
   );
 }

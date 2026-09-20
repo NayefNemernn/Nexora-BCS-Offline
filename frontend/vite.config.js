@@ -21,6 +21,8 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ["@imgly/background-removal"],
   },
+  // The Whisper voice worker uses code-splitting, which needs ES-module workers.
+  worker: { format: "es" },
   preview: {
     host: "0.0.0.0",
     allowedHosts: true,

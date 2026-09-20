@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@huggingface/transformers": "3.8.1",
     "@imgly/background-removal": "^1.7.0",
     "@react-oauth/google": "^0.13.5",
     "axios": "^1.6.8",

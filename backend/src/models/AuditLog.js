@@ -17,7 +17,7 @@ const auditLogSchema = new mongoose.Schema(
         "user_created", "user_updated", "user_deleted",
         "login", "logout",
         "discount_applied",
-        "paylater_payment",
+        "paylater_payment", "paylater_returned", "paylater_opening_balance",
         "expense_created",
         "warehouse_created", "warehouse_add", "warehouse_receive", "warehouse_transfer",
         "warehouse_receive_supplier", "warehouse_move_to", "warehouse_move_from",

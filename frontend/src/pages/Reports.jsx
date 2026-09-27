@@ -199,7 +199,8 @@ export default function Reports() {
     const cutoff = periodCutoff(period);
     return holdSales.filter(h => new Date(h.createdAt) >= cutoff);
   }, [holdSales, period]);
-  const payLaterIssued = useMemo(() => filteredHoldSales.reduce((s,h)=>s+(h.total||0), 0), [filteredHoldSales]);
+  // Opening balances are old debt carried into the system, not credit issued in this period.
+  const payLaterIssued = useMemo(() => filteredHoldSales.reduce((s,h)=>s+(h.total||0)-(h.openingBalance||0), 0), [filteredHoldSales]);
 
   /* ── KPIs ── */
   const totalRevenue       = useMemo(() => revenueSales.reduce((s,x) => s+x.total, 0), [revenueSales]);

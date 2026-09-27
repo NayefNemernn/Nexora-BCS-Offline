@@ -1,6 +1,7 @@
 import api from "./axios";
 
 export const createHoldSale      = (data)      => api.post("/hold-sales", data).then(r => r.data);
+export const createOpeningBalance = (data)      => api.post("/hold-sales/opening", data).then(r => r.data);
 export const getHoldSales        = ()           => api.get("/hold-sales").then(r => r.data);
 export const getHoldSaleNames    = ()           => api.get("/hold-sales/names").then(r => r.data);
 export const deleteHoldSale      = (id)         => api.delete(`/hold-sales/${id}`).then(r => r.data);

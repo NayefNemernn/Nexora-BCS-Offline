@@ -12,11 +12,12 @@ import RecentPayments from "../components/RecentPayments";
 import Avatar from "../components/Avatar";
 import EditCustomerModal from "../components/EditCustomerModal";
 import CustomerPaymentsDrawer from "../components/CustomerPaymentsDrawer";
+import AddPayLaterAccountModal from "../components/AddPayLaterAccountModal";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import {
   CreditCard, Search, DollarSign, Users, TrendingDown,
-  Pencil, History, AlertCircle, ShoppingBag, Package, X, Printer
+  Pencil, History, AlertCircle, ShoppingBag, Package, X, Printer, UserPlus
 } from "lucide-react";
 
 const CARD = "rounded-2xl bg-white dark:bg-[#141414] shadow-[6px_6px_16px_#d1d5db,-6px_-6px_16px_#ffffff] dark:shadow-[6px_6px_16px_#050505,-6px_-6px_16px_#1a1a1a]";
@@ -60,7 +61,8 @@ function ItemsModal({ sale, close }) {
   <hr/>
   <table>
     <thead><tr><th style="text-align:left">Item</th><th>Qty</th><th style="text-align:right">Price</th></tr></thead>
-    <tbody>${rows}</tbody>
+    <tbody>${rows}${sale.openingBalance > 0 ? `
+      <tr><td>Opening balance</td><td></td><td style="text-align:right">$${sale.openingBalance.toFixed(2)}</td></tr>` : ""}</tbody>
   </table>
   <hr/>
   <table><tbody>
@@ -100,12 +102,21 @@ function ItemsModal({ sale, close }) {
 
         {/* Items list */}
         <div className="overflow-y-auto flex-1 px-6 py-4 space-y-2">
-          {sale.items.length === 0 ? (
+          {sale.openingBalance > 0 && (
+            <div className="flex items-center justify-between p-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800/40">
+              <div>
+                <p className="text-sm font-semibold">Opening balance</p>
+                {sale.notes && <p className="text-xs text-gray-400 whitespace-pre-line">{sale.notes}</p>}
+              </div>
+              <p className="text-sm font-bold">{formatUSD(sale.openingBalance)}</p>
+            </div>
+          )}
+          {sale.items.length === 0 ? (sale.openingBalance > 0 ? null : (
             <div className="text-center py-12 text-gray-400">
               <Package size={36} className="mx-auto mb-3 opacity-30"/>
               <p className="text-sm">No items recorded</p>
             </div>
-          ) : (
+          )) : (
             sale.items.map((item, i) => (
               <motion.div
                 key={i}
@@ -140,6 +151,12 @@ function ItemsModal({ sale, close }) {
             <span>Items total</span>
             <span className="font-semibold text-gray-800 dark:text-gray-200">{formatUSD(grandTotal)}</span>
           </div>
+          {sale.openingBalance > 0 && (
+            <div className="flex justify-between text-sm text-gray-500">
+              <span>Opening balance</span>
+              <span className="font-semibold text-gray-800 dark:text-gray-200">{formatUSD(sale.openingBalance)}</span>
+            </div>
+          )}
           <div className="flex justify-between text-sm text-gray-500">
             <span>Already paid</span>
             <span className="font-semibold text-green-600">{formatUSD(sale.paid)}</span>
@@ -169,6 +186,7 @@ export default function PayLater() {
   const { lang } = useLang();
   const isAr = lang === "ar";
   const { tick } = useRefresh();
+  const { isAdmin } = useAuth();
 
   const [sales,           setSales]           = useState([]);
   const [search,          setSearch]          = useState("");
@@ -180,6 +198,7 @@ export default function PayLater() {
   const [monthlyPayCount, setMonthlyPayCount] = useState(0);
   const [viewingItems,    setViewingItems]    = useState(null);
   const [recentKey,       setRecentKey]       = useState(0);
+  const [addingAccount,   setAddingAccount]   = useState(false);
 
   useEffect(() => { load(); }, [tick]);
 
@@ -229,11 +248,21 @@ export default function PayLater() {
       <div className="p-5 space-y-5">
 
         {/* HEADER */}
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <CreditCard size={22} className="text-blue-500"/> {t.title}
-          </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{t.subtitle}</p>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              <CreditCard size={22} className="text-blue-500"/> {t.title}
+            </h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{t.subtitle}</p>
+          </div>
+          {isAdmin && (
+            <button onClick={() => setAddingAccount(true)}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold shrink-0
+                bg-blue-600 hover:bg-blue-700 text-white
+                shadow-[0_4px_0_0_#1d4ed8] active:shadow-none active:translate-y-[4px] transition-[transform,box-shadow] duration-75 select-none">
+              <UserPlus size={15}/> {t.addAccount}
+            </button>
+          )}
         </div>
 
         {/* KPIs */}
@@ -309,6 +338,11 @@ export default function PayLater() {
                             <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${risk.bg} ${risk.color}`}>
                               {risk.label}
                             </span>
+                            {s.openingBalance > 0 && (
+                              <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400">
+                                {t.openingBalance}: ${s.openingBalance.toFixed(2)}
+                              </span>
+                            )}
                           </div>
                           {s.phone && <p className="text-xs text-gray-400 mt-0.5">{s.phone}</p>}
 
@@ -437,6 +471,7 @@ export default function PayLater() {
       {selected       && <ReceivePaymentModal sale={selected}      close={() => setSelected(null)}        reload={load}/>}
       {editCustomer   && <EditCustomerModal   sale={editCustomer}  close={() => setEditCustomer(null)}    reload={load}/>}
       {drawerCustomer && <CustomerPaymentsDrawer customer={drawerCustomer} close={() => setDrawerCustomer(null)} reload={load}/>}
+      {addingAccount  && <AddPayLaterAccountModal openAccounts={sales.filter(s => s.status !== "paid")} close={() => setAddingAccount(false)} reload={load}/>}
 
       {/* Items modal */}
       <AnimatePresence>

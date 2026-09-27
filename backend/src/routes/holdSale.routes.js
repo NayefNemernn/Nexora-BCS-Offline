@@ -4,9 +4,9 @@ import {
   payHoldSale, updateHoldCustomer, deleteHoldSale,
   getRecentPayments, paymentsThisMonth, getAllPayments,
   getCustomerPayments, getCustomerInvoices, updateCreditLimit,
-  returnHoldSaleItems,
+  returnHoldSaleItems, createOpeningBalance,
 } from "../controllers/holdSale.controller.js";
-import { protect } from "../middleware/auth.middleware.js";
+import { protect, isAdmin } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 router.use(protect);
@@ -20,6 +20,7 @@ router.get("/invoices/:name",          getCustomerInvoices);
 
 router.get("/",    getHoldSales);
 router.post("/",   createHoldSale);
+router.post("/opening", isAdmin, createOpeningBalance);
 
 router.post("/:id/pay",     payHoldSale);
 router.post("/:id/return",  returnHoldSaleItems);

@@ -81,6 +81,49 @@ export const createHoldSale = async (req, res) => {
   }
 };
 
+/* ── OPENING BALANCE (admin) ────────────────────────────────────
+   Records debt a customer already owed before the system was in use.
+   No items and no stock change — just an amount owed. Added to the
+   customer's open account if they have one, otherwise opens a new one. */
+export const createOpeningBalance = async (req, res) => {
+  try {
+    const customerName = (req.body.customerName || "").trim();
+    const phone        = (req.body.phone || "").trim();
+    const notes        = (req.body.notes || "").trim();
+    const amount       = +Number(req.body.amount).toFixed(6);
+    const creditLimit  = req.body.creditLimit != null && req.body.creditLimit !== "" ? Number(req.body.creditLimit) : null;
+
+    if (!customerName) return res.status(400).json({ message: "Customer name is required" });
+    if (!(amount > 0))  return res.status(400).json({ message: "Amount must be positive" });
+    if (creditLimit != null && !(creditLimit >= 0)) return res.status(400).json({ message: "Invalid credit limit" });
+
+    let sale = await HoldSale.findOne({ customerName, storeId: req.storeId, status: { $ne: "paid" } });
+    if (sale) {
+      sale.openingBalance = +((sale.openingBalance || 0) + amount).toFixed(6);
+      sale.total   = +(sale.total + amount).toFixed(6);
+      sale.balance = +(sale.balance + amount).toFixed(6);
+      if (phone && !sale.phone) sale.phone = phone;
+      if (creditLimit != null) sale.creditLimit = creditLimit;
+      if (notes) sale.notes = sale.notes ? `${sale.notes}\n${notes}` : notes;
+      await sale.save();
+    } else {
+      sale = await HoldSale.create({
+        storeId: req.storeId, userId: req.user._id,
+        customerName, phone, notes, items: [],
+        openingBalance: amount, total: amount, paid: 0, balance: amount,
+        ...(creditLimit != null ? { creditLimit } : {}),
+      });
+    }
+
+    await audit(req, "paylater_opening_balance", `Pay Later opening balance $${amount.toFixed(2)} — ${customerName}${notes ? " — " + notes : ""}`,
+      { holdSaleId: sale._id, amount });
+
+    res.status(201).json(sale);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 export const getHoldSales = async (req, res) => {
   try {
     const { productId, search, limit } = req.query;

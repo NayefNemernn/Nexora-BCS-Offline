@@ -34,6 +34,12 @@ const holdSaleSchema = new mongoose.Schema(
       },
     ],
 
+    // Debt carried over from before the system was in use, entered by an
+    // admin on the Pay Later page (no items, no stock movement). Part of
+    // `total`, but not new credit — Reports leaves it out of "issued".
+    openingBalance: { type: Number, default: 0 },
+    notes:          { type: String, default: "" },
+
     total:   Number,
     paid:    { type: Number, default: 0 },
     balance: Number,

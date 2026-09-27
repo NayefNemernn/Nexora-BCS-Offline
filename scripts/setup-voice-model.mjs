@@ -15,7 +15,7 @@ import { fileURLToPath } from "node:url";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 
-const MODEL = "whisper-base";
+const MODEL = process.env.VOICE_MODEL || "whisper-base";
 const HF_REPO = `Xenova/${MODEL}`;
 const MODEL_FILES = [
   "config.json",

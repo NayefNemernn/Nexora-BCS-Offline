@@ -5,12 +5,17 @@ import { motion } from "framer-motion";
 import { useLang } from "../context/LanguageContext";
 import { usePayLaterTranslation } from "../hooks/usePayLaterTranslation";
 import toast from "react-hot-toast";
+import { printHtml } from "../lib/printHtml";
+import { useAuth } from "../context/AuthContext";
+import { useCurrency } from "../context/CurrencyContext";
 import { X, DollarSign, Printer } from "lucide-react";
 
 export default function ReceivePaymentModal({ sale, close, reload }) {
   const { lang }  = useLang();
   const t         = usePayLaterTranslation();
   const isAr      = lang === "ar";
+  const { storeName }  = useAuth();
+  const { toLBPNice } = useCurrency();
 
   const [amount,      setAmount]      = useState("");
   const [method,      setMethod]      = useState("cash");
@@ -40,13 +45,47 @@ export default function ReceivePaymentModal({ sale, close, reload }) {
   };
 
   const printReceipt = () => {
-    const content = document.getElementById("receipt-preview").innerHTML;
-    const win = window.open("", "", "width=400,height=600");
-    win.document.write(`<html><head><title>Receipt</title>
-      <style>body{font-family:Arial;padding:20px;}</style></head>
-      <body>${content}</body></html>`);
-    win.document.close();
-    win.print();
+    const paid      = Number(amount);
+    const remaining = Math.max(sale.balance - paid, 0);
+    const esc = (v) => String(v ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+    const lbp = (v) => `${parseInt(toLBPNice(v)).toLocaleString()} ل.ل`;
+    printHtml(`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Payment Receipt — ${esc(sale.customerName)}</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Courier New',monospace;font-size:13px;color:#111;width:80mm;padding:6mm 3mm}
+  h1{font-size:17px;font-weight:900;text-align:center;letter-spacing:1px}
+  p{text-align:center;font-size:10px;color:#666;margin:2px 0}
+  hr{border:none;border-top:1px dashed #aaa;margin:7px 0}
+  table{width:100%;border-collapse:collapse}
+  td{padding:3px 0;vertical-align:top}
+  td:last-child{text-align:right}
+  .big td{font-weight:800;font-size:14px}
+  .lbp td{font-size:10px;color:#b45309;padding-top:0}
+  .footer{margin-top:10px}
+  @media print{@page{size:80mm auto;margin:0}body{padding:4mm 2mm}}
+</style></head><body>
+  <h1>${esc(storeName.toUpperCase())}</h1>
+  <p>PAYMENT RECEIPT</p>
+  <p>${new Date().toLocaleString("en-GB")}</p>
+  <hr/>
+  <table><tbody>
+    <tr><td>Customer</td><td>${esc(sale.customerName)}</td></tr>
+    ${sale.phone ? `<tr><td>Phone</td><td>${esc(sale.phone)}</td></tr>` : ""}
+    <tr><td>Method</td><td>${esc(method)}</td></tr>
+    ${notes ? `<tr><td>Notes</td><td>${esc(notes)}</td></tr>` : ""}
+  </tbody></table>
+  <hr/>
+  <table><tbody>
+    <tr><td>Balance before</td><td>$${sale.balance.toFixed(2)}</td></tr>
+    <tr class="big"><td>PAID</td><td>$${paid.toFixed(2)}</td></tr>
+    <tr class="lbp"><td colspan="2" style="text-align:right">${lbp(paid)}</td></tr>
+    <tr class="big"><td>REMAINING</td><td>$${remaining.toFixed(2)}</td></tr>
+    <tr class="lbp"><td colspan="2" style="text-align:right">${lbp(remaining)}</td></tr>
+  </tbody></table>
+  <hr/>
+  <p class="footer">Thank you for your business</p>
+  <script>window.onload=()=>{window.print();window.close();}<\/script>
+</body></html>`);
   };
 
   return (

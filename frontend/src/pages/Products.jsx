@@ -1,4 +1,5 @@
 import { isOnline } from "../lib/connectivity";
+import { printBarcodeLabel } from "../lib/printBarcodeLabel";
 import React, { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { useRefresh } from "../context/RefreshContext";
 import {
@@ -259,44 +260,8 @@ export default function Products() {
 
   const printLabel = () => {
     if (!barcode) { toast.error(t.generateBarcodeFirst); return; }
-    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    document.body.appendChild(svg);
-    try {
-      JsBarcode(svg, barcode, {
-        format: barcodeFormat, width: 3, height: 80,
-        displayValue: true, fontSize: 14, margin: 10,
-        background: "#ffffff", lineColor: "#000000",
-      });
-    } catch {
-      document.body.removeChild(svg);
-      toast.error(`${t.cannotPrint} ${barcodeFormat}`);
-      return;
-    }
-    const svgData = new XMLSerializer().serializeToString(svg);
-    document.body.removeChild(svg);
-    const svgUrl = URL.createObjectURL(new Blob([svgData], { type: "image/svg+xml;charset=utf-8" }));
-    const img = new Image();
-    img.onload = () => {
-      const canvas = document.createElement("canvas");
-      const scale  = 3;
-      canvas.width  = img.width  * scale;
-      canvas.height = img.height * scale;
-      const ctx = canvas.getContext("2d");
-      ctx.scale(scale, scale);
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0, 0, img.width, img.height);
-      ctx.drawImage(img, 0, 0);
-      URL.revokeObjectURL(svgUrl);
-      const win = window.open("", "_blank");
-      win.document.write(`
-        <!DOCTYPE html><html><head><title>Barcode Label — ${barcode}</title>
-        <style>*{margin:0;padding:0;box-sizing:border-box}body{display:flex;align-items:center;justify-content:center;min-height:100vh;background:#fff}img{max-width:100%}@media print{@page{margin:10mm}body{min-height:unset}}</style>
-        </head><body><img src="${canvas.toDataURL("image/png")}"/>
-        <script>window.onload=()=>window.print();<\/script></body></html>
-      `);
-      win.document.close();
-    };
-    img.src = svgUrl;
+    try { printBarcodeLabel(barcode, barcodeFormat); }
+    catch { toast.error(`${t.cannotPrint} ${barcodeFormat}`); }
   };
 
   // ── Create ────────────────────────────────────────────────────────────────

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { printHtml } from "../lib/printHtml";
 import { getMyStore, updateStore, addCashier, updateCashier, removeCashier } from "../api/store.api";
 import api from "../api/axios";
 import { useAuth } from "../context/AuthContext";
@@ -404,8 +405,7 @@ export default function StoreSettings() {
     const svg  = qrRef.current?.querySelector("svg");
     if (!svg) return;
     const svgData = new XMLSerializer().serializeToString(svg);
-    const win = window.open("", "_blank", "width=400,height=600");
-    win.document.write(`<!DOCTYPE html><html><head><title>QR Code</title>
+    printHtml(`<!DOCTYPE html><html><head><title>QR Code</title>
     <style>
       body{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;font-family:sans-serif;padding:20px;text-align:center}
       .store-name{font-size:24px;font-weight:900;margin-bottom:10px}
@@ -418,10 +418,8 @@ export default function StoreSettings() {
     <div class="scan-text">📱 Scan here to order online</div>
     ${svgData}
     <div class="url">${storePublicUrl}</div>
+    <script>window.onload=()=>window.print();<\/script>
     </body></html>`);
-    win.document.close();
-    win.focus();
-    setTimeout(() => { win.print(); }, 500);
   };
 
   // ── Promo handlers ──────────────────────────────────────────

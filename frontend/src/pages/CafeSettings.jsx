@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { printHtml } from "../lib/printHtml";
 import { Plus, Trash2, ArrowLeft, Save, Settings, Gift, QrCode, Users, Brain } from "lucide-react";
 import FloorMap     from "../components/cafe/FloorMap";
 import * as cafeApi from "../api/cafe.api";
@@ -177,8 +178,7 @@ export default function CafeSettings({ setPage }) {
   /* ── Print QR ── */
   const printQR = (tableNum) => {
     const url  = `${window.location.origin}/cafe/play/${storeSlug}?table=${tableNum}`;
-    const win  = window.open("", "_blank");
-    win.document.write(`
+    printHtml(`
       <html><head><title>Table ${tableNum} QR</title>
       <style>body{font-family:sans-serif;text-align:center;padding:40px}h2{margin-bottom:20px}p{color:#666;font-size:13px;margin-top:12px}</style>
       </head><body>
@@ -188,7 +188,6 @@ export default function CafeSettings({ setPage }) {
       <script>window.onload=()=>window.print()</script>
       </body></html>
     `);
-    win.document.close();
   };
 
   /* ── Render ── */

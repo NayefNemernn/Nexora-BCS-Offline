@@ -5,4 +5,5 @@ contextBridge.exposeInMainWorld("electronAPI", {
   platform:       process.platform,
   printHtml:      (html) => ipcRenderer.invoke("print-html", html),
   pickNexoraFile: ()     => ipcRenderer.invoke("pick-nexora-file"),
+  openCashDrawer: ()     => ipcRenderer.invoke("open-cash-drawer"),
 });

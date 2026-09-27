@@ -232,6 +232,83 @@ ipcMain.handle("print-html", (_event, html) => {
   });
 });
 
+// ── Cash drawer via the receipt printer ───────────────────────────────────────
+// An RJ11 cash drawer is wired to the receipt printer, not the PC: sending the
+// printer the ESC/POS "kick" command makes it pulse the drawer. Chromium can't
+// send raw bytes to a printer, so we write a RAW job through the Windows
+// spooler (winspool.drv) from PowerShell. Pulses both pin 2 and pin 5, since
+// drawers are wired to one or the other.
+const DRAWER_KICK = Buffer.from([0x1b, 0x70, 0x00, 0x19, 0xfa, 0x1b, 0x70, 0x01, 0x19, 0xfa]);
+const VIRTUAL_PRINTER = /pdf|xps|onenote|fax|send to/i;
+
+const RAW_PRINT_PS = String.raw`
+$ErrorActionPreference = 'Stop'
+$p = Get-CimInstance Win32_Printer | Where-Object { $_.Name -eq $env:NEXORA_PRINTER }
+if (-not $p) { Write-Output 'NOT_FOUND'; exit 2 }
+if ($p.WorkOffline) { Write-Output 'OFFLINE'; exit 3 }
+Add-Type -TypeDefinition @"
+using System; using System.Runtime.InteropServices;
+public static class NexoraRawPrint {
+  [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+  public class DOCINFO { public string pDocName; public string pOutputFile; public string pDataType; }
+  [DllImport("winspool.drv", CharSet = CharSet.Unicode, SetLastError = true)] static extern bool OpenPrinter(string name, out IntPtr h, IntPtr d);
+  [DllImport("winspool.drv", SetLastError = true)] static extern bool ClosePrinter(IntPtr h);
+  [DllImport("winspool.drv", CharSet = CharSet.Unicode, SetLastError = true)] static extern int StartDocPrinter(IntPtr h, int level, DOCINFO di);
+  [DllImport("winspool.drv", SetLastError = true)] static extern bool EndDocPrinter(IntPtr h);
+  [DllImport("winspool.drv", SetLastError = true)] static extern bool StartPagePrinter(IntPtr h);
+  [DllImport("winspool.drv", SetLastError = true)] static extern bool EndPagePrinter(IntPtr h);
+  [DllImport("winspool.drv", SetLastError = true)] static extern bool WritePrinter(IntPtr h, byte[] b, int n, out int w);
+  public static void Send(string printer, byte[] data) {
+    IntPtr h;
+    if (!OpenPrinter(printer, out h, IntPtr.Zero)) throw new Exception("OpenPrinter failed (" + Marshal.GetLastWin32Error() + ")");
+    try {
+      if (StartDocPrinter(h, 1, new DOCINFO { pDocName = "Nexora cash drawer", pDataType = "RAW" }) == 0)
+        throw new Exception("StartDocPrinter failed (" + Marshal.GetLastWin32Error() + ")");
+      try {
+        StartPagePrinter(h);
+        int written;
+        if (!WritePrinter(h, data, data.Length, out written)) throw new Exception("WritePrinter failed (" + Marshal.GetLastWin32Error() + ")");
+        EndPagePrinter(h);
+      } finally { EndDocPrinter(h); }
+    } finally { ClosePrinter(h); }
+  }
+}
+"@
+[NexoraRawPrint]::Send($env:NEXORA_PRINTER, [Convert]::FromBase64String($env:NEXORA_BYTES))
+Write-Output 'OK'
+`;
+
+// Returns { ok: true, printer } or { ok: false, reason, printer?, message? }
+//   reason: 'unsupported' | 'no_printer' | 'offline' | 'error'
+ipcMain.handle("open-cash-drawer", async (event) => {
+  if (process.platform !== "win32") return { ok: false, reason: "unsupported" };
+
+  const printers = await event.sender.getPrintersAsync().catch(() => []);
+  const real     = printers.filter(p => !VIRTUAL_PRINTER.test(p.name));
+  const printer  = (real.find(p => p.isDefault) || real[0])?.name;
+  if (!printer) return { ok: false, reason: "no_printer" };
+
+  const { execFile } = require("child_process");
+  return new Promise((resolve) => {
+    execFile(
+      "powershell.exe",
+      ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", RAW_PRINT_PS],
+      {
+        windowsHide: true, timeout: 20_000,
+        env: { ...process.env, NEXORA_PRINTER: printer, NEXORA_BYTES: DRAWER_KICK.toString("base64") },
+      },
+      (err, stdout, stderr) => {
+        const out = String(stdout).trim();
+        if (out.endsWith("OK"))    return resolve({ ok: true, printer });
+        if (out === "OFFLINE")     return resolve({ ok: false, reason: "offline", printer });
+        if (out === "NOT_FOUND")   return resolve({ ok: false, reason: "no_printer", printer });
+        console.error("[cash-drawer]", err?.message, stderr);
+        resolve({ ok: false, reason: "error", printer, message: String(stderr || err?.message || "").trim().split("\n")[0] });
+      }
+    );
+  });
+});
+
 // ── IPC: open native file picker for .nexora files (called from renderer) ────
 ipcMain.handle("pick-nexora-file", async () => {
   const result = await dialog.showOpenDialog(mainWindow, {

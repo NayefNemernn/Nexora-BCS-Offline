@@ -144,6 +144,12 @@ export default function POS({ setPage }) {
     const result = await openCashDrawer();
     if (result.ok) {
       toast.success("Cash drawer opened");
+    } else if (result.reason === "no_printer") {
+      toast.error("No receipt printer found — the cash drawer opens through the receipt printer. Set it as the Windows default printer.");
+    } else if (result.reason === "offline") {
+      toast.error(`Printer "${result.printer}" is offline — check it's on and connected, then try again.`);
+    } else if (result.reason === "error" && result.printer) {
+      toast.error(`Could not open cash drawer via "${result.printer}"${result.message ? `: ${result.message}` : ""}`);
     } else if (result.reason === "unsupported") {
       toast.error("Cash drawer not supported in this browser (use Chrome/Edge)");
     } else if (result.reason === "not_connected") {
@@ -248,6 +254,17 @@ export default function POS({ setPage }) {
     const onEsc = (e) => { if (e.key === "Escape") { clearCart(); toast(t.cartCleared); } };
     window.addEventListener("keydown", onEsc);
     return () => window.removeEventListener("keydown", onEsc);
+  }, []);
+
+  // F8 opens the cash drawer (ignores key auto-repeat so holding it fires once)
+  useEffect(() => {
+    const onF8 = (e) => {
+      if (e.key !== "F8" || e.repeat) return;
+      e.preventDefault();
+      handleOpenDrawer();
+    };
+    window.addEventListener("keydown", onF8);
+    return () => window.removeEventListener("keydown", onF8);
   }, []);
 
   // Socket: show toast when a new order arrives
@@ -355,11 +372,12 @@ export default function POS({ setPage }) {
         {/* Cash Drawer button */}
         <button
           onClick={handleOpenDrawer}
-          title="Open cash drawer"
+          title="Open cash drawer (F8)"
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold
             bg-white/10 hover:bg-emerald-500/80 text-white/80 hover:text-white
             transition shrink-0">
           <LockOpen size={11}/> Drawer
+          <kbd className="ms-0.5 px-1 rounded bg-white/15 text-[9px] font-mono leading-tight">F8</kbd>
         </button>
 
         {/* Return button */}

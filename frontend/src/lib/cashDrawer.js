@@ -33,9 +33,17 @@ export async function connectCashDrawer() {
 /**
  * Open the cash drawer.
  * Returns { ok: true } on success or { ok: false, reason } on failure.
- *   reason: 'unsupported' | 'not_connected' | 'error'
+ *   reason: 'unsupported' | 'not_connected' | 'no_printer' | 'offline' | 'error'
+ *
+ * Desktop app: the drawer is plugged into the receipt printer (RJ11), so the
+ * kick command goes to the Windows default printer (see electron/main.js).
+ * Browser: falls back to a drawer on a serial port via Web Serial.
  */
 export async function openCashDrawer() {
+  if (window.electronAPI?.openCashDrawer) {
+    try { return await window.electronAPI.openCashDrawer(); }
+    catch { return { ok: false, reason: "error" }; }
+  }
   if (!("serial" in navigator)) return { ok: false, reason: "unsupported" };
   const ready = await _ensurePort();
   if (!ready) return { ok: false, reason: "not_connected" };
@@ -50,4 +58,4 @@ export async function openCashDrawer() {
   }
 }
 
-export const cashDrawerSupported = () => "serial" in navigator;
+export const cashDrawerSupported = () => !!window.electronAPI?.openCashDrawer || "serial" in navigator;

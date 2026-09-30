@@ -260,8 +260,9 @@ export default function Products() {
 
   const printLabel = () => {
     if (!barcode) { toast.error(t.generateBarcodeFirst); return; }
-    try { printBarcodeLabel(barcode, barcodeFormat); }
-    catch { toast.error(`${t.cannotPrint} ${barcodeFormat}`); }
+    printBarcodeLabel(barcode, barcodeFormat)
+      .catch(err => toast.error(err?.message?.startsWith("Printer") || err?.message?.startsWith("Could not")
+        ? err.message : `${t.cannotPrint} ${barcodeFormat}`));
   };
 
   // ── Create ────────────────────────────────────────────────────────────────

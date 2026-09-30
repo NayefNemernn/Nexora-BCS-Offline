@@ -162,8 +162,9 @@ export default function ProductEditPanel({
   /* Print label */
   const printLabel = () => {
     if (!editingProduct?.barcode) return;
-    try { printBarcodeLabel(editingProduct.barcode, barcodeFormat); }
-    catch { toast.error(`${t.cannotPrint} ${barcodeFormat}`); }
+    printBarcodeLabel(editingProduct.barcode, barcodeFormat)
+      .catch(err => toast.error(err?.message?.startsWith("Printer") || err?.message?.startsWith("Could not")
+        ? err.message : `${t.cannotPrint} ${barcodeFormat}`));
   };
 
   /* Image crop + compress */

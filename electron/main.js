@@ -4,6 +4,7 @@ const { app, BrowserWindow, shell, dialog, utilityProcess, ipcMain, nativeTheme 
 const path = require("path");
 const http = require("http");
 const fs   = require("fs");
+const { buildBarcodeLabel } = require("./escpos");
 
 const IS_DEV = !app.isPackaged;
 
@@ -258,11 +259,11 @@ public static class NexoraRawPrint {
   [DllImport("winspool.drv", SetLastError = true)] static extern bool StartPagePrinter(IntPtr h);
   [DllImport("winspool.drv", SetLastError = true)] static extern bool EndPagePrinter(IntPtr h);
   [DllImport("winspool.drv", SetLastError = true)] static extern bool WritePrinter(IntPtr h, byte[] b, int n, out int w);
-  public static void Send(string printer, byte[] data) {
+  public static void Send(string printer, string docName, byte[] data) {
     IntPtr h;
     if (!OpenPrinter(printer, out h, IntPtr.Zero)) throw new Exception("OpenPrinter failed (" + Marshal.GetLastWin32Error() + ")");
     try {
-      if (StartDocPrinter(h, 1, new DOCINFO { pDocName = "Nexora cash drawer", pDataType = "RAW" }) == 0)
+      if (StartDocPrinter(h, 1, new DOCINFO { pDocName = docName, pDataType = "RAW" }) == 0)
         throw new Exception("StartDocPrinter failed (" + Marshal.GetLastWin32Error() + ")");
       try {
         StartPagePrinter(h);
@@ -274,18 +275,23 @@ public static class NexoraRawPrint {
   }
 }
 "@
-[NexoraRawPrint]::Send($env:NEXORA_PRINTER, [Convert]::FromBase64String($env:NEXORA_BYTES))
+[NexoraRawPrint]::Send($env:NEXORA_PRINTER, $env:NEXORA_DOC, [Convert]::FromBase64String($env:NEXORA_BYTES))
 Write-Output 'OK'
 `;
 
+// The receipt printer: Windows default, skipping virtual printers (PDF etc.).
+async function pickReceiptPrinter(webContents) {
+  const printers = await webContents.getPrintersAsync().catch(() => []);
+  const real     = printers.filter(p => !VIRTUAL_PRINTER.test(p.name));
+  return (real.find(p => p.isDefault) || real[0])?.name || null;
+}
+
+// Sends raw ESC/POS bytes to a printer through the spooler.
 // Returns { ok: true, printer } or { ok: false, reason, printer?, message? }
 //   reason: 'unsupported' | 'no_printer' | 'offline' | 'error'
-ipcMain.handle("open-cash-drawer", async (event) => {
+async function sendRawToPrinter(webContents, bytes, docName) {
   if (process.platform !== "win32") return { ok: false, reason: "unsupported" };
-
-  const printers = await event.sender.getPrintersAsync().catch(() => []);
-  const real     = printers.filter(p => !VIRTUAL_PRINTER.test(p.name));
-  const printer  = (real.find(p => p.isDefault) || real[0])?.name;
+  const printer = await pickReceiptPrinter(webContents);
   if (!printer) return { ok: false, reason: "no_printer" };
 
   const { execFile } = require("child_process");
@@ -295,18 +301,29 @@ ipcMain.handle("open-cash-drawer", async (event) => {
       ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", RAW_PRINT_PS],
       {
         windowsHide: true, timeout: 20_000,
-        env: { ...process.env, NEXORA_PRINTER: printer, NEXORA_BYTES: DRAWER_KICK.toString("base64") },
+        env: { ...process.env, NEXORA_PRINTER: printer, NEXORA_BYTES: bytes.toString("base64"), NEXORA_DOC: docName },
       },
       (err, stdout, stderr) => {
         const out = String(stdout).trim();
         if (out.endsWith("OK"))    return resolve({ ok: true, printer });
         if (out === "OFFLINE")     return resolve({ ok: false, reason: "offline", printer });
         if (out === "NOT_FOUND")   return resolve({ ok: false, reason: "no_printer", printer });
-        console.error("[cash-drawer]", err?.message, stderr);
+        console.error("[raw-print]", err?.message, stderr);
         resolve({ ok: false, reason: "error", printer, message: String(stderr || err?.message || "").trim().split("\n")[0] });
       }
     );
   });
+}
+
+ipcMain.handle("open-cash-drawer", (event) =>
+  sendRawToPrinter(event.sender, DRAWER_KICK, "Nexora cash drawer"));
+
+// Barcode label drawn by the printer itself (see electron/escpos.js).
+// reason 'unsupported_format' → caller falls back to HTML printing.
+ipcMain.handle("print-barcode-label", (event, { value, format, label } = {}) => {
+  const bytes = buildBarcodeLabel(value, format, label);
+  if (!bytes) return { ok: false, reason: "unsupported_format" };
+  return sendRawToPrinter(event.sender, bytes, "Nexora barcode label");
 });
 
 // ── IPC: open native file picker for .nexora files (called from renderer) ────

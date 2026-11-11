@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { lineTotal, formatQty, countItems } from "../../lib/quantity";
 import { X, History, ShoppingBag, CreditCard, Banknote, Clock, ChevronDown } from "lucide-react";
 import api from "../../api/axios";
 import { useCurrency } from "../../context/CurrencyContext";
@@ -61,7 +62,7 @@ export default function CashierSalesHistory({ userId, onClose }) {
 
   // Mirrors P&L (getProfitLoss): a fully returned/voided sale contributes 0 revenue.
   const totalRevenue = sales.filter(x => x.status !== "fully_returned").reduce((s, x) => s + (x.total || 0), 0);
-  const totalItems   = sales.reduce((s, x) => s + (x.items?.reduce((a, i) => a + i.quantity, 0) || 0), 0);
+  const totalItems   = sales.reduce((s, x) => s + countItems(x.items), 0);
 
   return (
     <>
@@ -129,7 +130,7 @@ export default function CashierSalesHistory({ userId, onClose }) {
           ) : (
             sales.map((s) => {
               const isOpen = expanded === s._id;
-              const itemCount = s.items?.reduce((a, i) => a + i.quantity, 0) || 0;
+              const itemCount = countItems(s.items);
               return (
                 <div key={s._id}>
                   <button
@@ -192,7 +193,7 @@ export default function CashierSalesHistory({ userId, onClose }) {
                               {item.name}
                             </span>
                             <span className="shrink-0 text-gray-500 dark:text-gray-400 tabular-nums">
-                              ×{item.quantity} · {formatUSD(item.subtotal ?? item.price * item.quantity)}
+                              ×{formatQty(item.quantity, item.unitType)} · {formatUSD(item.subtotal ?? lineTotal(item.price, item.quantity, item.unitType))}
                             </span>
                           </div>
                         ))}

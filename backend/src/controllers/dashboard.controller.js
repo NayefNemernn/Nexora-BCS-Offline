@@ -2,6 +2,7 @@ import Sale     from "../models/Sale.js";
 import Product  from "../models/Product.js";
 import Customer from "../models/Customer.js";
 import HoldSale from "../models/HoldSale.js";
+import { normalizeUnit, roundQty } from "../utils/quantity.js";
 
 export const getDashboardStats = async (req, res) => {
   try {
@@ -65,7 +66,7 @@ export const getDashboardStats = async (req, res) => {
       Sale.aggregate([
         { $match: { storeId, createdAt: { $gte: periodStart }, ...notFullyReturned } },
         { $unwind: "$items" },
-        { $group: { _id: "$items.productId", sold: { $sum: "$items.quantity" }, name: { $first: "$items.name" } } },
+        { $group: { _id: "$items.productId", sold: { $sum: "$items.quantity" }, name: { $first: "$items.name" }, unitType: { $first: "$items.unitType" } } },
         { $sort: { sold: -1 } },
         { $limit: 5 },
       ]),
@@ -88,7 +89,7 @@ export const getDashboardStats = async (req, res) => {
       lowStockProducts,
       recentSales,
       salesChart:       salesChart.map(s => ({ day: s._id, sales: s.sales })),
-      topProducts:      topProducts.map(p => ({ _id: p._id, name: p.name, sold: p.sold })),
+      topProducts:      topProducts.map(p => ({ _id: p._id, name: p.name, sold: roundQty(p.sold), unitType: normalizeUnit(p.unitType) })),
     });
   } catch (err) {
     res.status(500).json({ message: err.message });

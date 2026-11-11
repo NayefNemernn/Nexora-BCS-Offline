@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { formatQty } from "../lib/quantity";
 import api from "../api/axios";
 
 export default function CustomerInvoices({customer}){
@@ -32,7 +33,7 @@ Invoice
 
 {inv.items.map((i,idx)=>(
 <p key={idx}>
-{i.name} x{i.quantity}
+{i.name} x{formatQty(i.quantity, i.unitType)}
 </p>
 ))}
 

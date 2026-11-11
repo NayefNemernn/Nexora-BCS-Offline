@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { formatQty } from "../lib/quantity";
 import { getPendingSales, confirmPayment } from "../api/orders.api";
 import toast from "react-hot-toast";
 import { Truck, CheckCircle2, Clock, MapPin, Phone, RefreshCw, Banknote } from "lucide-react";
@@ -125,7 +126,7 @@ export default function PendingPayments() {
                   <div className="mt-3 bg-gray-50 dark:bg-gray-800 rounded-xl p-3 space-y-1">
                     {sale.items?.map((item, i) => (
                       <div key={i} className="flex justify-between text-xs text-gray-600 dark:text-gray-300">
-                        <span>{item.name} × {item.quantity}</span>
+                        <span>{item.name} × {formatQty(item.quantity, item.unitType)}</span>
                         <span>${item.subtotal?.toFixed(2)}</span>
                       </div>
                     ))}

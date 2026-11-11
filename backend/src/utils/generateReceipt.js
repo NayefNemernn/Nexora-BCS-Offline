@@ -2,6 +2,8 @@
  * Generates a plain-text receipt string for a completed sale.
  * Used for printing or storing alongside the sale record.
  */
+import { isWeighed, formatQty } from "./quantity.js";
+
 export function generateReceipt(sale) {
   const line  = "─".repeat(32);
   const pad   = (label, value, width = 32) => {
@@ -27,7 +29,9 @@ export function generateReceipt(sale) {
     lines.push(`${item.name}`);
     lines.push(
       pad(
-        `  ${item.quantity} x $${item.price.toFixed(2)}`,
+        isWeighed(item.unitType)
+          ? `  ${formatQty(item.quantity, item.unitType)} x $${item.price.toFixed(2)}/${item.unitType}`
+          : `  ${item.quantity} x $${item.price.toFixed(2)}`,
         `$${item.subtotal.toFixed(2)}`
       )
     );

@@ -12,7 +12,7 @@ const batchSchema = new mongoose.Schema(
     expiryDate:   { type: Date, default: null },
     receivedDate: { type: Date, default: Date.now },
 
-    initialQty:   { type: Number, required: true, min: 1 },
+    initialQty:   { type: Number, required: true, min: 0.001 },
     remainingQty: { type: Number, required: true, min: 0 },
 
     costPrice:    { type: Number, default: 0 },

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { formatQty } from "../lib/quantity";
 import { useRefresh } from "../context/RefreshContext";
 import { useLang } from "../context/LanguageContext";
 import { useDashboardTranslation } from "../hooks/useDashboardTranslation";
@@ -174,7 +175,7 @@ export default function Dashboard() {
                       <span className="text-xs text-gray-400 w-4">{i + 1}</span>
                       <span className="truncate">{p.name}</span>
                     </div>
-                    <span className="font-semibold text-blue-600 dark:text-blue-400 shrink-0">{p.sold} {t.sold}</span>
+                    <span className="font-semibold text-blue-600 dark:text-blue-400 shrink-0">{formatQty(p.sold, p.unitType)} {t.sold}</span>
                   </div>
                 )) : <p className="text-sm text-gray-400">{t.noData}</p>}
               </div>

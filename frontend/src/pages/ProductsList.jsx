@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
+import { formatQty, normalizeUnit } from "../lib/quantity";
 import { getAllProducts } from "../api/product.api";
 import { useCurrency } from "../context/CurrencyContext";
 import { FileDown, X, ChevronUp, ChevronDown } from "lucide-react";
@@ -93,12 +94,12 @@ export default function ProductsList() {
     sortDir === "asc" ? <ChevronUp size={11}/> : <ChevronDown size={11}/>;
 
   const exportCSV = () => {
-    const header = ["Name","Category","Cost (ل.ل)","Cost ($)","Price (ل.ل)","Price ($)","Stock"];
+    const header = ["Name","Category","Cost (ل.ل)","Cost ($)","Price (ل.ل)","Price ($)","Stock","Unit"];
     const rows = filtered.map(p => [
       `"${p.name}"`, `"${p.category?.name||"-"}"`,
       toLBPNice(p.cost), parseFloat(p.cost).toFixed(2),
       toLBPNice(p.price), parseFloat(p.price).toFixed(2),
-      p.stock,
+      p.stock, normalizeUnit(p.unitType),
     ]);
     const csv = [header, ...rows].map(r => r.join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
@@ -242,7 +243,7 @@ export default function ProductsList() {
                       p.stock <= 5
                         ? "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400"
                         : "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400"
-                    }`}>{p.stock}</span>
+                    }`}>{formatQty(p.stock, p.unitType)}</span>
                   </td>
                 </tr>
                 );

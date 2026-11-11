@@ -12,6 +12,7 @@ import useOfflineSales from "../hooks/useOfflineSales";
 import toast from "react-hot-toast";
 import { openCashDrawer } from "../lib/cashDrawer";
 import QRCode from "qrcode";
+import { isWeighed, lineTotal, formatQty } from "../lib/quantity";
 import {
   X, Banknote, CreditCard, Clock, User, Phone,
   Printer, CheckCircle2, ShoppingBag, ArrowLeftRight,
@@ -31,11 +32,11 @@ async function printReceipt(sale, { toLBP, toLBPNice, formatLBP, formatUSD, exch
   const itemRows = sale.items.map(i => `
     <tr>
       <td>${i.name}</td>
-      <td style="text-align:center">${i.quantity}</td>
-      <td style="text-align:right">${formatUSD(i.price * i.quantity)}</td>
+      <td style="text-align:center;white-space:nowrap">${formatQty(i.quantity, i.unitType)}</td>
+      <td style="text-align:right">${formatUSD(lineTotal(i.price, i.quantity, i.unitType))}</td>
     </tr>
     <tr class="sub-row">
-      <td colspan="3">${formatUSD(i.price)} each &nbsp;·&nbsp; ${formatLBP(toLBPNice(i.price))}</td>
+      <td colspan="3">${formatUSD(i.price)} ${isWeighed(i.unitType) ? `/ ${i.unitType}` : "each"} &nbsp;·&nbsp; ${formatLBP(toLBPNice(i.price))}</td>
     </tr>
   `).join("");
 
@@ -57,7 +58,7 @@ async function printReceipt(sale, { toLBP, toLBPNice, formatLBP, formatUSD, exch
       <td style="text-align:right">−${formatUSD(sale.discountAmount)}</td>
     </tr>` : "";
 
-  const subtotalBeforeVat = sale.subtotal ?? sale.items.reduce((s, i) => s + i.price * i.quantity, 0);
+  const subtotalBeforeVat = sale.subtotal ?? sale.items.reduce((s, i) => s + lineTotal(i.price, i.quantity, i.unitType), 0);
   const vatAmt = sale.taxAmount ?? 0;
   const vatRow = (taxRate > 0 && vatAmt > 0) ? `
     <tr class="vat-row">
@@ -211,7 +212,7 @@ export default function CheckoutModal({ cart, total, close, clearCart, deliveryO
   const discountAmountSend = +discountAmountRaw.toFixed(6);
 
   /* ── VAT calculation (only on non-exempt items) ── */
-  const vatableSubtotal = cart.reduce((sum, i) => i.vatExempt ? sum : sum + i.price * i.quantity, 0);
+  const vatableSubtotal = cart.reduce((sum, i) => i.vatExempt ? sum : sum + lineTotal(i.price, i.quantity, i.unitType), 0);
   const vatAmount = taxRate > 0 ? +(vatableSubtotal * (taxRate / 100)).toFixed(2) : 0;
   const vatAmountRaw = taxRate > 0 ? vatableSubtotal * (taxRate / 100) : 0;
 
@@ -266,6 +267,9 @@ export default function CheckoutModal({ cart, total, close, clearCart, deliveryO
   /* ── complete sale ── */
   const completeSale = async () => {
     if (cart.length === 0) { toast.error(t.cartEmpty); return; }
+    // A kg / L line whose amount was never entered
+    const missingQty = cart.find(i => !(i.quantity > 0));
+    if (missingQty) { toast.error(`Enter the quantity for ${missingQty.name}`); return; }
 
     /* validations */
     if (method === "split") {
@@ -294,7 +298,7 @@ export default function CheckoutModal({ cart, total, close, clearCart, deliveryO
         const offlinePayload = {
           customerName: selectedCustomer?.name || customerSearch.trim() || "",
           phone:        selectedCustomer?.phone || newPhone || "",
-          items: cart.map(i => ({ productId: i.productId, name: i.name, price: i.price, quantity: i.quantity })),
+          items: cart.map(i => ({ productId: i.productId, name: i.name, price: i.price, quantity: i.quantity, unitType: i.unitType })),
           // Full precision, not the 2-decimal-rounded finalTotal — at a large
           // LBP exchange rate, rounding USD to cents before saving can throw
           // the LBP total off by a visible amount (e.g. 170,000 → 170,100).
@@ -305,7 +309,7 @@ export default function CheckoutModal({ cart, total, close, clearCart, deliveryO
         toast.success("📴 Pay Later saved — will sync when connected");
         setReceipt({
           _id: "offline-" + Date.now(),
-          items: cart.map(i => ({ name: i.name, price: i.price, quantity: i.quantity })),
+          items: cart.map(i => ({ name: i.name, price: i.price, quantity: i.quantity, unitType: i.unitType })),
           subtotal: total, taxAmount: vatAmount,
           total: finalTotal, discountAmount: discountAmountSend, paymentMethod: "paylater",
           customerName: offlinePayload.customerName,
@@ -319,7 +323,7 @@ export default function CheckoutModal({ cart, total, close, clearCart, deliveryO
         await createHoldSale({
           customerName: selectedCustomer?.name || customerSearch.trim(),
           phone: selectedCustomer?.phone || newPhone,
-          items: cart.map(i => ({ productId: i.productId, name: i.name, price: i.price, quantity: i.quantity })),
+          items: cart.map(i => ({ productId: i.productId, name: i.name, price: i.price, quantity: i.quantity, unitType: i.unitType })),
           // Full precision — see comment on the offline payload above.
           total: +finalTotalRaw.toFixed(6),
         });
@@ -368,7 +372,7 @@ export default function CheckoutModal({ cart, total, close, clearCart, deliveryO
         toast.success("📴 Sale saved — will sync when connected");
         saleResult = {
           _id: "offline-" + Date.now(),
-          items: cart.map(i => ({ name: i.name, price: i.price, quantity: i.quantity })),
+          items: cart.map(i => ({ name: i.name, price: i.price, quantity: i.quantity, unitType: i.unitType })),
           subtotal: total, taxAmount: vatAmount,
           total: finalTotal, discountAmount: discountAmountSend, paymentMethod: method,
           splitPayments: payload.splitPayments || [],
@@ -410,8 +414,8 @@ export default function CheckoutModal({ cart, total, close, clearCart, deliveryO
           <div className="px-6 py-4 space-y-2 max-h-64 overflow-y-auto">
             {receipt.items.map((item, i) => (
               <div key={i} className="flex justify-between text-sm">
-                <span className="text-gray-700 dark:text-gray-300">{item.name} <span className="text-gray-400">× {item.quantity}</span></span>
-                <span className="font-medium">{formatUSD(item.price * item.quantity)}</span>
+                <span className="text-gray-700 dark:text-gray-300">{item.name} <span className="text-gray-400">× {formatQty(item.quantity, item.unitType)}</span></span>
+                <span className="font-medium">{formatUSD(lineTotal(item.price, item.quantity, item.unitType))}</span>
               </div>
             ))}
 

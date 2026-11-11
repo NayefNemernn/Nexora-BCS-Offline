@@ -10,6 +10,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useProductsTranslation } from "../../hooks/useProductsTranslation";
 import { useCurrency } from "../../context/CurrencyContext";
 import { getProductStats } from "../../api/product.api";
+import { isWeighed, addQty, subQty } from "../../lib/quantity";
 import ImageCropModal from "./ImageCropModal";
 import CameraCapture from "./CameraCapture";
 
@@ -255,6 +256,7 @@ export default function ProductEditPanel({
         price:              editingProduct.price,
         cost:               editingProduct.cost || 0,
         stock:              editingProduct.stock,
+        unitType:           editingProduct.unitType || "piece",
         barcode:            editingProduct.barcode,
         category:           editingProduct.category?._id || editingProduct.category || "",
         hasVariants:        !!editingProduct.hasVariants,
@@ -282,6 +284,7 @@ export default function ProductEditPanel({
       data.append("price",    String(editingProduct.price));
       data.append("cost",     String(editingProduct.cost || 0));
       data.append("stock",    String(editingProduct.stock));
+      data.append("unitType", editingProduct.unitType || "piece");
       data.append("barcode",  editingProduct.barcode);
       data.append("category", editingProduct.category?._id || editingProduct.category || "");
       data.append("hasVariants",        String(!!editingProduct.hasVariants));
@@ -499,6 +502,20 @@ export default function ProductEditPanel({
                 </div>
               )}
 
+              {/* ── Unit — piece / kg / L (price and stock follow it) ── */}
+              <div>
+                <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">{t.unitType || "Sold by"}</label>
+                <select
+                  value={editingProduct.unitType || "piece"}
+                  onChange={e => setEditingProduct(p => ({ ...p, unitType: e.target.value }))}
+                  className={inp + " mt-1"}
+                >
+                  <option value="piece">{t.unitPiece || "Piece"}</option>
+                  <option value="kg">{t.unitKg || "Weight (kg)"}</option>
+                  <option value="L">{t.unitL || "Volume (L)"}</option>
+                </select>
+              </div>
+
               {/* ── Price + Cost (shared currency toggle) ── */}
               <div className="space-y-3">
 
@@ -520,7 +537,7 @@ export default function ProductEditPanel({
 
                 {/* Price */}
                 <div>
-                  <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">{t.price}</label>
+                  <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">{isWeighed(editingProduct.unitType) ? `${t.pricePer || "Price per"} ${editingProduct.unitType}` : t.price}</label>
                   <div className="flex items-center gap-2 mt-1">
                     <div className="relative flex-1">
                       <span className={`absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold pointer-events-none ${fieldCurrency === "lbp" ? "text-amber-500" : "text-green-500"}`}>
@@ -678,17 +695,17 @@ export default function ProductEditPanel({
 
               {/* ── Stock ── */}
               <div>
-                <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">{t.stock}</label>
+                <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">{t.stock}{isWeighed(editingProduct.unitType) ? ` (${editingProduct.unitType})` : ""}</label>
                 <div className="flex items-center gap-2 mt-1">
-                  <button onClick={() => setEditingProduct({ ...editingProduct, stock: Math.max(0, editingProduct.stock - 1) })}
+                  <button onClick={() => setEditingProduct({ ...editingProduct, stock: Math.max(0, subQty(editingProduct.stock, 1)) })}
                     className="w-9 h-10 shrink-0 rounded-xl bg-gray-100 dark:bg-[#1c1c1c] border border-gray-200 dark:border-white/10 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-white/15 transition">
                     <Minus size={13}/>
                   </button>
-                  <input type="number" min="0" value={editingProduct.stock}
+                  <input type="number" min="0" step={isWeighed(editingProduct.unitType) ? "0.001" : "1"} value={editingProduct.stock}
                     onChange={e => setEditingProduct({ ...editingProduct, stock: Number(e.target.value) })}
                     className={inp + " text-center"}/>
-                  <VoiceButton onResult={text => { const n = text.replace(/[^0-9]/g,""); if(n) setEditingProduct({ ...editingProduct, stock: Number(n) }); }} color="green"/>
-                  <button onClick={() => setEditingProduct({ ...editingProduct, stock: editingProduct.stock + 1 })}
+                  <VoiceButton onResult={text => { const n = text.replace(isWeighed(editingProduct.unitType) ? /[^0-9.]/g : /[^0-9]/g,""); if(n) setEditingProduct({ ...editingProduct, stock: Number(n) }); }} color="green"/>
+                  <button onClick={() => setEditingProduct({ ...editingProduct, stock: addQty(editingProduct.stock, 1) })}
                     className="w-9 h-10 shrink-0 rounded-xl bg-gray-100 dark:bg-[#1c1c1c] border border-gray-200 dark:border-white/10 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-white/15 transition">
                     <Plus size={13}/>
                   </button>

@@ -1,4 +1,5 @@
 import React from "react";
+import { formatQty } from "../../lib/quantity";
 import { motion } from "framer-motion";
 import { Check, Layers, Trash2 } from "lucide-react";
 import { useProductsTranslation } from "../../hooks/useProductsTranslation";
@@ -85,7 +86,7 @@ export default function ProductCard({ product, onDelete, onEdit, onBatches, sele
             : "bg-green-100 text-green-600 dark:bg-green-900/40 dark:text-green-400"
           }
         `}>
-          {t.stockLabel}: {product.stock}
+          {t.stockLabel}: {formatQty(product.stock, product.unitType)}
         </span>
 
         {/* Action buttons — stacked row inside card */}

@@ -12,6 +12,8 @@
      auth              → JWT token for SW background sync
 ================================================================ */
 
+import { subQty } from "./quantity";
+
 const DB_NAME    = "pos_offline_db";
 const DB_VERSION = 5;
 
@@ -108,7 +110,7 @@ export async function decrementLocalStock(items) {
   if (!cached || !items?.length) return;
   const updated = cached.map((p) => {
     const sold = items.find((i) => i.productId === p._id || i.productId === p._id?.toString());
-    return sold ? { ...p, stock: Math.max(0, (p.stock || 0) - sold.quantity) } : p;
+    return sold ? { ...p, stock: Math.max(0, subQty(p.stock || 0, sold.quantity)) } : p;
   });
   await cacheProducts(updated);
 }

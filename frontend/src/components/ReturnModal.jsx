@@ -3,6 +3,14 @@ import { returnSale } from "../api/sale.api";
 import { useCurrency } from "../context/CurrencyContext";
 import toast from "react-hot-toast";
 import { X, RotateCcw, CheckCircle2, AlertTriangle } from "lucide-react";
+import { isWeighed, lineTotal, formatQty, formatQtyNumber, addQty, subQty, roundQty } from "../lib/quantity";
+
+// − / + step by 1 and stop at what's returnable. A kg / L line can be
+// fractional (0.350 kg), so its last step lands on the exact amount sold.
+const clampReturnQty = (val, item) => {
+  const n = isWeighed(item.unitType) ? roundQty(Number(val) || 0) : parseInt(val) || 0;
+  return Math.min(Math.max(0, n), item.returnable);
+};
 
 export default function ReturnModal({ sale, onClose, onSuccess }) {
   const { formatUSD } = useCurrency();
@@ -11,13 +19,14 @@ export default function ReturnModal({ sale, onClose, onSuccess }) {
   const initialItems = sale.items.map(item => {
     const alreadyReturned = (sale.returnedItems || [])
       .filter(r => r.productId?.toString() === item.productId?.toString())
-      .reduce((s, r) => s + r.quantity, 0);
+      .reduce((s, r) => addQty(s, r.quantity), 0);
     return {
       productId:    item.productId,
       name:         item.name,
       price:        item.price,
+      unitType:     item.unitType,
       soldQty:      item.quantity,
-      returnable:   item.quantity - alreadyReturned,
+      returnable:   subQty(item.quantity, alreadyReturned),
       returnQty:    0,
     };
   }).filter(i => i.returnable > 0);
@@ -29,11 +38,11 @@ export default function ReturnModal({ sale, onClose, onSuccess }) {
 
   const setQty = (idx, val) => {
     setItems(prev => prev.map((item, i) =>
-      i === idx ? { ...item, returnQty: Math.min(Math.max(0, parseInt(val) || 0), item.returnable) } : item
+      i === idx ? { ...item, returnQty: clampReturnQty(val, item) } : item
     ));
   };
 
-  const totalRefund = items.reduce((s, i) => s + i.price * i.returnQty, 0);
+  const totalRefund = items.reduce((s, i) => s + lineTotal(i.price, i.returnQty, i.unitType), 0);
   const hasItems    = items.some(i => i.returnQty > 0);
 
   const submit = async () => {
@@ -120,7 +129,7 @@ export default function ReturnModal({ sale, onClose, onSuccess }) {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{item.name}</p>
                     <p className="text-xs text-gray-400">
-                      {formatUSD(item.price)} each · {item.returnable} returnable
+                      {formatUSD(item.price)} {isWeighed(item.unitType) ? `/ ${item.unitType}` : "each"} · {formatQty(item.returnable, item.unitType)} returnable
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
@@ -128,8 +137,8 @@ export default function ReturnModal({ sale, onClose, onSuccess }) {
                       className="w-7 h-7 rounded-full bg-white dark:bg-[#252525] border border-gray-200 dark:border-white/10 text-sm font-bold flex items-center justify-center hover:bg-gray-100 transition">
                       −
                     </button>
-                    <span className={`w-8 text-center text-sm font-bold ${item.returnQty > 0 ? "text-blue-600 dark:text-blue-400" : "text-gray-400"}`}>
-                      {item.returnQty}
+                    <span className={`min-w-8 text-center text-sm font-bold tabular-nums ${item.returnQty > 0 ? "text-blue-600 dark:text-blue-400" : "text-gray-400"}`}>
+                      {formatQtyNumber(item.returnQty, item.unitType)}
                     </span>
                     <button onClick={() => setQty(idx, item.returnQty + 1)}
                       className="w-7 h-7 rounded-full bg-blue-600 text-white text-sm font-bold flex items-center justify-center hover:bg-blue-700 transition">
@@ -138,7 +147,7 @@ export default function ReturnModal({ sale, onClose, onSuccess }) {
                   </div>
                   {item.returnQty > 0 && (
                     <span className="text-xs font-semibold text-blue-600 dark:text-blue-400 w-16 text-right">
-                      {formatUSD(item.price * item.returnQty)}
+                      {formatUSD(lineTotal(item.price, item.returnQty, item.unitType))}
                     </span>
                   )}
                 </div>

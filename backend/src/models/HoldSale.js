@@ -31,6 +31,7 @@ const holdSaleSchema = new mongoose.Schema(
         price:     Number,
         cost:      { type: Number, default: 0 },
         quantity:  Number,
+        unitType:  { type: String, default: "piece" }, // unit `quantity` is in, as sold
       },
     ],
 
@@ -65,6 +66,7 @@ const holdSaleSchema = new mongoose.Schema(
         productId:  mongoose.Schema.Types.ObjectId,
         name:       String,
         quantity:   Number,
+        unitType:   { type: String, default: "piece" },
         refundAmount: Number,
         reason:     String,
         returnedAt: { type: Date, default: Date.now },

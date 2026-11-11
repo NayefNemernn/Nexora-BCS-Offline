@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { isWeighed, lineTotal, formatQty } from "../lib/quantity";
 import { printHtml } from "../lib/printHtml";
 import api from "../api/axios";
 import { cachePayLater, getCachedPayLater } from "../lib/offlineDB";
@@ -31,10 +32,10 @@ function ItemsModal({ sale, close }) {
     const rows = sale.items.map(i => `
       <tr>
         <td>${i.name}</td>
-        <td style="text-align:center">${i.quantity}</td>
-        <td style="text-align:right">$${(i.price * i.quantity).toFixed(2)}</td>
+        <td style="text-align:center;white-space:nowrap">${formatQty(i.quantity, i.unitType)}</td>
+        <td style="text-align:right">$${lineTotal(i.price, i.quantity, i.unitType).toFixed(2)}</td>
       </tr>
-      <tr class="sub"><td colspan="3">$${i.price.toFixed(2)} each · ${parseInt(toLBPNice(i.price)).toLocaleString()} ل.ل</td></tr>
+      <tr class="sub"><td colspan="3">$${i.price.toFixed(2)} ${isWeighed(i.unitType) ? `/ ${i.unitType}` : "each"} · ${parseInt(toLBPNice(i.price)).toLocaleString()} ل.ل</td></tr>
     `).join("");
     printHtml(`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Items — ${sale.customerName}</title>
 <style>
@@ -74,7 +75,7 @@ function ItemsModal({ sale, close }) {
 </body></html>`);
   };
 
-  const grandTotal = sale.items.reduce((s, i) => s + i.price * i.quantity, 0);
+  const grandTotal = sale.items.reduce((s, i) => s + lineTotal(i.price, i.quantity, i.unitType), 0);
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -137,8 +138,8 @@ function ItemsModal({ sale, close }) {
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-bold">{formatUSD(item.price * item.quantity)}</p>
-                  <p className="text-xs text-gray-400">× {item.quantity}</p>
+                  <p className="text-sm font-bold">{formatUSD(lineTotal(item.price, item.quantity, item.unitType))}</p>
+                  <p className="text-xs text-gray-400">× {formatQty(item.quantity, item.unitType)}</p>
                 </div>
               </motion.div>
             ))

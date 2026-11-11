@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { UNIT_TYPES, DEFAULT_UNIT } from "../utils/quantity.js";
 
 const variantSchema = new mongoose.Schema({
   name:   { type: String, required: true }, // e.g. "Red / Large"
@@ -11,6 +12,9 @@ const productSchema = new mongoose.Schema(
   {
     name:       { type: String, required: true, trim: true },
     barcode:    { type: String, required: true },
+    // How the product is sold: by the piece, by weight (kg) or by volume (L).
+    // `price`, `cost` and `stock` are all per / in this unit.
+    unitType:   { type: String, enum: UNIT_TYPES, default: DEFAULT_UNIT },
     price:      { type: Number, required: true, min: 0 },
     cost:       { type: Number, default: 0, min: 0 },
     expiryDate: { type: Date, default: null },

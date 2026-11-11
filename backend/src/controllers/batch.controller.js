@@ -2,6 +2,8 @@ import Batch    from "../models/Batch.js";
 import Product  from "../models/Product.js";
 import StockLog from "../models/StockLog.js";
 import AuditLog from "../models/AuditLog.js";
+import { isWeighed, roundQty, addQty } from "../utils/quantity.js";
+import { incRounded } from "../utils/stock.js";
 
 /* ── GET /api/batches  (admin) ───────────────────────────────── */
 export const getBatches = async (req, res) => {
@@ -67,13 +69,16 @@ export const getBatchesForProduct = async (req, res) => {
 /* ── POST /api/batches  (admin) ──────────────────────────────── */
 export const createBatch = async (req, res) => {
   try {
-    const { productId, qty, expiryDate, costPrice, supplierId, supplierName, notes, receivedDate } = req.body;
+    const { productId, expiryDate, costPrice, supplierId, supplierName, notes, receivedDate } = req.body;
 
     if (!productId)        return res.status(400).json({ message: "Product is required" });
-    if (!qty || qty < 1)   return res.status(400).json({ message: "Quantity must be at least 1" });
-
     const product = await Product.findOne({ _id: productId, storeId: req.storeId });
     if (!product)          return res.status(404).json({ message: "Product not found" });
+
+    // Pieces arrive in whole units; kg / L products can be received in fractions (to 3 decimals)
+    const qty = isWeighed(product.unitType) ? roundQty(req.body.qty) : req.body.qty;
+    if (!qty || qty <= 0 || (!isWeighed(product.unitType) && qty < 1))
+      return res.status(400).json({ message: isWeighed(product.unitType) ? "Quantity must be greater than 0" : "Quantity must be at least 1" });
 
     const effectiveCostPrice = costPrice !== undefined ? costPrice : (product.cost || 0);
 
@@ -97,7 +102,7 @@ export const createBatch = async (req, res) => {
     // or voids — keeping that one figure accurate without a second,
     // batch-blended valuation drifting away from it elsewhere.
     const oldStock = product.stock || 0;
-    const newStock = oldStock + qty;
+    const newStock = addQty(oldStock, qty);
     const newCost  = +((((product.cost || 0) * oldStock) + effectiveCostPrice * qty) / newStock).toFixed(6);
     await Product.findByIdAndUpdate(productId, { stock: newStock, cost: newCost });
 
@@ -109,7 +114,7 @@ export const createBatch = async (req, res) => {
       type:           "batch_received",
       quantityBefore: product.stock,
       change:         qty,
-      quantityAfter:  product.stock + qty,
+      quantityAfter:  addQty(product.stock, qty),
       reason:         `Batch ${batch.batchNumber} received${expiryDate ? ` — expiry ${new Date(expiryDate).toLocaleDateString()}` : ""}`,
       reference:      batch.batchNumber,
     });
@@ -161,7 +166,7 @@ export const adjustBatchQty = async (req, res) => {
     const batch = await Batch.findOne({ _id: req.params.id, storeId: req.storeId });
     if (!batch) return res.status(404).json({ message: "Batch not found" });
 
-    const newQty = batch.remainingQty + Number(change);
+    const newQty = addQty(batch.remainingQty, change);
     if (newQty < 0) return res.status(400).json({ message: "Remaining qty cannot go below zero" });
 
     const product = await Product.findById(batch.productId);
@@ -171,7 +176,7 @@ export const adjustBatchQty = async (req, res) => {
     await batch.save();
 
     // Sync product stock
-    await Product.findByIdAndUpdate(batch.productId, { $inc: { stock: Number(change) } });
+    await Product.findByIdAndUpdate(batch.productId, incRounded("stock", Number(change)));
 
     await StockLog.create({
       storeId:        req.storeId,
@@ -181,7 +186,7 @@ export const adjustBatchQty = async (req, res) => {
       type:           "adjustment",
       quantityBefore: product.stock,
       change:         Number(change),
-      quantityAfter:  product.stock + Number(change),
+      quantityAfter:  addQty(product.stock, change),
       reason:         reason || `Manual adjustment on batch ${batch.batchNumber}`,
       reference:      batch.batchNumber,
     });
@@ -200,7 +205,7 @@ export const deleteBatch = async (req, res) => {
 
     // Subtract remaining qty from product stock before deleting
     if (batch.remainingQty > 0) {
-      await Product.findByIdAndUpdate(batch.productId, { $inc: { stock: -batch.remainingQty } });
+      await Product.findByIdAndUpdate(batch.productId, incRounded("stock", -batch.remainingQty));
     }
 
     await Batch.findByIdAndDelete(batch._id);

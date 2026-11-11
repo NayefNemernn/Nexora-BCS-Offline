@@ -7,6 +7,8 @@ import HoldSale from "../models/HoldSale.js";
 import Payment  from "../models/Payment.js";
 import Batch    from "../models/Batch.js";
 import { computeInventoryValue } from "../utils/inventoryValue.js";
+import { normalizeUnit, normalizeQuantity, lineTotal, roundQty, addQty, subQty, formatQty } from "../utils/quantity.js";
+import { incRounded } from "../utils/stock.js";
 
 async function audit(req, action, description, meta = {}) {
   try { await AuditLog.create({ storeId: req.storeId, userId: req.user._id, username: req.user.username, action, description, meta }); } catch {}
@@ -16,7 +18,7 @@ async function logStock(req, product, change, type, reason = "", reference = "")
     await StockLog.create({
       storeId: req.storeId, productId: product._id, userId: req.user._id,
       productName: product.name, type,
-      quantityBefore: product.stock, change, quantityAfter: product.stock + change,
+      quantityBefore: product.stock, change, quantityAfter: addQty(product.stock, change),
       reason, reference,
     });
   } catch {}
@@ -44,9 +46,14 @@ export const createSale = async (req, res) => {
     for (const item of items) {
       const product = await Product.findOne({ _id: item.productId, storeId });
       if (!product) return res.status(404).json({ message: `Product not found` });
-      if (product.stock < item.quantity) return res.status(400).json({ message: `${product.name} — only ${product.stock} left` });
 
-      const itemSubtotal = +(product.price * item.quantity).toFixed(6);
+      // Quantity is in the product's own unit: pieces, kg or L (3 decimals)
+      const unitType = normalizeUnit(product.unitType);
+      const quantity = normalizeQuantity(item.quantity, unitType);
+      if (quantity === null) return res.status(400).json({ message: `${product.name} — invalid quantity` });
+      if (product.stock < quantity) return res.status(400).json({ message: `${product.name} — only ${formatQty(product.stock, unitType)} left` });
+
+      const itemSubtotal = +lineTotal(product.price, quantity, unitType).toFixed(6);
       subtotal += itemSubtotal;
       if (!product.vatExempt) vatableAmount += itemSubtotal;
 
@@ -60,23 +67,23 @@ export const createSale = async (req, res) => {
 
       let itemCost = product.cost || 0; // fallback when no batches exist
       if (activeBatches.length > 0) {
-        let costNumerator = 0, costDenominator = 0, remaining = item.quantity;
+        let costNumerator = 0, costDenominator = 0, remaining = quantity;
         for (const batch of activeBatches) {
           if (remaining <= 0) break;
           const deduct = Math.min(batch.remainingQty, remaining);
-          await Batch.findByIdAndUpdate(batch._id, { $inc: { remainingQty: -deduct } });
+          await Batch.findByIdAndUpdate(batch._id, incRounded("remainingQty", -deduct));
           costNumerator   += deduct * (batch.costPrice || 0);
           costDenominator += deduct;
-          remaining -= deduct;
+          remaining = subQty(remaining, deduct);
         }
         // Weighted-average cost of the units actually consumed from batches
         if (costDenominator > 0) itemCost = +(costNumerator / costDenominator).toFixed(4);
       }
 
-      saleItems.push({ productId: product._id, name: product.name, price: product.price, cost: itemCost, quantity: item.quantity, subtotal: itemSubtotal, vatExempt: !!product.vatExempt, discountAmount: item.discountAmount || 0 });
+      saleItems.push({ productId: product._id, name: product.name, price: product.price, cost: itemCost, quantity, unitType, subtotal: itemSubtotal, vatExempt: !!product.vatExempt, discountAmount: item.discountAmount || 0 });
 
-      await Product.findByIdAndUpdate(product._id, { $inc: { stock: -item.quantity } });
-      await logStock(req, { ...product.toObject(), stock: stockBefore }, -item.quantity, "sale");
+      await Product.findByIdAndUpdate(product._id, incRounded("stock", -quantity));
+      await logStock(req, { ...product.toObject(), stock: stockBefore }, -quantity, "sale");
     }
 
     const taxAmount = +(vatableAmount * (taxRate / 100)).toFixed(6);
@@ -141,7 +148,7 @@ export const createSale = async (req, res) => {
       const payLaterEntry = (splitPayments || []).find(p => p.method === "paylater");
       if (payLaterEntry && payLaterEntry.amount > 0 && customerName) {
         const cashPaid  = +(total - payLaterEntry.amount).toFixed(2);
-        const holdItems = saleItems.map(i => ({ productId: i.productId, name: i.name, price: i.price, cost: i.cost, quantity: i.quantity }));
+        const holdItems = saleItems.map(i => ({ productId: i.productId, name: i.name, price: i.price, cost: i.cost, quantity: i.quantity, unitType: i.unitType }));
         const existing  = await HoldSale.findOne({ customerName, storeId });
         let holdSaleId;
         if (existing) {
@@ -203,28 +210,43 @@ export const returnSaleItems = async (req, res) => {
 
       const alreadyReturned = sale.returnedItems
         .filter(r => r.productId.toString() === ri.productId)
-        .reduce((s, r) => s + r.quantity, 0);
+        .reduce((s, r) => addQty(s, r.quantity), 0);
 
-      const maxReturnable = saleItem.quantity - alreadyReturned;
-      if (ri.quantity > maxReturnable) return res.status(400).json({ message: `${saleItem.name}: max ${maxReturnable} returnable` });
+      // Returned in the unit it was sold in — a weighed line gives back the
+      // same kg / L (to the gram) that left stock.
+      const unitType = normalizeUnit(saleItem.unitType);
+      const quantity = normalizeQuantity(ri.quantity, unitType);
+      if (quantity === null) return res.status(400).json({ message: `${saleItem.name}: invalid quantity` });
 
-      const refundAmount = +(saleItem.price * ri.quantity * (1 - discountRatio)).toFixed(6);
+      const maxReturnable = subQty(saleItem.quantity, alreadyReturned);
+      if (quantity > maxReturnable) return res.status(400).json({ message: `${saleItem.name}: max ${formatQty(maxReturnable, unitType)} returnable` });
+
+      const refundAmount = +(lineTotal(saleItem.price, quantity, unitType) * (1 - discountRatio)).toFixed(6);
       totalRefundThisReturn += refundAmount;
-      newReturnedItems.push({ productId: saleItem.productId, name: saleItem.name, quantity: ri.quantity, refundAmount, reason, returnedAt: new Date(), returnedBy: req.user._id });
+      newReturnedItems.push({ productId: saleItem.productId, name: saleItem.name, quantity, unitType, refundAmount, reason, returnedAt: new Date(), returnedBy: req.user._id });
 
       const product = await Product.findById(saleItem.productId);
       if (product) {
         const stockBefore = product.stock;
-        await Product.findByIdAndUpdate(saleItem.productId, { $inc: { stock: ri.quantity } });
-        await logStock(req, { ...product.toObject(), stock: stockBefore }, +ri.quantity, "return", reason, sale._id.toString());
+        await Product.findByIdAndUpdate(saleItem.productId, incRounded("stock", quantity));
+        await logStock(req, { ...product.toObject(), stock: stockBefore }, +quantity, "return", reason, sale._id.toString());
       }
     }
 
+    sale.returnedItems.push(...newReturnedItems);
+
     const newTotalReturned = sale.totalRefunded + totalRefundThisReturn;
     const totalReturnableValue = sale.items.reduce((s, i) => s + i.subtotal, 0) * (1 - discountRatio);
-    const newStatus = newTotalReturned >= totalReturnableValue - 0.000001 ? "fully_returned" : "partially_returned";
+    // Also fully returned once every line's quantity is back — refunds of a
+    // weighed line taken in several parts are each rounded, so their sum can
+    // sit a hair under the line's value.
+    const everythingBack = sale.items.every(i =>
+      sale.returnedItems
+        .filter(r => r.productId.toString() === i.productId.toString())
+        .reduce((s, r) => addQty(s, r.quantity), 0) >= roundQty(i.quantity)
+    );
+    const newStatus = everythingBack || newTotalReturned >= totalReturnableValue - 0.000001 ? "fully_returned" : "partially_returned";
 
-    sale.returnedItems.push(...newReturnedItems);
     sale.totalRefunded = +newTotalReturned.toFixed(6);
     sale.status = newStatus;
     await sale.save();
@@ -267,19 +289,20 @@ export const voidSale = async (req, res) => {
     for (const item of sale.items) {
       const alreadyReturned = sale.returnedItems
         .filter(r => r.productId.toString() === item.productId.toString())
-        .reduce((s, r) => s + r.quantity, 0);
-      const remaining = item.quantity - alreadyReturned;
+        .reduce((s, r) => addQty(s, r.quantity), 0);
+      const remaining = subQty(item.quantity, alreadyReturned);
       if (remaining <= 0) continue;
+      const unitType = normalizeUnit(item.unitType);
 
       const product = await Product.findById(item.productId);
       if (product) {
         const stockBefore = product.stock;
-        await Product.findByIdAndUpdate(item.productId, { $inc: { stock: remaining } });
+        await Product.findByIdAndUpdate(item.productId, incRounded("stock", remaining));
         await logStock(req, { ...product.toObject(), stock: stockBefore }, +remaining, "return", `Void: ${reason}`, sale._id.toString());
       }
       newReturnedItems.push({
-        productId: item.productId, name: item.name, quantity: remaining,
-        refundAmount: +(item.price * remaining * (1 - discountRatio)).toFixed(6), reason: `VOID: ${reason}`, returnedAt: new Date(), returnedBy: req.user._id,
+        productId: item.productId, name: item.name, quantity: remaining, unitType,
+        refundAmount: +(lineTotal(item.price, remaining, unitType) * (1 - discountRatio)).toFixed(6), reason: `VOID: ${reason}`, returnedAt: new Date(), returnedBy: req.user._id,
       });
     }
 
@@ -338,10 +361,10 @@ export const getProfitLoss = async (req, res) => {
     for (const sale of sales) {
       for (const item of sale.items) {
         const key = item.name;
-        if (!productMap[key]) productMap[key] = { name: key, revenue: 0, cost: 0, quantity: 0, profit: 0 };
+        if (!productMap[key]) productMap[key] = { name: key, unitType: normalizeUnit(item.unitType), revenue: 0, cost: 0, quantity: 0, profit: 0 };
         productMap[key].revenue  += item.price * item.quantity;
         productMap[key].cost     += (item.cost || 0) * item.quantity;
-        productMap[key].quantity += item.quantity;
+        productMap[key].quantity  = addQty(productMap[key].quantity, item.quantity);
         productMap[key].profit   += (item.price - (item.cost || 0)) * item.quantity;
       }
     }

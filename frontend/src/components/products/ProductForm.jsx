@@ -3,6 +3,7 @@ import { useProductsTranslation } from "../../hooks/useProductsTranslation";
 import { useCurrency } from "../../context/CurrencyContext";
 import VoiceButton from "../common/VoiceButton";
 import { Calculator, Calendar } from "lucide-react";
+import { isWeighed } from "../../lib/quantity";
 
 // ── Brand logo / product image auto-detect ───────────────────────────────────
 async function findBrandLogo(name) {
@@ -252,6 +253,15 @@ export default function ProductForm({
 
   const labelClass = "block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wide";
 
+  // Sold by the piece, by weight (kg) or by volume (L) — price and stock follow this unit
+  const unitType = form.unitType || "piece";
+  const weighed  = isWeighed(unitType);
+  const unitOptions = [
+    { value: "piece", label: t.unitPiece || "Piece" },
+    { value: "kg",    label: t.unitKg    || "Weight (kg)" },
+    { value: "L",     label: t.unitL     || "Volume (L)" },
+  ];
+
   const fields = [
     {
       key: "name",
@@ -264,12 +274,13 @@ export default function ProductForm({
     },
     {
       key: "stock",
-      label: t.stock || "Stock",
-      placeholder: "0",
+      label: weighed ? `${t.stock || "Stock"} (${unitType})` : t.stock || "Stock",
+      placeholder: weighed ? "0.000" : "0",
       type: "number",
+      step: weighed ? "0.001" : "1",
       value: form.stock,
       onChange: (v) => setForm({ ...form, stock: v }),
-      voiceFilter: (t) => t.replace(/[^0-9]/g, ""),
+      voiceFilter: (text) => text.replace(weighed ? /[^0-9.]/g : /[^0-9]/g, ""),
     },
     {
       key: "category",
@@ -313,10 +324,33 @@ export default function ProductForm({
       {/* FIELDS GRID — all equal columns */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
 
+        {/* === UNIT — piece / kg / L === */}
+        <div className="sm:col-span-2 xl:col-span-4">
+          <label className={labelClass}>{t.unitType || "Sold by"}</label>
+          <div className="flex gap-1 max-w-md">
+            {unitOptions.map((u) => (
+              <button
+                key={u.value}
+                type="button"
+                onClick={() => setForm({ ...form, unitType: u.value })}
+                className={`
+                  flex-1 py-1.5 rounded-xl text-xs font-semibold transition-all
+                  ${unitType === u.value
+                    ? "bg-blue-600 text-white shadow-[0_2px_8px_rgba(37,99,235,0.4)]"
+                    : "bg-gray-200 dark:bg-[#1c1c1c] text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                  }
+                `}
+              >
+                {u.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* === PRICE FIELD — special with USD/LBP toggle === */}
         <div className="sm:col-span-2 xl:col-span-1">
           <label className={labelClass}>
-            {t.price || "Price"}
+            {weighed ? `${t.pricePer || "Price per"} ${unitType}` : t.price || "Price"}
           </label>
 
           {/* Currency toggle */}
@@ -496,6 +530,7 @@ export default function ProductForm({
             <div className="flex items-center gap-2">
               <input
                 type={field.type}
+                step={field.step}
                 list={field.list}
                 placeholder={field.placeholder}
                 value={field.value}

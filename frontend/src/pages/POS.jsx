@@ -28,6 +28,7 @@ import CashierSalesHistory from "../components/pos/CashierSalesHistory";
 
 import { getCategoryIcon } from "../lib/categoryIcon";
 import { coffeeBeansStyle } from "../lib/coffeeTheme";
+import { isWeighed, lineTotal, formatQty } from "../lib/quantity";
 
 const nameHue = (str) => [...(str || "")].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 0);
 
@@ -53,7 +54,7 @@ export default function POS({ setPage }) {
   const [flashId,          setFlashId]          = useState(null);
   const [posPage,          setPosPage]          = useState(1);
 
-  const { cart, addToCart, increase, decrease, clearCart, loadCart, loadDeliveryOrder, total } = useCart();
+  const { cart, addToCart, increase, decrease, setQuantity, removeItem, clearCart, loadCart, loadDeliveryOrder, total } = useCart();
   const { user, store: ctxStore }   = useAuth();
   const { t }      = useTranslation();
   const { toLBP, toLBPNice, formatLBP, formatUSD, displayCurrency } = useCurrency();
@@ -234,7 +235,7 @@ export default function POS({ setPage }) {
 
   const addProductSafe = (product) => {
     if (!product)            { toast.error(t.productNotFound); return; }
-    if (product.stock === 0) { toast.error(t.outOfStock);      return; }
+    if (product.stock <= 0)  { toast.error(t.outOfStock);      return; }
     addToCart(product);
     // Brief flash animation
     setFlashId(product._id);
@@ -587,7 +588,8 @@ export default function POS({ setPage }) {
               <div className="grid gap-3 p-1 pb-2" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(110px, 1fr))" }}>
                 {paginatedProducts.map(p => {
                   const qty   = cart.find(i => i.productId === p._id)?.quantity || 0;
-                  const out   = p.stock === 0;
+                  const out   = p.stock <= 0;
+                  const weighed = isWeighed(p.unitType);
                   const flash = flashId === p._id;
                   return (
                     <div
@@ -622,7 +624,7 @@ export default function POS({ setPage }) {
                         <div className="absolute top-2 left-2 z-20 min-w-[22px] h-[22px] px-1.5
                           rounded-full bg-blue-600 text-white text-[10px] font-bold
                           flex items-center justify-center shadow-lg shadow-blue-600/40">
-                          {qty}
+                          {formatQty(qty, p.unitType)}
                         </div>
                       )}
 
@@ -664,18 +666,29 @@ export default function POS({ setPage }) {
                         </p>
 
                         {/* Price row */}
-                        <div className="flex items-center justify-between">
-                          {renderPrice(p.price)}
+                        <div className={`flex items-center justify-between ${weighed ? "flex-wrap gap-y-1" : ""}`}>
+                          {weighed ? (
+                            <div className="flex items-baseline gap-0.5">
+                              {renderPrice(p.price)}
+                              <span className="text-[9px] font-semibold text-gray-400">/{p.unitType}</span>
+                            </div>
+                          ) : renderPrice(p.price)}
                           <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded-full
+                            ${weighed ? "whitespace-nowrap" : ""}
                             ${p.stock <= 5
                               ? "bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400"
                               : "bg-gray-100 dark:bg-white/5 text-gray-400"
                             }`}>
-                            {t.stock}: {p.stock}
+                            {t.stock}: {formatQty(p.stock, p.unitType)}
                           </span>
                         </div>
 
-                        {/* +/- controls */}
+                        {/* +/- controls — kg / L products get their amount typed on the cart line instead */}
+                        {weighed ? (
+                          <p className="text-[10px] text-gray-400 mt-0.5 h-8 flex items-center">
+                            Sold by {p.unitType}
+                          </p>
+                        ) : (
                         <div className="flex items-center mt-0.5" onClick={e => e.stopPropagation()}>
                           <div className="flex items-center gap-1.5">
                             <button
@@ -703,6 +716,7 @@ export default function POS({ setPage }) {
                             >+</button>
                           </div>
                         </div>
+                        )}
                       </div>
                       </div>
                     </div>
@@ -779,6 +793,8 @@ export default function POS({ setPage }) {
             cart={cart}
             increase={increase}
             decrease={decrease}
+            setQuantity={setQuantity}
+            removeItem={removeItem}
             clearCart={clearCart}
             total={total}
             onCheckout={() => setOpenCheckout(true)}
@@ -808,7 +824,7 @@ export default function POS({ setPage }) {
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-semibold truncate">{h.label}</p>
                       <p className="text-xs text-gray-400 tabular-nums">
-                        {h.items.length} item{h.items.length !== 1 ? "s" : ""} · {formatUSD(h.items.reduce((s, i) => s + i.price * i.quantity, 0))}
+                        {h.items.length} item{h.items.length !== 1 ? "s" : ""} · {formatUSD(h.items.reduce((s, i) => s + lineTotal(i.price, i.quantity, i.unitType), 0))}
                       </p>
                     </div>
                     <button

@@ -1,4 +1,5 @@
 import { useReceiptTranslation } from "../hooks/useReceiptTranslation";
+import { lineTotal, formatQty } from "../lib/quantity";
 
 export default function Receipt({ sale, storeName }) {
   const t = useReceiptTranslation();
@@ -18,8 +19,8 @@ export default function Receipt({ sale, storeName }) {
 
       {sale.items.map((i, idx) => (
         <div key={idx} className="flex justify-between mb-1">
-          <span>{i.name} × {i.quantity}</span>
-          <span>${(i.price * i.quantity).toFixed(2)}</span>
+          <span>{i.name} × {formatQty(i.quantity, i.unitType)}</span>
+          <span>${lineTotal(i.price, i.quantity, i.unitType).toFixed(2)}</span>
         </div>
       ))}
 

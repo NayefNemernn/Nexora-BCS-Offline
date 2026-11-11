@@ -1,4 +1,5 @@
 import { isOnline } from "../lib/connectivity";
+import { isWeighed, lineTotal, formatQty, formatQtyNumber, addQty, subQty, roundQty } from "../lib/quantity";
 import { printHtml } from "../lib/printHtml";
 import React, { useState, useRef, useEffect } from "react";
 import api from "../api/axios";
@@ -11,13 +12,20 @@ import {
   ScanLine, Package, AlertTriangle,
 } from "lucide-react";
 
+// − / + step by 1 and stop at what's returnable. A kg / L line can be
+// fractional (0.350 kg), so its last step lands on the exact amount sold.
+const clampReturnQty = (val, item) => {
+  const n = isWeighed(item.unitType) ? roundQty(Number(val) || 0) : parseInt(val) || 0;
+  return Math.min(Math.max(0, n), item.returnable);
+};
+
 /* ── Print refund receipt ── */
 function printRefundReceipt(sale, refundItems, refundAmount, storeName) {
   const rows = refundItems.map(i => `
     <tr>
       <td style="font-weight:900">${i.name}</td>
-      <td style="text-align:center;font-weight:900">${i.returnQty}</td>
-      <td style="text-align:right;font-weight:900">$${(i.price * i.returnQty).toFixed(2)}</td>
+      <td style="text-align:center;font-weight:900;white-space:nowrap">${formatQty(i.returnQty, i.unitType)}</td>
+      <td style="text-align:right;font-weight:900">$${lineTotal(i.price, i.returnQty, i.unitType).toFixed(2)}</td>
     </tr>`).join("");
 
   printHtml(`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Return Receipt</title>
@@ -130,13 +138,14 @@ export default function QuickReturn({ onClose, storeName }) {
     const initialItems = s.items.map(item => {
       const alreadyReturned = (s.returnedItems || [])
         .filter(r => r.productId?.toString() === item.productId?.toString())
-        .reduce((sum, r) => sum + r.quantity, 0);
+        .reduce((sum, r) => addQty(sum, r.quantity), 0);
       return {
         productId:  item.productId,
         name:       item.name,
         price:      item.price,
+        unitType:   item.unitType,
         soldQty:    item.quantity,
-        returnable: item.quantity - alreadyReturned,
+        returnable: subQty(item.quantity, alreadyReturned),
         returnQty:  0,
       };
     }).filter(i => i.returnable > 0);
@@ -153,14 +162,14 @@ export default function QuickReturn({ onClose, storeName }) {
 
   const setQty = (idx, val) => {
     setItems(prev => prev.map((item, i) =>
-      i === idx ? { ...item, returnQty: Math.min(Math.max(0, parseInt(val) || 0), item.returnable) } : item
+      i === idx ? { ...item, returnQty: clampReturnQty(val, item) } : item
     ));
   };
 
   const selectAll = () => setItems(prev => prev.map(i => ({ ...i, returnQty: i.returnable })));
   const clearAll  = () => setItems(prev => prev.map(i => ({ ...i, returnQty: 0 })));
 
-  const totalRefund = items.reduce((s, i) => s + i.price * i.returnQty, 0);
+  const totalRefund = items.reduce((s, i) => s + lineTotal(i.price, i.returnQty, i.unitType), 0);
   const hasItems    = items.some(i => i.returnQty > 0);
 
   const submit = async () => {
@@ -320,15 +329,15 @@ export default function QuickReturn({ onClose, storeName }) {
                     }`}>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold truncate">{item.name}</p>
-                      <p className="text-xs text-gray-400">{formatUSD(item.price)} each · {item.returnable} returnable</p>
+                      <p className="text-xs text-gray-400">{formatUSD(item.price)} {isWeighed(item.unitType) ? `/ ${item.unitType}` : "each"} · {formatQty(item.returnable, item.unitType)} returnable</p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <button onClick={() => setQty(idx, item.returnQty - 1)}
                         className="w-8 h-8 rounded-full bg-white dark:bg-[#252525] border border-gray-200 dark:border-white/10 text-sm font-bold flex items-center justify-center hover:bg-gray-100 transition">
                         −
                       </button>
-                      <span className={`w-8 text-center text-sm font-bold ${item.returnQty > 0 ? "text-blue-600 dark:text-blue-400" : "text-gray-400"}`}>
-                        {item.returnQty}
+                      <span className={`min-w-8 text-center text-sm font-bold tabular-nums ${item.returnQty > 0 ? "text-blue-600 dark:text-blue-400" : "text-gray-400"}`}>
+                        {formatQtyNumber(item.returnQty, item.unitType)}
                       </span>
                       <button onClick={() => setQty(idx, item.returnQty + 1)}
                         className="w-8 h-8 rounded-full bg-blue-600 text-white text-sm font-bold flex items-center justify-center hover:bg-blue-700 transition">
@@ -337,7 +346,7 @@ export default function QuickReturn({ onClose, storeName }) {
                     </div>
                     {item.returnQty > 0 && (
                       <span className="text-xs font-bold text-blue-600 dark:text-blue-400 w-16 text-right shrink-0">
-                        −{formatUSD(item.price * item.returnQty)}
+                        −{formatUSD(lineTotal(item.price, item.returnQty, item.unitType))}
                       </span>
                     )}
                   </div>
@@ -398,8 +407,8 @@ export default function QuickReturn({ onClose, storeName }) {
               <div className="space-y-1 text-sm">
                 {done.refundItems.map((i, idx) => (
                   <div key={idx} className="flex justify-between px-4 py-1.5 bg-gray-50 dark:bg-[#1a1a1a] rounded-lg">
-                    <span className="font-medium">{i.name} × {i.returnQty}</span>
-                    <span className="font-bold text-green-600">−{formatUSD(i.price * i.returnQty)}</span>
+                    <span className="font-medium">{i.name} × {formatQty(i.returnQty, i.unitType)}</span>
+                    <span className="font-bold text-green-600">−{formatUSD(lineTotal(i.price, i.returnQty, i.unitType))}</span>
                   </div>
                 ))}
               </div>

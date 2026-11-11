@@ -4,6 +4,7 @@ import Sale from "../models/Sale.js";
 import Batch from "../models/Batch.js";
 import WarehouseStock from "../models/WarehouseStock.js";
 import { computeInventoryValue } from "../utils/inventoryValue.js";
+import { UNIT_TYPES, normalizeUnit, addQty, roundQty } from "../utils/quantity.js";
 import Category from "../models/Category.js";
 import supabase from "../config/supabase.js";
 import { v4 as uuid } from "uuid";
@@ -88,7 +89,7 @@ export const getAlerts = async (req, res) => {
 export const getProfitabilityReport = async (req, res) => {
   try {
     const storeId = req.storeId;
-    const products = await Product.find({ storeId }).select("name price cost stock image").lean();
+    const products = await Product.find({ storeId }).select("name price cost stock image unitType").lean();
     const productMap = {};
     products.forEach(p => { productMap[String(p._id)] = p; });
 
@@ -113,10 +114,10 @@ export const getProfitabilityReport = async (req, res) => {
       const cogs    = row.cogs    || 0;
       const profit  = revenue - cogs;
       const margin  = revenue > 0 ? (profit / revenue) * 100 : 0;
-      return { productId: row._id, name: row.name, image: prod.image || "", price: prod.price || 0, cost: prod.cost || 0, stock: prod.stock || 0, unitsSold: row.unitsSold, revenue: +revenue.toFixed(2), cogs: +cogs.toFixed(2), profit: +profit.toFixed(2), margin: +margin.toFixed(1) };
+      return { productId: row._id, name: row.name, unitType: normalizeUnit(prod.unitType), image: prod.image || "", price: prod.price || 0, cost: prod.cost || 0, stock: prod.stock || 0, unitsSold: row.unitsSold, revenue: +revenue.toFixed(2), cogs: +cogs.toFixed(2), profit: +profit.toFixed(2), margin: +margin.toFixed(1) };
     });
 
-    const totals = rows.reduce((acc, r) => ({ revenue: acc.revenue + r.revenue, cogs: acc.cogs + r.cogs, profit: acc.profit + r.profit, units: acc.units + r.unitsSold }), { revenue: 0, cogs: 0, profit: 0, units: 0 });
+    const totals = rows.reduce((acc, r) => ({ revenue: acc.revenue + r.revenue, cogs: acc.cogs + r.cogs, profit: acc.profit + r.profit, units: addQty(acc.units, r.unitsSold) }), { revenue: 0, cogs: 0, profit: 0, units: 0 });
 
     // Inventory value: use actual batch costs (remaining stock valued at purchase price)
     const inventoryValue = await computeInventoryValue(storeId);
@@ -164,7 +165,10 @@ export const createProduct = async (req, res) => {
       return res.status(403).json({ message: `Product limit (${store.maxProducts}) reached. Upgrade your plan.` });
     }
 
-    const { name, price, cost, category, expiryDate, expiryAlertDays, cupSize, coffeeCategory } = req.body;
+    const { name, price, cost, category, expiryDate, expiryAlertDays, cupSize, coffeeCategory, unitType } = req.body;
+    if (unitType !== undefined && !UNIT_TYPES.includes(unitType)) {
+      return res.status(400).json({ message: `Unit must be one of: ${UNIT_TYPES.join(", ")}` });
+    }
     let { barcode, stock } = req.body;
     const isCoffeeCup = req.body.isCoffeeCup === true || req.body.isCoffeeCup === "true";
     let imageUrl = "";
@@ -186,6 +190,7 @@ export const createProduct = async (req, res) => {
 
     const product = await Product.create({
       name, barcode, price, cost: cost || 0, stock,
+      unitType: normalizeUnit(unitType),
       category: category || undefined, expiryDate: expiryDate || null,
       expiryAlertDays: expiryAlertDays ? Number(expiryAlertDays) : 180,
       isCoffeeCup,
@@ -223,6 +228,10 @@ export const updateProduct = async (req, res) => {
     }
     if (updateData.expiryAlertDays !== undefined) {
       updateData.expiryAlertDays = Number(updateData.expiryAlertDays);
+    }
+    // findOneAndUpdate doesn't run schema validators, so check the enum here
+    if (updateData.unitType !== undefined && !UNIT_TYPES.includes(updateData.unitType)) {
+      return res.status(400).json({ message: `Unit must be one of: ${UNIT_TYPES.join(", ")}` });
     }
 
     if (updateData.removeImage === "true") {
@@ -336,7 +345,10 @@ export const importProducts = async (req, res) => {
 
       const price       = parseFloat(row[2]) || 0;
       const cost        = parseFloat(row[3]) || 0;
-      const stock       = parseInt(row[4])   || 0;
+      // Optional 9th column — blank or unrecognised means "piece"
+      const unitRaw     = String(row[8] || "").trim().toLowerCase();
+      const unitType    = UNIT_TYPES.find(u => u.toLowerCase() === unitRaw) || "piece";
+      const stock       = unitType === "piece" ? (parseInt(row[4]) || 0) : roundQty(parseFloat(row[4]) || 0);
       const categoryRaw = String(row[5] || "").trim().toLowerCase();
       const expiryRaw   = String(row[6] || "").trim();
       const imageUrl    = String(row[7] || "").trim();
@@ -357,7 +369,7 @@ export const importProducts = async (req, res) => {
 
       // Imported cost/stock go straight onto the product — like every other
       // non-batch path, this becomes *the* cost everywhere (no batch created).
-      await Product.create({ name, barcode, price, cost, stock, category: categoryId, expiryDate, image: imageUrl || "", storeId: req.storeId });
+      await Product.create({ name, barcode, price, cost, stock, unitType, category: categoryId, expiryDate, image: imageUrl || "", storeId: req.storeId });
 
       inserted++;
     }

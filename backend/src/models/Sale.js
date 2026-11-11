@@ -12,6 +12,7 @@ const saleSchema = new mongoose.Schema(
         price:      Number,
         cost:       { type: Number, default: 0 },
         quantity:   { type: Number, required: true },
+        unitType:   { type: String, default: "piece" }, // unit `quantity` is in, as sold
         subtotal:   Number,
         vatExempt:  { type: Boolean, default: false },
         // per-item discount
@@ -64,6 +65,7 @@ const saleSchema = new mongoose.Schema(
         productId:  mongoose.Schema.Types.ObjectId,
         name:       String,
         quantity:   Number,
+        unitType:   { type: String, default: "piece" },
         refundAmount: Number,
         reason:     String,
         returnedAt: { type: Date, default: Date.now },

@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo, useCallback } from "react";
+import { formatQty, addQty, countItems, lineTotal } from "../lib/quantity";
 import { useRefresh }              from "../context/RefreshContext";
 import { useLang }                 from "../context/LanguageContext";
 import { useReportsTranslation }   from "../hooks/useReportsTranslation";
@@ -249,9 +250,9 @@ export default function Reports() {
     const map = {};
     revenueSales.forEach(s => s.items.forEach(item => {
       const name = item.name||"Unknown";
-      if (!map[name]) map[name]={name,qty:0,revenue:0};
-      map[name].qty += item.quantity;
-      map[name].revenue += item.subtotal||item.price*item.quantity;
+      if (!map[name]) map[name]={name,unitType:item.unitType,qty:0,revenue:0};
+      map[name].qty = addQty(map[name].qty, item.quantity);
+      map[name].revenue += item.subtotal||lineTotal(item.price,item.quantity,item.unitType);
     }));
     return Object.values(map).sort((a,b)=>b.qty-a.qty).slice(0,8);
   }, [revenueSales]);
@@ -295,7 +296,7 @@ export default function Reports() {
       if (!catMap[cat]) catMap[cat] = { category: cat, revenue: 0, profit: 0, quantity: 0 };
       catMap[cat].revenue += p.revenue;
       catMap[cat].profit += p.profit;
-      catMap[cat].quantity += p.quantity;
+      catMap[cat].quantity = addQty(catMap[cat].quantity, p.quantity);
     });
     return Object.values(catMap)
       .map(c => ({ ...c, margin: c.revenue > 0 ? +((c.profit / c.revenue) * 100).toFixed(1) : 0 }))
@@ -313,6 +314,7 @@ export default function Reports() {
       return {
         name:     p.name,
         category: p.category?.name || "Uncategorized",
+        unitType: p.unitType,
         quantity: sold ? sold.quantity : 0,
         revenue:  sold ? sold.revenue  : 0,
         profit:   sold ? sold.profit   : 0,
@@ -330,7 +332,7 @@ export default function Reports() {
     productMarginAll.forEach(p => {
       if (!catMap[p.category]) catMap[p.category] = { category: p.category, quantity: 0, revenue: 0, profit: 0, marginSum: 0, count: 0, soldCount: 0 };
       const c = catMap[p.category];
-      c.quantity += p.quantity;
+      c.quantity = addQty(c.quantity, p.quantity);
       c.revenue  += p.revenue;
       c.profit   += p.profit;
       c.marginSum+= p.margin;
@@ -424,9 +426,9 @@ export default function Reports() {
     const map = {};
     revenueSales.forEach(s => s.items.forEach(item => {
       const name = item.name || "Unknown";
-      if (!map[name]) map[name] = { name, qty: 0, revenue: 0 };
-      map[name].qty += item.quantity;
-      map[name].revenue += item.subtotal || item.price * item.quantity;
+      if (!map[name]) map[name] = { name, unitType: item.unitType, qty: 0, revenue: 0 };
+      map[name].qty = addQty(map[name].qty, item.quantity);
+      map[name].revenue += item.subtotal || lineTotal(item.price, item.quantity, item.unitType);
     }));
     return Object.values(map).sort((a, b) => b.qty - a.qty).slice(0, 20);
   }, [revenueSales]);
@@ -445,7 +447,7 @@ export default function Reports() {
         <Sector cx={cx} cy={cy} innerRadius={innerRadius} outerRadius={outerRadius+14} startAngle={startAngle} endAngle={endAngle} fill={fill} style={{filter:`drop-shadow(0 0 6px ${fill}88)`}}/>
         {/* label inside */}
         <text x={cx} y={cy - 16} textAnchor="middle" fill={fill} fontSize={12} fontWeight={700}>{payload.name.length > 14 ? payload.name.slice(0,14)+"…" : payload.name}</text>
-        <text x={cx} y={cy + 2}  textAnchor="middle" fill="#6b7280" fontSize={11}>{payload.qty} sold</text>
+        <text x={cx} y={cy + 2}  textAnchor="middle" fill="#6b7280" fontSize={11}>{formatQty(payload.qty, payload.unitType)} sold</text>
         <text x={cx} y={cy + 18} textAnchor="middle" fill="#6b7280" fontSize={11}>{fLBP(payload.revenue)}</text>
         <text x={cx} y={cy + 34} textAnchor="middle" fill={fill} fontSize={11} fontWeight={600}>{(percent * 100).toFixed(1)}%</text>
       </g>
@@ -763,7 +765,7 @@ export default function Reports() {
                         <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: PIE20[i % PIE20.length] }}/>
                         <div className="min-w-0">
                           <p className="text-xs font-medium truncate text-gray-700 dark:text-gray-300" title={p.name}>{p.name}</p>
-                          <p className="text-[10px] text-gray-400">{p.qty} sold</p>
+                          <p className="text-[10px] text-gray-400">{formatQty(p.qty, p.unitType)} sold</p>
                         </div>
                       </div>
                     ))}
@@ -1006,7 +1008,7 @@ export default function Reports() {
                                   {p.name}
                                   {prodViewMode==="all" && !p.sold && <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-gray-100 dark:bg-gray-800 text-gray-400">not sold</span>}
                                 </td>
-                                <td className="px-3 py-3 text-center text-gray-500">{p.quantity}</td>
+                                <td className="px-3 py-3 text-center text-gray-500">{formatQty(p.quantity, p.unitType)}</td>
                                 <td className="px-3 py-3 text-right text-blue-600 dark:text-blue-400">{fLBP(p.revenue)}</td>
                                 <td className={`px-3 py-3 text-right font-semibold ${p.profit>=0?"text-green-600 dark:text-green-400":"text-red-500"}`}>{fLBP(p.profit)}</td>
                                 <td className="px-3 py-3 text-right">
@@ -1068,7 +1070,7 @@ export default function Reports() {
                               {sorted.map(p=>(
                                 <tr key={p.name} className="hover:bg-gray-50 dark:hover:bg-white/5">
                                   <td className="px-5 py-3 font-medium truncate max-w-[200px]">{p.name}</td>
-                                  <td className="px-3 py-3 text-center text-gray-500">{p.quantity}</td>
+                                  <td className="px-3 py-3 text-center text-gray-500">{formatQty(p.quantity, p.unitType)}</td>
                                   <td className="px-3 py-3 text-right text-blue-600 dark:text-blue-400">{fLBP(p.revenue)}</td>
                                   <td className={`px-3 py-3 text-right font-bold ${p.profit>0?"text-green-600 dark:text-green-400":p.profit<0?"text-red-500":"text-gray-400"}`}>
                                     {fLBP(p.profit)}
@@ -1105,7 +1107,7 @@ export default function Reports() {
           // items/discount/tax here — recomputing the same formula a second
           // time on stored (already-rounded) fields reintroduced its own
           // razor-thin +/- floating point epsilon on fully-discounted sales.
-          const rawTotal = (s) => s.total ?? ((s.items||[]).reduce((a,i)=>a+i.price*i.quantity,0)-(s.discountAmount||0)+(s.taxAmount||0));
+          const rawTotal = (s) => s.total ?? ((s.items||[]).reduce((a,i)=>a+lineTotal(i.price,i.quantity,i.unitType),0)-(s.discountAmount||0)+(s.taxAmount||0));
           // Use ALL sales (unlimited — not filtered by period)
           let txSales = saleTypeFilter==="delivery" ? sales.filter(s=>s.saleType==="delivery")
             : saleTypeFilter==="in_store" ? sales.filter(s=>!s.saleType||s.saleType==="in_store")
@@ -1252,7 +1254,7 @@ export default function Reports() {
                               <div className="flex flex-wrap gap-1">
                                 {sale.__payLater && <span className="text-xs font-semibold text-fuchsia-600 dark:text-fuchsia-400">{sale.customerName||"—"}:</span>}
                                 {(sale.items||[]).map((item,i)=>(
-                                  <span key={i} className="text-xs bg-gray-100 dark:bg-[#252525] px-2 py-0.5 rounded-full whitespace-nowrap">{item.name} ×{item.quantity}</span>
+                                  <span key={i} className="text-xs bg-gray-100 dark:bg-[#252525] px-2 py-0.5 rounded-full whitespace-nowrap">{item.name} ×{formatQty(item.quantity, item.unitType)}</span>
                                 ))}
                               </div>
                             </td>
@@ -1415,7 +1417,7 @@ export default function Reports() {
                       <tr key={s._id} className="hover:bg-gray-50 dark:hover:bg-white/5">
                         <td className="py-2.5 text-gray-500 text-xs">{fmtDate(s.createdAt)}</td>
                         <td className="py-2.5">{s.customerName||"—"}</td>
-                        <td className="py-2.5 text-center">{s.items.reduce((a,i)=>a+i.quantity,0)}</td>
+                        <td className="py-2.5 text-center">{countItems(s.items)}</td>
                         <td className="py-2.5 text-right font-semibold text-red-500">{fLBP(s.total)}</td>
                       </tr>
                     ))}
@@ -1716,7 +1718,7 @@ export default function Reports() {
                           {p.name}
                           {catViewMode==="all" && !p.sold && <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-gray-100 dark:bg-gray-800 text-gray-400">not sold</span>}
                         </td>
-                        <td className="px-3 py-2.5 text-center text-gray-500">{p.quantity}</td>
+                        <td className="px-3 py-2.5 text-center text-gray-500">{formatQty(p.quantity, p.unitType)}</td>
                         <td className="px-3 py-2.5 text-right">
                           <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${parseFloat(p.margin)>=20?"bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400":parseFloat(p.margin)>=10?"bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400":parseFloat(p.margin)>=0?"bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300":"bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400"}`}>
                             {p.margin}%

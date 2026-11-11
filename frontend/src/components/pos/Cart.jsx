@@ -1,11 +1,14 @@
 import { useEffect, useRef } from "react";
 import { ShoppingBag, Trash2, PauseCircle } from "lucide-react";
 import CartItem from "./CartItem";
+import { isWeighed } from "../../lib/quantity";
 
 export default function Cart({
   cart,
   increase,
   decrease,
+  setQuantity,
+  removeItem,
   clearCart,
   total,
   onCheckout,
@@ -18,7 +21,10 @@ export default function Cart({
   toLBPNice,
   displayCurrency,
 }) {
-  const cartCount = cart.reduce((s, i) => s + i.quantity, 0);
+  // A kg / L line counts as one item, whatever it weighs
+  const cartCount = cart.reduce((s, i) => s + (isWeighed(i.unitType) ? 1 : i.quantity), 0);
+  // A weighed line with no amount entered yet blocks checkout
+  const needsQty = cart.some(i => !(i.quantity > 0));
 
   // Auto-scroll the items list to the bottom whenever a new line is added —
   // fires on cart.length (a new distinct product), not every quantity bump,
@@ -46,6 +52,7 @@ export default function Cart({
   const checkoutLabel = () => {
     const base = t.checkout;
     if (cart.length === 0) return base;
+    if (needsQty) return "Enter weight / volume";
     if (displayCurrency === "lbp") return `${base} · ${formatLBP(toLBPNice(total))}`;
     return `${base} · ${formatUSD(total)}`;
   };
@@ -136,6 +143,8 @@ export default function Cart({
               item={item}
               onIncrease={increase}
               onDecrease={decrease}
+              onSetQuantity={setQuantity}
+              onRemove={removeItem}
               formatUSD={formatUSD}
               formatLBP={formatLBP}
               toLBP={toLBP}
@@ -162,7 +171,7 @@ export default function Cart({
         {/* Checkout button */}
         <button
           onClick={onCheckout}
-          disabled={cart.length === 0}
+          disabled={cart.length === 0 || needsQty}
           className="w-full py-4 rounded-xl font-bold text-base
             text-white
             bg-gradient-to-r from-green-600 to-emerald-500

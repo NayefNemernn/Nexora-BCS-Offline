@@ -2,6 +2,7 @@ import Product        from "../models/Product.js";
 import StockLog       from "../models/StockLog.js";
 import AuditLog       from "../models/AuditLog.js";
 import WarehouseStock from "../models/WarehouseStock.js";
+import { addQty, subQty } from "../utils/quantity.js";
 
 async function audit(req, action, description, meta = {}) {
   try {
@@ -22,7 +23,7 @@ export const adjustStock = async (req, res) => {
     const product = await Product.findOne({ _id: productId, storeId: req.storeId });
     if (!product) return res.status(404).json({ message: "Product not found" });
 
-    const newStock = product.stock + Number(change);
+    const newStock = addQty(product.stock, change);
     if (newStock < 0) return res.status(400).json({ message: "Stock cannot go below zero" });
 
     await StockLog.create({
@@ -67,8 +68,8 @@ export const addToWarehouse = async (req, res) => {
 
     const beforeShowroom  = product.stock;
     const beforeWarehouse = product.warehouseStock ?? 0;
-    product.stock         = product.stock - qty;
-    product.warehouseStock = beforeWarehouse + qty;
+    product.stock         = subQty(product.stock, qty);
+    product.warehouseStock = addQty(beforeWarehouse, qty);
     await product.save();
 
     await StockLog.create({
@@ -98,7 +99,7 @@ export const receiveToWarehouse = async (req, res) => {
     if (!product) return res.status(404).json({ message: "Product not found" });
 
     const before = product.warehouseStock ?? 0;
-    product.warehouseStock = before + qty;
+    product.warehouseStock = addQty(before, qty);
     await product.save();
 
     await StockLog.create({
@@ -129,8 +130,8 @@ export const transferToShowroom = async (req, res) => {
       return res.status(400).json({ message: "Insufficient warehouse stock" });
 
     const beforeShowroom = product.stock;
-    product.warehouseStock = (product.warehouseStock ?? 0) - qty;
-    product.stock = product.stock + qty;
+    product.warehouseStock = subQty(product.warehouseStock ?? 0, qty);
+    product.stock = addQty(product.stock, qty);
     await product.save();
 
     await StockLog.create({

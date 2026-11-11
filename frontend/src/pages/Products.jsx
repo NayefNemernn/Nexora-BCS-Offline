@@ -74,7 +74,7 @@ export default function Products() {
   const [editingProduct, setEditingProduct] = useState(null);
   const [image,   setImage]   = useState(null);
   const [preview, setPreview] = useState("");
-  const [form,    setForm]    = useState({ name: "", price: "", cost: "", stock: "", category: "", expiryDate: "", expiryAlertDays: 180 });
+  const [form,    setForm]    = useState({ name: "", price: "", cost: "", stock: "", unitType: "piece", category: "", expiryDate: "", expiryAlertDays: 180 });
   const [barcode,  setBarcode]  = useState("");
   const [barcodeFormat, setBarcodeFormat] = useState("CODE128");
 
@@ -291,6 +291,7 @@ export default function Products() {
       const payload  = {
         name: form.name, barcode,
         price: +form.price || 0, cost: +form.cost || 0, stock: +form.stock || 0,
+        unitType: form.unitType || "piece",
         category: catObj?._id || null,
         expiryDate: form.expiryDate || null,
         expiryAlertDays: form.expiryAlertDays ?? 180,
@@ -305,7 +306,7 @@ export default function Products() {
       setProducts(updated);
       await cacheProducts(updated);
       toast.success("📴 Product saved — will sync when connected");
-      setForm({ name: "", price: "", cost: "", stock: "", category: "", expiryDate: "", expiryAlertDays: 180 });
+      setForm({ name: "", price: "", cost: "", stock: "", unitType: "piece", category: "", expiryDate: "", expiryAlertDays: 180 });
       setBarcode(""); setPreview(""); setImage(null);
       return;
     }
@@ -323,6 +324,7 @@ export default function Products() {
     data.append("price",    form.price  || 0);
     data.append("cost",     form.cost   || 0);
     data.append("stock",    form.stock  || 0);
+    data.append("unitType", form.unitType || "piece");
     data.append("category", categoryId || "");
     if (form.expiryDate) data.append("expiryDate", form.expiryDate);
     data.append("expiryAlertDays", String(Number(form.expiryAlertDays) || 180));
@@ -331,7 +333,7 @@ export default function Products() {
     try {
       await createProduct(data);
       toast.success(t.productCreated);
-      setForm({ name: "", price: "", cost: "", stock: "", category: "", expiryDate: "", expiryAlertDays: 180 });
+      setForm({ name: "", price: "", cost: "", stock: "", unitType: "piece", category: "", expiryDate: "", expiryAlertDays: 180 });
       setBarcode(""); setPreview(""); setImage(null);
       refresh();
     } catch (err) {
@@ -375,12 +377,13 @@ export default function Products() {
   };
 
   const getExportRows = () => {
-    const headers = ["Barcode", "Product Name", "Price (USD)", "Cost (USD)", "Stock", "Category", "Expiry Date", "Image URL"];
+    const headers = ["Barcode", "Product Name", "Price (USD)", "Cost (USD)", "Stock", "Category", "Expiry Date", "Image URL", "Unit"];
     const rows = products.map(p => [
       p.barcode, p.name, p.price, p.cost, p.stock,
       p.category?.name || "",
       p.expiryDate ? new Date(p.expiryDate).toISOString().slice(0, 10) : "",
       p.image || "",
+      p.unitType || "piece",
     ]);
     return { headers, rows };
   };
@@ -1012,7 +1015,7 @@ export default function Products() {
                   </a>
                   <button
                     onClick={() => {
-                      const headers = "Barcode,Product Name,Price (USD),Cost (USD),Stock,Category,Expiry Date,Image URL";
+                      const headers = "Barcode,Product Name,Price (USD),Cost (USD),Stock,Category,Expiry Date,Image URL,Unit";
                       const a = document.createElement("a");
                       a.href = URL.createObjectURL(new Blob([headers + "\n"], { type: "text/csv;charset=utf-8;" }));
                       a.download = "products_import_template.csv";

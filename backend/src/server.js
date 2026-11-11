@@ -7,9 +7,11 @@ import { PORT }                    from "./config/env.js";
 import { initSocket }              from "./socket/index.js";
 import { ensureDesktopSuperAdmin } from "./seed/desktopSetup.js";
 import { importLicenseIfNeeded }   from "./services/licenseManager.js";
+import { backfillProductUnitType } from "./migrations/addUnitType.js";
 
 const startServer = async () => {
   await connectDB();
+  await backfillProductUnitType(); // existing products → unit "piece" (idempotent)
   await importLicenseIfNeeded();   // seeds store+admin from .nexora on first launch
   await ensureDesktopSuperAdmin();
 
